@@ -11,7 +11,7 @@ PG_BIN ?= /opt/homebrew/opt/postgresql@17/bin
 # .env 가 있으면 그 값으로 명령을 감싼다. 셸 환경이 .env 보다 우선한다(pydantic-settings 와 같은 순서).
 ENVRUN := $(if $(wildcard .env),$(BIN)/python -m dotenv --file .env run --no-override --,)
 
-.PHONY: venv install lock unhide editable-check gate lint lint-imports test verify hooks db-create migrate run
+.PHONY: venv install lock unhide editable-check gate lint lint-imports test verify hooks fix-start fix-end db-create migrate run
 
 venv:
 	$(PY) -m venv $(VENV_REAL)
@@ -60,6 +60,13 @@ verify:
 
 hooks:
 	git config core.hooksPath .githooks
+	git config merge.ff false
+
+fix-start:           ## 버그 픽스 모드 on (tests/** 편집을 훅이 차단)
+	@mkdir -p .claude && touch .claude/fix-mode && echo "fix-mode ON"
+
+fix-end:             ## 버그 픽스 모드 off
+	@rm -f .claude/fix-mode && echo "fix-mode OFF"
 
 # 공유 Postgres 17 인스턴스에 이 프로젝트용 DB 두 개만 만든다 (서비스 설정은 건드리지 않는다)
 db-create:

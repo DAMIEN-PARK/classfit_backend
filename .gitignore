@@ -12,3 +12,6 @@ dist/
 !.env.example
 .omc/
 .DS_Store
+.claude/fix-mode
+.claude/settings.local.json
+var.nosync/
