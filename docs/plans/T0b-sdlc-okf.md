@@ -95,7 +95,7 @@ URL: ""
 | `.github/workflows/ci.yml` | modify | E6·E8 | gates 잡 마지막에 `make okf` · `bash scripts/check_docs.sh`(변수 없이, 건너뜀 출력). 두 잡의 checkout v4→v5, setup-python v5→v6. PyYAML 은 `make install` 이 requirements-dev 로 깐다(OKF §7.3 조각의 `pip install pyyaml` 대신). 이 단계들의 첫 실행은 병합 뒤 첫 master push 의 CI 이고, 결과는 증명 기록 칸에 적는다(E-15) |
 | `.githooks/pre-push` | modify | E6 | check_task_order 뒤에 `make okf` · `CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh`(r3 E9). check_docs 의 exit 2(못 쟀다)는 check_task_order 처럼 경고만 하고 push 를 막지 않는다(E10). T2a golden 주석은 남긴다 |
 | `CLAUDE.md` | modify | E7 | Commands 에 OKF 한 줄(OKF §6 7단계 문구 + `okf()` 함수 + `make okf`·`check_docs`)을 더하고 verify 순서에 okf 를 넣는다. Rules 에 "새 docs 문서는 틀에서 시작해 머리말 `type` 을 단다 · CI 체크아웃에 없는 경로(미추적·gitignore·저장소 밖)는 링크 대신 백틱 글자로 쓴다". 3행의 "T0b 에서 생긴다" 문장을 고친다 |
-| `scripts/test_gate.sh` | modify | E8 | nit 4. ② 를 ruff 전용과 gate 전용으로 나누고 hook 층 3건을 더한다(아래 표) → `음성 8/8 OK · 양성 3/3 OK` |
+| `scripts/test_gate.sh` | modify | E8 | nit 4. ② 를 ruff 전용과 gate 전용으로 나누고 hook 층 3건을 더한다(아래 표) → `음성 9/9 OK · 양성 3/3 OK` |
 | `.claude/hooks/test_hooks.sh` | modify | E8 | nit 4. 9번을 "승인 제목만 차단"(`approve: T1` 빈 커밋)과 "트레일러만 차단"(`T1: …` + 트레일러) 둘로 나눈다 → `11/11 OK`. 머리 주석의 `10/10 OK` 를 `11/11 OK` 로, 분배를 deny-approval 3(차단 2·허용 1)으로 고친다 |
 | `scripts/gate.sh` | modify | E8 | nit 5. 금지 용어는 주석·빈 줄을 뺀 임시 파일로 `grep -rnoiF -f` 한다. grep rc 2 는 `GATE FAIL` 이다. 있는 경로만 넘긴다. "용어가 경로 이름에 들면 file:line 의 경로로 드러난다(실측 docs/acmesecret-dir/n.md:1)" 주석을 단다 |
 | `scripts/check_secrets.sh` | modify | E8 | 맞은 줄 내용을 찍지 않고 `file:line` 만 찍는다(2026-10-21 비밀번호가 터미널에 찍힌 실측). 허용 필터(`@localhost`)는 계속 줄 내용으로 판정하고 출력만 자른다 |
@@ -131,7 +131,7 @@ URL: ""
 **병렬 — worker-d(D1~D4)와 worker-e(E1·E8)**
 3. D1 intent 2장·research → D2 spec·Design·ADR-001·004 → D3 plan·agent → D4 check_docs.sh. CI 체크아웃에 없는 경로(미추적 `기획/`·`시안/`, gitignore `.omc/`, 저장소 밖)는 손으로 링크를 쓰지 않고 백틱 글자로 쓴다(CI 에서 깨진 링크가 된다). 일반 개념으로 파일 이름을 쓸 때는 백틱을 쓰지 않는다(OKF §8-1). 관문: SDLC §5 4단계 관문인 색인 실재(check_docs ①)와 대조표 빈칸 0(③)을 check_docs 가 잰다. `CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh` → `docs check: OK`, 변수 없이 → `외부 정본 검사 건너뜀` 줄 뒤 `docs check: OK`.
 4. E1 `requirements-dev.in` 에 pyyaml → `make lock` → `make install` → `.venv/bin/python -c 'import yaml'` exit 0 → okf.py 복사 · sha 파일 · ruff 제외 · `docs/okf.toml`. 관문: E-5 `okf-copy-ok` · `make lint` → `All checks passed!` · `git diff --stat requirements.txt` 빈 출력.
-5. E8 test_gate · test_hooks · gate · check_secrets · ci.yml 액션 판. 관문: `음성 8/8 OK · 양성 3/3 OK` · `11/11 OK` · `make gate` → `gate: OK`.
+5. E8 test_gate · test_hooks · gate · check_secrets · ci.yml 액션 판. 관문: `음성 9/9 OK · 양성 3/3 OK` · `11/11 OK` · `make gate` → `gate: OK`.
 
 **worker-e(E2~E7) — 동기화 지점 뒤.** worker-d 가 D1~D4 를 커밋하고 리드에게 알린 뒤 시작한다. 그 뒤로 docs 에 새 초안을 두지 않는다(guard 는 작업 트리를 본다).
 6. E2 `okf label` 미리 보기가 멈추지 않아야 한다(규칙이 모든 문서를 덮는다는 뜻). 그다음 `okf label --apply`. 요구정의서 1건이 "머리말 새로 만듦"이다. 관문: 다시 `okf label` → `요약: {'같음': 15}`(기존 6 + 그룹 D 9).
@@ -181,7 +181,7 @@ okf check --strict                                  # E-4 → "위반 0건 — �
 okf label                                           # 재실행 → "요약: {'같음': 15}"
 okf index                                           # 재실행 → "목차 0개 만들 것 · 같음 7개"
 test "$(shasum -a 256 scripts/okf/okf.py | cut -d' ' -f1)" = "$(cat scripts/okf/okf.py.sha256)" && grep -q '"scripts/okf"' pyproject.toml && echo okf-copy-ok   # E-5
-bash scripts/test_gate.sh                           # E-6(T0b 갱신) ruff·gate·hook 세 층 → "음성 8/8 OK · 양성 3/3 OK"
+bash scripts/test_gate.sh                           # E-6(T0b 갱신) ruff·gate·hook 세 층 → "음성 9/9 OK · 양성 3/3 OK"
 CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh   # E-7·E-9 → "docs check: OK"
 bash scripts/check_docs.sh                          # CI 모양 → "외부 정본 검사 건너뜀" 줄 + "docs check: OK"
 gh run list -b master -L 1 --json conclusion -q '.[0].conclusion'      # E-15 병합 뒤 첫 master push → "success"
@@ -191,22 +191,74 @@ gh run list -b master -L 1 --json conclusion -q '.[0].conclusion'      # E-15 �
 
 | 기록 칸 | 값 |
 |---|---|
-| okf.py sha256 (64자) | `b8bfb796f0deade6bcda93370f7df27c0945aa56fba01f68f68c8060216a2f3c` — 2026-10-21 원본 측정. 사본은 E-5 로 확인 |
-| 문장 판정 (verifier 세션 · 날짜 · 새 링크 수 · 잘못 · 애매) | |
-| guard 관문 출력 원문 (정상 커밋 · 차단 메시지 · docs 없는 커밋) | |
-| 요구정의서 diff (머리말 줄 수 · 링크 감싸기 · P1 행) | |
-| `git diff --stat requirements.txt` | |
-| CI: 임시 clone 의 `okf check --strict` · 병합 뒤 첫 master push CI(gates 의 okf·check_docs 단계, test 잡, 결론) | |
-| trust 재수락 여부 | settings.json 은 바꾸지 않는다. 새 세션에서 재수락을 요구했는지 적는다 |
-| OKF §6 7단계 새 세션 시험 | |
+| okf.py sha256 (64자) | `b8bfb796f0deade6bcda93370f7df27c0945aa56fba01f68f68c8060216a2f3c` — 2026-10-21 원본 측정. 사본은 E-5 `okf-copy-ok`, verifier-t0b 가 BHQ 원본과 `cmp` 동일(822줄)까지 재측정(2026-10-22) |
+| 문장 판정 (verifier 세션 · 날짜 · 새 링크 수 · 잘못 · 애매) | verifier-okf-link(다른 세션) · 2026-10-22 · 새 링크 26 · 잘못 0 · no_link 5(T0b 계획 110줄의 okf.toml `rules` pattern 값 — 설정 값이지 참조가 아님) → `docs/okf.toml` no_link 1항목, 적용 뒤 새 링크 21 · 사본과 diff 0 |
+| guard 관문 출력 원문 (정상 커밋 · 차단 메시지 · docs 없는 커밋) | 임시 clone(`.omc`·기획·시안 없음): 정상 docs 커밋 `OKF guard OK` · 머리말 없는 .md 커밋 `OKF: type 이 없는 문서가 있다 → label --apply`(rc 1) · docs 없는 커밋 OKF 줄 없이 통과. 원본 저장소 커밋 688120d(docs 포함) 에서 pre-commit `OKF guard OK`, 660ed2a(docs 없음) OKF 줄 없음. verifier-t0b 재측정(임시 clone, 2026-10-22): (a) rc 0 `OKF guard OK` · (b) rc 1 `OKF: type 이 없는 문서가 있다 → label --apply`, HEAD 불변 · (b2) `OKF_PYTHON` 없이 rc 1 `PyYAML 이 없거나…`(거짓 통과 없음) · (c) rc 0 출력 없음 |
+| 요구정의서 diff (머리말 줄 수 · 링크 감싸기 · P1 행) | 머리말 5줄(`---`·type·title·date·`---`) + 빈 줄 1 = 6줄 · 링크 감싸기 0(본문 다른 줄 변경 0) · §1.1 P1 행 `.omc/plans/…` 링크 1개 → 백틱 글자. [`docs/requirements/index.md`](../requirements/index.md) 는 okf index 가 만든 목차(5줄) |
+| `git diff --stat requirements.txt` | 빈 출력(변경 0). `requirements-dev.in` +pyyaml, `requirements-dev.txt` +2줄 |
+| CI: 임시 clone 의 `okf check --strict` · 병합 뒤 첫 master push CI(gates 의 okf·check_docs 단계, test 잡, 결론) | 임시 clone `check --strict` rc 0 `위반 0건 — 통과`(worker-e · verifier-t0b 각각, verifier 는 `.env` 없는 새 clone 에서 `make okf`·check_docs·check_task_order 까지 rc 0) · master push CI: 병합 뒤 승인자가 기록(E-15) |
+| trust 재수락 여부 | settings.json 변경 0. 이번 태스크에서 새 대화형 세션을 열지 않아 재수락 요구 여부는 확인 못 함 |
+| OKF §6 7단계 새 세션 시험 | 통과(2026-10-22). 임시 clone 에 새 에이전트(fresh-writer, CLAUDE.md 만 보고)에게 "docs/plans 에 T99 계획서 하나 쓰고 커밋" 을 시킴 → 틀에서 시작, `okf label --apply` → `link --apply` → `git diff` → `index --apply` → `check --strict` → `make okf` → `make check-docs` 를 커밋 전에 스스로 돌렸고 pre-commit 이 `OKF guard OK`. 발견: index 단계가 [`docs/plans/index.md`](index.md)·[`docs/index.md`](../index.md) 를 고쳐 plan 커밋에 함께 들어감 — [`docs/plans/README.md`](README.md) 의 "계획 파일만" 문구와 긴장(승인자 판단 대기) |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t0b(다른 세션) · 2026-10-22 · 범위 `git diff master...HEAD` 38 files · REVIEW.md 패스 Bugs → Security → Compliance · 판정 **Important 1 / nit 8(표시 5)** → Important 는 이 커밋으로 닫았고, nit 1·2·3 과 verifier 제안 2건은 리뷰 반영 커밋 `f7fa05f` 로 반영했다.
+
+**실행해 본 것**: diff 38개 전부(okf.py 는 sha 만) · `bash -n` 8개 OK · ruby YAML 로 ci.yml 두 잡 단계(gates 끝 OKF guard → docs check, checkout@v5·setup-python@v6) · tomllib 로 okf.toml(rules 12 · exclude 1 · no_link 1) · sha 4곳 일치(사본·sha 파일·BHQ 원본·HEAD blob) · okf.py 에 BHQ 경로 의존 없음 · diff 0 확인(tests·src·alembic·requirements.txt·task_order_base·merge/sync/check_task_order·settings.json·templates) · 커밋 3개에 승인 트레일러 없음 · 승인 뒤 계획 파일 변경은 링크 감싸기 13곳뿐 · 새 링크 대상 없음 0 · diff 추가 줄 1741개 grep(IP·이메일·비밀 꼴 0) · 스크래치 clone 실험: pre-commit 판정(삭제·이름 바꾸기·okf.toml 만 변경 모두 경로가 나옴, 형제 폴더 docsX 0) · check_docs 기준 OK · gate 금지 용어는 LF·괄호를 막고 CRLF·줄 끝 주석은 통과(nit 1) · check_secrets 는 값을 안 찍지만 AWS 키 + localhost URL 이 한 줄이면 키를 놓침(nit 2).
+
+**Important**
+1. [Important·Compliance] `docs/plans/T0b-sdlc-okf.md:192-209` · "계획과 다르게 한 것" 이 틀 문구 그대로이고 증명 기록 칸 8개 중 1개만 찼다 · 근거: 워커 편차 10건, `scripts/forbidden_terms.txt` 가 "바뀌는 파일" 에 없음(diff 38 = 계획 37 + 1), 실제 사본의 pre-commit 관문(작업 순서 12-1) 이력 없음 · **처리: 반영(이 커밋)** — 기록 칸 8행·편차·리뷰 절을 채웠고, 이 docs 커밋의 pre-commit 이 12-1 관문을 겸한다(출력은 기록 칸 3행).
+
+**nit(표시 5)** — 줄 번호는 리뷰 시점(660ed2a) 기준
+
+| # | [nit·분류] 파일:줄 | 요지 | 처리 |
+|---|---|---|---|
+| 1 | [nit·Security] `scripts/gate.sh:67` | 금지 용어 줄의 CR·줄 끝 주석이 글자로 남아 조용히 안 맞는다(`zzqacme\r\n`·`zzqacme  # 메모` → `gate: OK`). CI secret 주입에서는 CR 이 흔하다 | **반영(`f7fa05f`)**: CR 제거·앞뒤 빈칸 깎기, `#` 든 용어 줄은 GATE FAIL, test_gate 양성에 CRLF 사례 |
+| 2 | [nit·Security] `scripts/check_secrets.sh:40` | `@localhost` 허용이 패턴과 무관하게 줄 전체에 걸려 AWS 키 + localhost URL 이 한 줄이면 키를 놓친다(옛 판부터) | **반영(`f7fa05f`)**: 허용을 DB URL 패턴에만 |
+| 3 | [nit·Bugs] `scripts/check_docs.sh:13,130,169,186` · `.githooks/pre-push:22-24` | `set -e` 아래 awk 읽기 실패(rc 2)가 "못 쟀다" 의 exit 2 와 같다. spec.md 를 못 읽으면 안내 없이 rc 2 이고 pre-push 는 경고만 한다 | **반영(`f7fa05f`)**: 읽기 실패는 위반(exit 1), exit 2 는 master 참조 없음에만 |
+| 4 | [nit·Compliance] `scripts/check_docs.sh:183-194` | ④ 는 master 에 `merge: T<n>` 이 생긴 뒤에만 그 T 를 잰다(설계대로). 가지의 pre-push·CI 는 자기 행을 건너뛰어 빠진 시험이 승인자의 master pre-push 에서 처음 드러난다 | **보류 → 승인자**: 가지 이름의 T<n> 도 대상에 넣을지 |
+| 5 | [nit·Compliance] `docs/requirements/2026-10-21-요구정의서.md:35-37` | 기존 링크 3개가 미추적 `시안/*.html` 을 가리켜 CLAUDE.md 규칙과 어긋난다(okf 는 .html 을 안 재서 CI 는 통과, GitHub 에서는 깨짐) | **보류 → 승인자**: 승인 범위 밖. 백틱으로 바꿀지 다음 태스크에서 |
+
+미표시 nit 3건(보류): pre-commit 이 `scripts/okf/` 만 바뀐 커밋에는 guard 를 안 돌린다(사본 sha 는 make verify·pre-push·CI 가 잰다) · guard 와 check_docs 의 sha 도구 순서가 반대 · venv 파이썬이 없을 때 "PyYAML 이 없거나" 로 안내.
+
+**verifier-t0b(다른 세션) 추가 제안**: ruff `force-exclude = true`(경로를 직접 줘도·format-on-edit 훅에서도 `scripts/okf` 제외) · test_gate 에 금지 용어 사례 — **반영(`f7fa05f`)**. 중복 승인 커밋 c19aadd·e9998db(트리 같음, check_task_order 통과) — info.
+
+**편차 판단(reviewer)**: ①②③⑤⑥⑦⑧ 타당 · ④ rc 2 처리는 타당, 빈칸 안 깎음은 보류 → nit 1 로 반영 · ⑨ 는 계획 94행에 있어 편차 아님 · ⑩ 임시 확인으로는 타당, 실제 경로 관문은 Important 1 의 커밋이 겸한다.
+
+**요약**: Important 1 → 0(이 커밋) / nit 8(반영 3 + verifier 2, 보류 5). 코드에 동작을 깨는 버그·누출 없음, 시험 약화 없음(음성 5→8 · 양성 2→3 · hooks 10→11). 병합 가능 의견(결정은 승인자).
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+구현 커밋 3개(`3dab917` D · `688120d` E1 · `660ed2a` E2) 기준. 번호는 워커 보고 순서다.
+
+**D 그룹(`docs/process/**` · `check_docs.sh`)**
+1. Design 부록 A 시험 이름: r3 가 정한 이름(test_p3_* 9 · test_reissue_* 2 · test_cross_course_portal_403 · test_enrollment_name_isolated · test_no_personal_keys_portal · test_gc_* 2)과 r3 D 접두는 그대로, 나머지는 이 문서가 정한 접두 자리 이름(예 test_admin_login_·test_invite_code_·test_inquiry_). 그 T 계획이 같은 커밋에서 바꿀 수 있다고 부록 머리에 적었다. 두 T 에 걸친 A4 규칙은 T 하나씩으로 나눴다. 개수는 E-10 의 13 · E-14 의 6 과 맞는다.
+2. spec 1절 파일 칸: 저장소 행은 링크로 감싼 백틱 경로(okf link 결과와 같은 모양)라 link 는 "이미 링크" 로 건너뛰고 check_docs 는 백틱을 읽는다. 저장소 행의 sha256 칸은 "git 추적". OpenAPI 정본은 표 행이 아니라 머리말 아래 문장.
+3. intent 2장의 승인 줄은 DAMIEN-PARK 2026-10-22 — 승인 빈 커밋 c19aadd·e9998db 가 2026-10-22 00:05 KST 이라서. 머리말 date 는 2026-10-21. 같은 제목의 승인 커밋이 둘이지만 check_task_order 는 통과한다.
+4. plan.md 의 선행 열은 바로 앞 T(마이그레이션이 한 줄기, r3 부록 C·E-8). T1 의 선행은 T0a(T0b 와 겹침 허용, r3 D2). 규칙 8번에는 지금의 원격 상태를 적었다(origin 있음, 개통 관문 미완, merge_task 뒤 승인자 push).
+5. check_docs 는 계획 ①~④ 보다 엄격하다: 표·열을 못 찾으면 위반, 위치 칸은 저장소/외부만, 부록 A 의 T 칸 꼴과 이름 없음은 병합 여부와 무관하게 위반, ③ 은 en dash 도 빈칸, git 밖도 exit 2.
+6. Design 에 "인증 갈래"(r1 B1)·"외부 포트"(r1 B2) 절을 r3 태스크 번호·값으로 고쳐 넣었다.
+7. 실고객사·시안 가명 회사명은 문서에 쓰지 않았다.
+
+**E 그룹(OKF 도구 · guard · 훅 · CI · 잔여 nit)**
+1. `scripts/forbidden_terms.txt` 주석 1줄: 용어를 글자 그대로 재게 되어 "정규식 가능" 문구를 고쳤다(소유 목록 밖이지만 계획의 "그 밖 전부").
+2. `pyproject.toml` ruff 머리 주석 1줄(OKF 사본이 제외 대상인 이유).
+3. 셸 옵션: guard.sh 는 원문대로 `set -uo pipefail`(`-e` 를 더하면 실패 분기의 `grep | head` 가 끊길 때 남은 검사와 안내를 건너뛴다). gate.sh·check_secrets.sh 는 기존 옵션 유지.
+4. gate 금지 용어: 목록을 거르는 grep 과 찾는 grep 둘 다 rc 2 면 "금지 용어 목록 읽기 실패" 로 막는다. 앞뒤 빈칸은 깎지 않고 주석에 적었다.
+5. check_secrets: 패턴마다 따로 grep. 허용 판정은 전처럼 모든 패턴에 줄 단위.
+6. guard 의 sha 대조: `sha256sum` 먼저, 없으면 `shasum -a 256`(러너 차이).
+7. pre-commit 은 계획 93행대로 `bash scripts/okf/guard.sh` 로 부른다(실행 권한이 빠져도 Permission denied 없음).
+8. ci.yml 액션 판 올리기(checkout@v5 · setup-python@v6)는 E6 에서 했다(작업 순서 5번은 E8 에 두었다).
+9. Makefile 에 계획 94행의 `check-docs` 타깃도 더했다.
+10. 임시 clone 관문은 훅을 clone 의 `.git/hooks` 에 복사해 썼다(`core.hooksPath` 설정은 세션 deny).
+
+**리드**
+- link 문장 판정은 verifier-okf-link(다른 세션)가 했다: 26개 중 21개 타당, 5개(`docs/plans/T0b-sdlc-okf.md` 110줄, okf.toml `rules` 의 pattern 값)는 설정 값이라 `no_link` 1항목으로 벗겼다. 최종 새 링크 21개.
+- 요구정의서 변경은 머리말 5줄 + 빈 줄 1줄, §1.1 P1 행 링크 1개 백틱화. 본문의 다른 줄 0.
+- 리뷰 반영 커밋 `f7fa05f`(계획 밖 변경): gate 금지 용어 줄 정규화(CR·앞뒤 빈칸·`#` 든 줄), check_secrets 허용 범위를 DB URL 패턴으로, check_docs 읽기 실패를 exit 1 로, ruff `force-exclude = true`, test_gate 양성 사례 추가.
+- OKF §6 7단계 새 세션 시험에서 드러난 것: `okf index` 가 [`docs/plans/index.md`](index.md)·[`docs/index.md`](../index.md) 를 고쳐 plan 커밋에 함께 들어간다. [`docs/plans/README.md`](README.md) 의 "계획 파일만" 문구와 긴장 — 승인자 판단 대기(이 계획은 문구를 고치지 않았다).
+- 승인 몰기(사용자 지시 2026-10-22): T1 계획을 T0b 병합 전에 쓴다(plan.md 27·39줄 겹침 허용). 가지 `T1-common-base` 는 T0b 머리에서 딴다 — T0b 병합 전에는 `check_task_order` 가 T0b 커밋을 T1 규약 밖으로 보고하고, 병합 뒤 `master..T1` 에 plan 커밋만 남는다.
+- 증명 E-6 기대 출력을 `음성 8/8` → `음성 9/9` 로 고쳤다(바뀌는 파일 98행 · 작업 순서 5번 · 증명 절, 세 곳). 리뷰 반영 f7fa05f 가 CRLF 용어 사례를 음성 ⑦ 로 더해 훅 사례는 ⑧⑨, 양성은 ⑩⑪⑫ 가 됐다.
 
 
 
