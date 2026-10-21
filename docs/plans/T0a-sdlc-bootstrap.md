@@ -147,7 +147,7 @@ make verify                                         # T0a 시점: exit 0, "gate:
 
 reviewer-t0a(다른 세션) · 2026-10-21 · 범위 `git diff master...HEAD` 33 files · REVIEW.md 패스 Bugs → Security → Compliance · 판정 **Important 0 / nit 10(표시 5)**
 
-**실행해 본 것**: `bash -n` 16개 OK · test_hooks 10/10 · check_task_order OK · settings.json 파싱 OK · ruby YAML(ci.yml concurrency · fetch-depth · env 정상) · tomllib(banned-api 정상) · _json.sh 주입 시험(따옴표 · `$(…)` · 백틱 · 개행 → 값 그대로, PWNED 0) · deny-deps 차단/허용 사례 · deny-approval 이 리뷰 세션 명령을 실제로 막음(`-F` 는 알려진 한계) · gate R4 사본 실험(출력 `file:line` 만, 줄 내용 0, 목록 삭제 + REQUIRED=1 → GATE FAIL) · 가지 이름 표본(`T1-a/T2-b` 처럼 슬래시 든 이름은 두 스크립트가 다르게 읽음) · Claude Bash 의 stdin 은 TTY 가 아니고 파이프로 넣은 y 를 `read -p` 가 받음.
+**실행해 본 것**: `bash -n` 16개 OK · test_hooks 10/10 · check_task_order OK · settings.json 파싱 OK · ruby YAML(ci.yml concurrency · fetch-depth · env 정상) · tomllib(banned-api 정상) · _json.sh 주입 시험(따옴표 · `$(…)` · 백틱 · 개행 → 값 그대로, PWNED 0) · deny-deps 차단/허용 사례 · deny-approval 이 리뷰 세션 명령을 실제로 막음(`-F` 는 알려진 한계) · gate R4 사본 실험(출력 `file:line` 만, 줄 내용 0, 목록 삭제 + REQUIRED=1 → GATE FAIL) · 가지 이름 표본(`T1-a/T2-b` 처럼 슬래시 든 이름은 두 스크립트가 다르게 읽음) · Claude Bash 의 stdin 은 TTY 가 아니고 파이프로 넣은 y 를 `read -p` 가 받음 · merge_task·sync_task·병합 실험은 세션 deny 로 실행하지 않음(임시 clone·정적 판독).
 
 **nit(표시 5)** — 줄 번호는 리뷰 시점(111bdd6) 기준
 
@@ -157,7 +157,7 @@ reviewer-t0a(다른 세션) · 2026-10-21 · 범위 `git diff master...HEAD` 33 
 | 2 | [nit·Security] `scripts/merge_task.sh:81-85` | 가지에 커밋된 `check_task_order.sh` · `task_order_base` 로 그 가지를 잰다. 가지가 검사기를 약하게 고치면 자기를 통과시킨다 | **반영(이 커밋)**: master 판 우선, master 에 없을 때(T0a)만 가지 사본. 가지의 base 가 master 판과 다르면 중단 |
 | 3 | [nit·Compliance] `.claude/settings.json:15-16` | allow `Bash(git add *)` · `Bash(git commit *)` 가 `git add -A` · `git add .` · `git commit -a` 를 통과시킨다(`CLAUDE.md:64` 와 불일치) | **반영(이 커밋)**: deny 5줄 `git add -A*` · `git add --all*` · `git add .` · `git add . *` · `git commit -a*`. `git add .*` 는 `.gitignore` 추가까지 막아 쓰지 않았다 |
 | 4 | [nit·Compliance] `scripts/test_gate.sh:83-94` · `.claude/hooks/test_hooks.sh:28` | test_gate 에 hook 층이 없다(E8 "위 셋"). test_gate ② 는 "ruff 또는 gate" 로 통과한다. test_hooks 9번이 승인 제목·트레일러 두 분기를 한 명령에 합쳤다 | **보류, T0b 계획 후보** |
-| 5 | [nit·Security] `scripts/gate.sh:60-65` | 금지 용어를 ERE 로 결합해 괄호 든 `XX(주)` 를 못 맞히고, grep rc 2 를 삼킨다 | **보류**: 목록이 비어 지금은 영향 없다. 실명이 생길 때 `grep -F -f` 로 바꾸고 rc 2 를 알린다 |
+| 5 | [nit·Security] `scripts/gate.sh:60-65` | 금지 용어를 ERE 로 결합해 괄호 든 `XX(주)` 를 못 맞히고, grep rc 2 를 삼킨다 | **보류**: 목록이 비어 지금은 영향 없다. 실명이 생길 때 `grep -F -f` 로 바꾸고 rc 2 를 알린다. 용어가 경로에 들어가면 경로가 찍힌다(실측 docs/acmesecret-dir/n.md:1). |
 
 미표시 nit 5건(슬래시 가지 이름 판독 차이 등)은 reviewer 세션 원문에만 있다. 위 표와 실행 내역의 요약은 `.omc/handoffs/team-exec-phase2.md`(gitignore 라 git 밖)에 있다.
 
@@ -175,7 +175,7 @@ reviewer-t0a(다른 세션) · 2026-10-21 · 범위 `git diff master...HEAD` 33 
 8. **CI 와 pre-push**: CI gates 잡에 check_task_order 단계를 더했다(E9 에는 없고 E11 이 우선). `CLASSFIT_FORBIDDEN_TERMS_REQUIRED` env 와 `fetch-depth: 0` 도 넣었다. pre-push 는 check_task_order 의 "못 쟀다"(exit 2, master 참조 없음)를 경고만 하고 push 를 막지 않는다.
 9. **deny 글롭의 알려진 구멍(verifier 메모)**: 인자 없는 `git push`, `git branch -D` · `-m` · `--force`, `git commit -m x -n` 은 deny 글롭에 걸리지 않는다. E11 이 deny 를 "불완전"하다고 둔 범위이고, 최종 방어는 pre-commit + check_task_order 두 겹이다. master 위 병합 실험 2건(자동 병합 커밋 차단 · `--no-ff --no-commit` 뒤 병합 커밋 통과)은 세션 deny 때문에 에이전트가 돌리지 못한다. 승인자가 Claude 밖 터미널에서 `/private/tmp/claude-501/-Users-damienpark-Documents-PROJECT-ClassFit/ce64a957-6aee-4b65-aee0-dc1999802ff8/scratchpad/exp_master_hooks.sh` 로 확인한다(임시 clone 에서만 병합).
 10. **환경: iCloud dataless venv**: 원본 `.venv.nosync` 에 iCloud dataless 파일이 18개 있어(verifier 측정, 통합 직전 재측정 17개) 원본 venv 로 pytest 를 돌리면 EDEADLK(`Resource deadlock avoided`)가 난다. verifier 는 스크래치 venv 로 `make verify` exit 0 · 20 passed 를 확인했다. 병합 전에 venv 를 다시 만들거나 저장소를 iCloud 밖으로 옮겨야 한다.
-11. **reviewer nit 1·2·3 반영**: 이 커밋(`T0a: 리뷰 반영 — TTY 확인·master 판 검사기·add -A deny, 리뷰 절 기록`)으로 반영했다(TTY 확인, master 판 검사기 우선, git add -A/./commit -a deny). 그래서 merge_task.sh ③ 은 이제 master 판 `check_task_order.sh` 를 먼저 쓰고, 가지의 `task_order_base` 가 master 판과 다르면 중단한다(1번 항목의 "가지 `check_task_order`" 는 master 에 검사기가 없는 T0a 에만 해당).
+11. **reviewer nit 1·2·3 반영**: 이 커밋(`T0a: 리뷰 반영 — TTY 확인·master 판 검사기·add -A deny, 리뷰 절 기록`)으로 반영했다(TTY 확인, master 판 검사기 우선, git add -A/./commit -a deny). 그래서 merge_task.sh ③ 은 이제 master 판 `check_task_order.sh` 를 먼저 쓰고, 가지의 `task_order_base` 가 master 판과 다르면 중단한다(1번 항목의 "가지 `check_task_order`" 는 master 에 검사기가 없는 T0a 에만 해당). (커밋 9ff467f. reviewer 재확인 '닫힘', 잔여: `git commit --all` 긴 형 deny 를 이 마무리 커밋에서 추가, `-m x -a` 처럼 뒤에 붙는 -a 는 알려진 구멍으로 9번과 같이 최종 방어에 맡김)
 
 
 

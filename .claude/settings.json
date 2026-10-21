@@ -50,6 +50,7 @@
       "Bash(*--no-verify*)",
       "Bash(git commit -n*)",
       "Bash(git commit -a*)",
+      "Bash(git commit --all*)",
       "Bash(git add -A*)",
       "Bash(git add --all*)",
       "Bash(git add .)",
