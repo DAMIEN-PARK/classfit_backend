@@ -52,19 +52,36 @@ if [ -n "$ips" ]; then
   echo "$ips"; note "IP 리터럴 (시험 자료는 192.0.2.0/24 만)"
 fi
 
-# 4. 실고객사명·도메인 (scripts/forbidden_terms.txt, 한 줄 하나, # 주석)
-#    pre-push·CI 는 CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1 — 목록 파일이 없으면(gitignore 뒤 주입 누락) 실패. 목록 행 0개는 통과.
+# 4. 실고객사명·도메인 (scripts/forbidden_terms.txt, 한 줄 하나, 글자 그대로·대소문자 무시, # 주석)
+#    pre-push·CI 는 CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1 — 목록 파일이 없으면(gitignore 뒤 주입 누락) 실패. 목록 행 0개는 통과(grep 을 부르지 않는다).
+#    용어는 정규식이 아니라 글자 그대로 잰다(grep -F -f). `XX(주)` 의 괄호가 ERE 를 깨거나 다른 뜻이 되지 않게(T0a 리뷰 nit 5).
+#    주석·빈 줄을 뺀 임시 파일을 -f 로 넘긴다. 빈 줄이 남으면 -F 는 모든 줄에 맞는다. 앞뒤 빈칸도 글자로 잰다.
 #    맞으면 file:line 만 찍는다. 맞은 줄 내용은 찍지 않는다(CI 로그로 실명이 새지 않게).
+#    한계: 용어가 경로 이름에 들면 file:line 의 경로로 드러난다(실측 docs/acmesecret-dir/n.md:1). 경로 이름에 실명을 쓰지 않는다.
+#    grep rc 2(목록이나 대상 파일을 못 읽음)는 삼키지 않고 실패로 본다. 없는 경로도 rc 2 가 되므로 있는 경로만 넘긴다.
 terms_file=scripts/forbidden_terms.txt
 if [ -f "$terms_file" ]; then
-  terms=$(grep -vE '^[[:space:]]*(#|$)' "$terms_file" | paste -sd'|' -)
-  if [ -n "$terms" ]; then
-    hits=$(grep -rnoiE "$terms" src tests alembic scripts docs ./*.md \
-             --include='*.py' --include='*.json' --include='*.sql' --include='*.sh' --include='*.md' \
-             --exclude='forbidden_terms.txt' 2>/dev/null \
-           | cut -d: -f1,2 | uniq)
-    if [ -n "$hits" ]; then
-      echo "$hits"; note "금지 용어 (실고객사명·도메인) — 위치만 표시"
+  terms_tmp=$(mktemp "${TMPDIR:-/tmp}/classfit-terms.XXXXXX") || exit 2
+  hits_tmp=$(mktemp "${TMPDIR:-/tmp}/classfit-hits.XXXXXX") || { rm -f "$terms_tmp"; exit 2; }
+  trap 'rm -f "$terms_tmp" "$hits_tmp"' EXIT
+  frc=0; grep -vE '^[[:space:]]*(#|$)' "$terms_file" >"$terms_tmp" || frc=$?
+  if [ "$frc" -ge 2 ]; then
+    note "금지 용어 목록 읽기 실패 ($terms_file)"
+  elif [ -s "$terms_tmp" ]; then
+    targets=()
+    for p in src tests alembic scripts docs ./*.md; do
+      if [ -e "$p" ]; then targets+=("$p"); fi
+    done
+    if [ "${#targets[@]}" -gt 0 ]; then
+      grc=0
+      grep -rnoiF -f "$terms_tmp" "${targets[@]}" \
+        --include='*.py' --include='*.json' --include='*.sql' --include='*.sh' --include='*.md' \
+        --exclude='forbidden_terms.txt' >"$hits_tmp" || grc=$?
+      if [ "$grc" -ge 2 ]; then
+        note "금지 용어 목록 읽기 실패 — grep rc $grc (목록이나 대상 파일을 못 읽음)"
+      elif [ "$grc" -eq 0 ]; then
+        cut -d: -f1,2 "$hits_tmp" | uniq; note "금지 용어 (실고객사명·도메인) — 위치만 표시"
+      fi
     fi
   fi
 elif [ "${CLASSFIT_FORBIDDEN_TERMS_REQUIRED:-}" = "1" ]; then

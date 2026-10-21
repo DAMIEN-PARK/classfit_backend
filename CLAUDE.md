@@ -1,11 +1,12 @@
 # ClassFit (패키지 `classfit`, 임시 이름)
 
-BCTONE 강사관리 플랫폼 백엔드(FastAPI · SQLAlchemy 2.0 async · psycopg 3 · Alembic · PostgreSQL 17). 정본: 1차 계획 r3(`.omc/plans/2026-10-21-classfit-phase1-r3.md`, gitignore), 태스크 계획 `docs/plans/`, ADR `docs/process/adr/`. intent·spec·plan·agent 는 T0b 에서 `docs/process/` 에 생긴다.
+BCTONE 강사관리 플랫폼 백엔드(FastAPI · SQLAlchemy 2.0 async · psycopg 3 · Alembic · PostgreSQL 17). 정본: 1차 계획 r3(`.omc/plans/2026-10-21-classfit-phase1-r3.md`, gitignore), 태스크 계획 `docs/plans/`, SDLC 문서(intent·spec·Design·plan·agent·ADR·research)는 `docs/process/`, 정본 색인은 `docs/process/spec.md` 1절.
 
 ## Commands
 - 환경: `make venv && make install` · DB: `make db-create` · `make migrate`
 - 실행: `make run`
-- 검증: `make verify` = editable-check → gate → lint → lint-imports → test. 개별: `make gate`, `make lint`, `make lint-imports`, `make test`
+- 검증: `make verify` = editable-check → gate → lint → lint-imports → test → okf. 개별: `make gate`, `make lint`, `make lint-imports`, `make test`, `make okf`, `make check-docs`
+- 문서 정리(OKF): `okf() { .venv/bin/python scripts/okf/okf.py --root docs --config docs/okf.toml "$@"; }` 로 부른다(zsh 는 변수를 안 쪼개니 함수로). 문서를 만들거나 고친 뒤 `okf label --apply` → `okf link --apply` → `git diff` 로 새 링크의 앞뒤 문장을 읽는다 → `okf index --apply` → `okf check --strict`. 뜻이 다른 링크는 `docs/okf.toml` 의 `no_link` 에. 새 폴더면 rules 에 한 줄. 통째 검사는 `make okf`(guard — docs 를 스테이징한 커밋은 pre-commit 이, push 는 pre-push 가 돌린다) · 문서 구조 검사 `bash scripts/check_docs.sh`
 - 버그 픽스 모드: `make fix-start` … `make fix-end` (`tests/**` 편집을 훅이 차단)
 - git 설정(사본마다 1회): `make hooks` (`core.hooksPath=.githooks`, `merge.ff=false`)
 - 가지에 master 들이기: `bash scripts/sync_task.sh` · 커밋 순서 검사: `bash scripts/check_task_order.sh`
@@ -21,6 +22,7 @@ BCTONE 강사관리 플랫폼 백엔드(FastAPI · SQLAlchemy 2.0 async · psyco
 - 미구성은 실패다: 빠진 설정은 조용히 폴백하지 않고 그 기능만 "미구성"으로 실패한다(`Settings.missing()`). 오류 본문은 problem+json 하나(`app/errors.py`).
 - 문서·픽스처·로그·커밋 메시지에 서버 IP·호스트명·고객사 실명 금지. 예시는 192.0.2.0/24 와 A사·B사. `.env`·자격 파일은 읽지도 인용하지도 않는다.
 - 계획 승인·병합·의존성 추가와 버전 올리기는 승인자 `DAMIEN-PARK`.
+- `docs/` 아래 새 문서는 틀(`docs/process/templates/`)에서 시작해 머리말 `type` 을 단다. CI 체크아웃에 없는 경로(미추적·gitignore·저장소 밖)는 링크 대신 백틱 글자로 쓴다.
 
 ## Architecture
 - 진입점: `src/classfit/main.py` 의 `create_app()`, 라우터 목록 `app/routers.py` 의 `ROUTERS`

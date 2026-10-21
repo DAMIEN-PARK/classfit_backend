@@ -19,13 +19,13 @@ jobs:
     env:
       CLASSFIT_FORBIDDEN_TERMS_REQUIRED: "1"   # 금지 용어 목록 파일이 없으면 gate 실패(E8)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5   # node24 최소 판(T0b). v7 은 범위 밖
         with:
-          fetch-depth: 0   # check_task_order 가 master first-parent 와 가지 이력을 읽는다
-      - uses: actions/setup-python@v5
+          fetch-depth: 0   # check_task_order·check_docs 가 master first-parent 와 가지 이력을 읽는다
+      - uses: actions/setup-python@v6   # node24 최소 판(T0b)
         with:
           python-version: "3.14"   # .python-version 의 패치 판(3.14.7)이 러너 목록에 없을 수 있어 마이너까지만
-      - run: make venv install PY=python
+      - run: make venv install PY=python   # PyYAML 은 requirements-dev 로 깔린다(OKF guard 가 쓴다)
       - run: make editable-check gate lint lint-imports
       - name: hook regression tests
         run: bash .claude/hooks/test_hooks.sh
@@ -33,6 +33,10 @@ jobs:
         run: bash scripts/test_gate.sh
       - name: task order
         run: bash scripts/check_task_order.sh
+      - name: OKF guard
+        run: make okf
+      - name: docs check   # 변수 없이 돈다 — 외부 정본(기획/·시안/ 미추적)은 "외부 정본 검사 건너뜀"(r3 N8)
+        run: bash scripts/check_docs.sh
 
   test:
     runs-on: ubuntu-latest
@@ -53,8 +57,8 @@ jobs:
     env:
       CLASSFIT_TEST_DATABASE_URL: postgresql+psycopg://classfit:classfit@localhost:5432/classfit_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
       - run: make venv install PY=python
