@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from classfit.core.passwords import hash_password
 from classfit.crud.admin import insert_admin
 from classfit.models import AdminAccount, AuditLog, AuthSession
+from tests.fixtures.courses import open_test_course
 
 URL = "/v1/admin/admins"
 
@@ -49,12 +50,13 @@ async def test_admin_create_ok_201(
 async def test_admin_create_non_admin_403(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
+    course, _ = await open_test_course(db_session)  # 0003 FK: 실제 강의 id 를 쓴다
     db_session.add(
         AuthSession(
             token_hash=hashlib.sha256(b"learner-token").hexdigest(),
             principal_type="learner",
             principal_id=1,
-            course_id=1,
+            course_id=course.id,
             expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
     )
