@@ -2,7 +2,8 @@
 # 태스크 가지를 master 에 병합한다(r3 §5.1-4 · 부록 J R2). 승인자 전용 — Claude 밖 터미널에서 돌린다.
 # usage: bash scripts/merge_task.sh T<n>-<slug>
 #   master 에 이 스크립트가 아직 없으면(T0a): bash <(git show T<n>-<slug>:scripts/merge_task.sh) T<n>-<slug>
-# 순서: ① 추적 파일 미커밋 변경 0 ② 에이전트 세션 정지 확인 [y/N] ③ 가지에 커밋된 check_task_order.sh 를 그 가지에 돌림
+# 순서: ① 추적 파일 미커밋 변경 0 ② 대화형 터미널(stdin TTY)에서 에이전트 세션 정지 확인 [y/N]
+#       ③ check_task_order.sh·task_order_base 는 master 판 우선(master 에 없을 때만 가지 사본)으로 그 가지를 잼
 #       ④ master 로 전환(끝나면 trap 으로 원래 가지 복귀) ⑤ git merge --no-ff --no-commit
 #       ⑥ make verify(출력은 파일, 종료 코드 따로, 파이프 없음)
 #       ⑦ 통과면 `merge: T<n> <slug>` 커밋(본문 "make verify: exit 0" + 끝 20줄 + Approved-by), 실패면 git merge --abort
@@ -66,6 +67,7 @@ main() {
 
   # ② 작업 트리는 하나다. 병합하는 동안 에이전트 세션은 멈춘다.
   local ans=""
+  [ -t 0 ] || { echo "merge_task.sh 는 대화형 터미널에서만 돈다(stdin 이 TTY 아님)" >&2; exit 1; }
   read -r -p "에이전트 세션을 모두 멈췄는가? [y/N] " ans || ans=""
   case "$ans" in
     y | Y) ;;
@@ -77,9 +79,16 @@ main() {
   out=$(mktemp)
   msg=$(mktemp)
 
-  # ③ 가지에 커밋된 검사 스크립트로 그 가지를 잰다
-  if ! git show "$branch:scripts/check_task_order.sh" >"$tmp_check"; then
-    echo "중단: $branch 에 scripts/check_task_order.sh 가 없다." >&2
+  # ③ 검사기·base 는 master 판 우선 — 가지가 검사기를 약하게 고쳐 자기를 통과시키는 길을 막는다. master 에 없을 때(T0a)만 가지 사본.
+  local src=$branch
+  if git cat-file -e "master:scripts/check_task_order.sh" 2>/dev/null; then src=master; fi
+  if ! git show "$src:scripts/check_task_order.sh" >"$tmp_check"; then
+    echo "중단: $src 의 scripts/check_task_order.sh 를 읽지 못했다." >&2
+    exit 1
+  fi
+  if git cat-file -e "master:scripts/task_order_base" 2>/dev/null \
+     && [ "$(git show master:scripts/task_order_base | tr -d '[:space:]')" != "$(git show "$branch:scripts/task_order_base" 2>/dev/null | tr -d '[:space:]')" ]; then
+    echo "중단: $branch 의 scripts/task_order_base 가 master 판과 다르다(가지가 지웠거나 바꿨다)." >&2
     exit 1
   fi
   if ! bash "$tmp_check" "$branch"; then
