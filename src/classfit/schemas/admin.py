@@ -5,10 +5,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
+from classfit.schemas.auth import no_control_chars
+
+# 앞뒤 공백 제거 뒤 길이를 잰다. 소문자 정규화는 crud.admin 한 곳이다
 LoginId = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=3, max_length=64)
+    str,
+    StringConstraints(strip_whitespace=True, min_length=3, max_length=64),
+    AfterValidator(no_control_chars),
 ]
 
 

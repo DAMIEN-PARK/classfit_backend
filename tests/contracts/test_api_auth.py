@@ -182,3 +182,31 @@ async def test_auth_lockout_other_client_not_locked(
     async with _client_from(app, "192.0.2.11") as owner:
         r = await owner.post(LOGIN, json={"login_id": "admin-a", "password": PASSWORD})
     assert r.status_code == 200
+
+
+async def test_admin_login_control_chars_in_login_id_422(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    admin = await _admin(db_session)
+    db_session.add(
+        AuthSession(
+            token_hash=hashlib.sha256(b"admin-token").hexdigest(),
+            principal_type="admin",
+            principal_id=admin.id,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    await db_session.flush()
+    auth = {"Authorization": "Bearer admin-token"}
+    for bad in ("a\u0000b", "adm\u001fin", "admin\u007f", "ad\nmin"):
+        login = await client.post(LOGIN, json={"login_id": bad, "password": PASSWORD})
+        create = await client.post(
+            "/v1/admin/admins",
+            headers=auth,
+            json={"login_id": bad, "password": "x" * 12},
+        )
+        for r in (login, create):
+            assert r.status_code == 422, (bad, r.status_code)
+            assert ["body", "login_id"] in [v["loc"] for v in r.json()["violations"]]
+    assert await _count(db_session, AuthAttempt) == 0  # 모양 거절은 시도로 세지 않는다
+    assert await _count(db_session, AdminAccount) == 1

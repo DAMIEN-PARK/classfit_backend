@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.models import AuthAttempt, AuthSession, EmailVerification
@@ -55,6 +55,19 @@ async def revoke_session(session: AsyncSession, token_hash: str) -> bool:
         .returning(AuthSession.id)
     )
     return (await session.execute(stmt)).scalar_one_or_none() is not None
+
+
+async def lock_attempt_key(
+    session: AsyncSession, *, kind: str, subject_hash: str, client: str
+) -> None:
+    """같은 (kind, subject_hash, client) 의 시도를 트랜잭션 끝(커밋·롤백)까지 줄 세운다.
+
+    실패를 세고 넣는 사이에 동시 요청이 끼어 잠금 한도를 넘기지 않게 한다. 쓰기가 아니라 잠금이다.
+    """
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"{kind}|{subject_hash}|{client}"},
+    )
 
 
 async def insert_attempt(

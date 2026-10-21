@@ -3,7 +3,8 @@
 - 판정 전에는 쓰지 않는다. 실패·잠김도 auth_attempt 1행을 같은 요청 트랜잭션에 남기고, 끝점은 problem() 을
   반환해 db() 가 그 행을 커밋하게 한다(예외로 바꾸면 롤백되어 행이 사라진다).
 - 잠금 키는 (정규화한 login_id 의 sha256, 클라이언트 주소). 최근 login_lock_minutes 안 실패가
-  login_lock_failures 이상이면 잠김이고, 잠긴 요청도 실패 행을 남긴다.
+  login_lock_failures 이상이면 잠김이고, 잠긴 요청도 실패 행을 남긴다. 같은 키의 요청은 맨 앞의
+  advisory 잠금(pg_advisory_xact_lock)으로 줄 세워 세기와 넣기 사이의 경쟁을 막는다.
 - 없는 아이디도 DUMMY_HASH 로 같은 대조를 거친다(응답·시간이 틀린 비밀번호와 갈리지 않게).
 """
 
@@ -46,6 +47,10 @@ async def admin_login(
     client: str,
 ) -> LoginResult:
     subject = subject_hash(login_id)
+    # 같은 (계정, 주소)의 요청을 줄 세운다. 세기와 넣기 사이에 끼어들어 한도를 넘기지 않게
+    await crud_auth.lock_attempt_key(
+        session, kind=ATTEMPT_KIND, subject_hash=subject, client=client
+    )
     failures = await crud_auth.count_recent_failures(
         session,
         kind=ATTEMPT_KIND,

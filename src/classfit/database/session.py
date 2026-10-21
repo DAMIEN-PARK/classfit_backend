@@ -24,6 +24,8 @@ def make_engine(url: str, **kwargs: Any) -> AsyncEngine:
     if not url.startswith(DRIVER_PREFIX):
         raise RuntimeError(f"DB 주소는 {DRIVER_PREFIX} 로 시작해야 합니다")
     kwargs.setdefault("pool_pre_ping", True)
+    # 오류·로그 문구에 바인드 값(토큰 해시·메일 주소 등)을 싣지 않는다
+    kwargs.setdefault("hide_parameters", True)
     return create_async_engine(url, **kwargs)
 
 
