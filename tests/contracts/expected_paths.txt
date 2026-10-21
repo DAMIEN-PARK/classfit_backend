@@ -1,0 +1,5 @@
+/v1/admin/admins
+/v1/auth/admin/login
+/v1/auth/logout
+/v1/files/{key}
+/v1/health
