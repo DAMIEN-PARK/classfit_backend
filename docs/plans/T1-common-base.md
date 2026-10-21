@@ -41,6 +41,11 @@ URL: ""
 
 레인 A, 워커 하나다. 워커를 나누면 이 머리에 소유 파일을 적는다(plan.md 2절).
 
+**워커 소유(계획 42행 — 2단계에서 워커 2명으로 나눔, 사용자 지시 "승인을 몰아서 빠르게" 2026-10-22)**
+- worker-a(인증·DB 경로): `requirements.in/.txt` · `.env.example` · `core/config.py` · `core/passwords.py` · `alembic/versions/0002_common_base.py` · `models/{admin,auth,outbox,stored_file,__init__}.py` · `crud/{flush,admin,auth,outbox,stored_file,scope}.py` · `service/auth/**` · `schemas/{auth,admin}.py` · `app/deps.py` · `app/endpoints/{auth,admins}.py` · `app/routers.py` · `tests/fixtures/probe_routes.py` · `tests/contracts/{test_api_auth,test_api_admins,test_api_conflict,test_api_openapi}.py`·`expected_paths.txt` · `tests/integration/{test_db_auth_session,test_db_email_code}.py` · `tests/unit/test_passwords_rules.py`. 시험 DB `classfit_test`.
+- worker-b(파일·유틸·관리 명령·경계·문서): `core/{cursor,clock}.py` · `schemas/page.py` · `crud/page.py` · `service/files/**` · `app/endpoints/files.py` · `scripts/{create_admin,file_gc,outbox_preview}.py` · `tests/unit/{test_cursor_rules,test_clock_rules}.py` · `tests/integration/{test_db_page,test_db_admin_commands}.py` · `tests/contracts/test_api_files.py` · `pyproject.toml`(계약 ②) · `docs/process/{plan,spec}.md`·Design·`CLAUDE.md`. 시험 DB `classfit_b_test`(이 태스크에서 새로 만듦, `_test` 접미).
+- 공유 파일(`app/routers.py`·`models/__init__.py`·`probe_routes.py`)은 A 만 편집. 리뷰 반영 커밋도 같은 소유로.
+
 **의존성 · 설정**
 - `requirements.in` (modify): `argon2-cffi` 한 줄(착수 조건).
 - `requirements.txt` (modify): `make lock` 산출물. argon2-cffi 와 그 이행 의존성 행만 늘고 기존 판은 그대로여야 한다.
@@ -158,6 +163,7 @@ URL: ""
 | `make lock` 이 기존 판을 바꾸거나 argon2-cffi 가 깔리지 않는다. 2026-10-22 로컬 `pip download`(설치 안 함): Python 3.14.7 arm64 에 argon2-cffi 25.1.0 · argon2-cffi-bindings 26.1.0(cp310-abi3) · cffi 2.1.1(cp314) 휠 해결. Linux CI 는 작업 순서 3 관문이 잰다 | 작업 순서 3 관문 · CI test 잡 | 멈추고 보고한다. 다른 해시 라이브러리로 바꾸거나 판을 올리지 않는다(승인 범위 밖) |
 | CI 러너에 시간대 자료가 없으면 `ZoneInfo("Asia/Seoul")` 가 실패한다 | CI test 잡의 `test_today_kst_boundary_utc_15` | ubuntu 러너의 시스템 tzdata 를 쓴다. 없으면 `tzdata` 패키지는 새 승인 거리로 보고한다 |
 | iCloud dataless venv 가 EDEADLK 를 낸다 | `Resource deadlock avoided` | 재시도하고, verifier 는 스크래치 venv 로 잰다(T0a "계획과 다르게 한 것" 10) |
+| gc 의 mtime 재확인~unlink 와 업로드의 `is_file`→`utime` 사이 짧은 경쟁 창에서 행은 있는데 바이트가 없는 상태가 생길 수 있다(reviewer nit 4) | `test_files_missing_bytes_500`(응답·로그에 경로 없음) | 끝점은 `is_file()` 을 먼저 보고 sha256 앞 12자만 로그 + problem 500. 창 자체는 T6 gc 보강(유예·`.tmp-*`)에서 다시 본다 |
 
 ## 증명
 
@@ -203,23 +209,81 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:8000/v1/admin/admins 
 
 | 기록 칸 | 값 |
 |---|---|
-| 착수 조건 (a)/(b) 선택 (approve 커밋 해시) | |
-| `make verify` 끝 20줄 | |
-| `git diff --stat requirements.txt requirements-dev.txt` · argon2-cffi 판 | |
-| `alembic heads` · dev `alembic check` | |
-| 증명 표 7항목 출력 | |
-| 이웃 흐름 응답 코드(201 · 422 · 403) | |
-| 대조 실험 4개(빨개진 시험 이름) | |
-| verifier 세션 · 날짜 · 판정 | |
-| `check_task_order`(T0b 병합 전 · 뒤) · 병합 뒤 `check_docs.sh` ④ 대상 행 수 | |
+| 착수 조건 (a)/(b) 선택 (approve 커밋 해시) | `08c6506 approve: T1`(2026-10-22, 본문에 (b) 없음) → **(a)**: `email_verification` 을 0002 에. argon2-cffi 승인 겸함 |
+| `make verify` 끝 20줄 | 리뷰 반영 뒤 최종(리드, 머리 584bd65, 2026-10-22): exit 0 · `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · `76 passed`(failed·error·skipped 0) · 끝줄 `OKF guard OK`. verifier-t1(5688f82) 도 rc 0 · 70 passed · `OKF guard OK` |
+| `git diff --stat requirements.txt requirements-dev.txt` · argon2-cffi 판 | requirements.txt 추가 4행(argon2-cffi 25.1.0 · argon2-cffi-bindings 26.1.0 · cffi 2.1.1 · pycparser 3.11), 제거 행 0 · requirements-dev.txt 변경 0 |
+| `alembic heads` · dev `alembic check` | `0002 (head)` · `No new upgrade operations detected.`(worker-a 4단계, verifier 재측정 `alembic heads`·dev `alembic current` 둘 다 `0002 (head)`, `alembic check` rc 0) |
+| 증명 표 7항목 출력 | 각 노드 `1 passed`(worker-a 6건 + worker-b 4번, verifier 재측정 7개 모두 `1 passed` + openapi `1 passed`). 전체 `pytest tests -q` 리뷰 반영 전 70 → 뒤 76 passed, skip 0 |
+| 이웃 흐름 응답 코드(201 · 422 · 403) | verifier-t1 이 dev DB 에 uvicorn 8000 으로 실측(2026-10-22): 로그인 200(token_type bearer, expires_at +8h, access_token 43자) · **바뀐 동작 `POST /v1/admin/admins` 201**(`{"id":5,"login_id":"admin-b",…}`) · password 누락 422 problem+json(`violations[0].loc=["body","password"]`) · 토큰 없음 401 + `www-authenticate: Bearer` · learner 세션 403(`/problems/forbidden`) · 추가: 틀린 비밀번호 401, 같은 아이디 409 `/problems/conflict`. 관리 명령: 미리 보기 0행 · `--apply` 1행 · 같은 아이디 rc 3 · `--password` rc 2. 서버 로그에 토큰·비밀번호 평문 0. 정리 명령 `DELETE 2`×4 rc 0, dev 7표 모두 0행, 8000 LISTEN 없음 |
+| 대조 실험 4개(빨개진 시험 이름) | ① `test_auth_attempt_row_survives_401` ② `test_flush_or_conflict_check_is_500` ③ `test_auth_lockout_other_client_not_locked` ④ `test_auth_session_learner_without_course_violates_check`·`test_auth_session_admin_with_course_violates_check`(worker-a 임시 clone, verifier 재측정 verifier-t1 재측정(임시 clone 5688f82, DB classfit_b_test): ① `assert [] == [('admin_login', False)]`(잠금 시험 2개도 함께 빨강 — 실패 행이 안 쌓여서) ② `assert 409 == 500` ③ `assert 429 == 200` ④ 2건 `DID NOT RAISE IntegrityError`. 되돌리면 각각 8·7·8·2 passed, 전체 70 passed. clone 삭제). 계약 ②: service.auth→service.files import 시 `BROKEN`(worker-b) |
+| verifier 세션 · 날짜 · 판정 | verifier-t1(다른 세션) · 2026-10-22 · **PASS(증명 충족, 차단 0)**. 토큰: `auth_session.token_hash` 64자 hex = sha256(평문), 평문은 어느 열에도 없음. 인증 코드: 미리 보기 뒤 code_hash·sent_at NULL, `--apply` 뒤 `$argon2id$` 접두 + sent_at, 6자리 평문은 mail_outbox·email_verification 어디에도 없음(stdout 에만). okf 네 관문 label `{'같음': 16}` · link 0 · index 0 · check 위반 0. check_docs ④ `대응표 42행 중 대상 0행`(T1 미병합) |
+| `check_task_order`(T0b 병합 전 · 뒤) · 병합 뒤 `check_docs.sh` ④ 대상 행 수 | 병합 전(2026-10-22 00:5x, plan 커밋 직후) `FAIL (위반 9건)`(T0b 커밋이 T1 규약 밖) · T0b 병합 뒤 `task order: OK`(가지 커밋 13개) · check_docs ④: T1 병합 뒤 승인자가 `CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh` 로 기록(대상 9행 예정) |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t1(다른 세션) · 2026-10-22 · 범위 `git diff master...HEAD` 59 files(+2851/−31) · REVIEW.md 패스 Bugs → Security → Compliance · 판정 **Important 1 / nit 12(표시 5)** → Important 는 이 커밋으로 닫았고, nit 1·3·4·5 와 미표시 2건(미리 보기 코드 마스킹 · hide_parameters)·nit 2 의 잠금 문장은 리뷰 반영 커밋 `3047f7a`(A) · `584bd65`(B) 로 반영했다.
+
+**실행해 본 것**: 구현 커밋 12개 diff 전부(src 30·scripts 3·0002·시험 14 파일 전체 읽음, 커밋마다 트리 대조) · merge-base 226b8b5 와 master b14b180 트리 diff 0 · 구현 커밋에 승인 트레일러 0(Co-Authored-By 만) · 추가 줄 2851 grep(IP 는 192.0.2.10/11, 메일은 example.com, skip·xfail 0) · 시험 삭제 줄 2개는 probe_routes 재배치, 단언 변경 0 · `tests/conftest.py`·`tests/contracts/conftest.py`·`requirements-dev.txt`·`.env`·`alembic.ini` diff 0 · requirements.txt +4행(argon2 계열), 기존 판 변경 0 · 부록 A T1 접두 9개 모두 `def` 있음 · 모델과 0002 의 제약·색인 이름 일치, down 역순 · 정적 확인: psycopg 3.3.6 StrDumper 는 NUL 에 DataError(nit 1), pydantic 2.14 는 외톨이 서로게이트를 422 로 막음, Starlette 1.9.0 FileResponse 는 파일 없으면 RuntimeError(nit 4), FastAPI 0.156.5 scope 규칙은 yield 의존성에만, site-packages 에 최상위 `scripts` 없음(B ⑤ 타당) · pytest·make verify·라이브 DB 는 verifier 몫이라 안 돌림.
+
+**Important**
+1. [Important·Compliance] `docs/plans/T1-common-base.md:204-222` · 증명 기록 칸 9행 비어 있음, "계획과 다르게 한 것" 틀 문구 그대로, 워커 2명인데 42행이 요구한 소유 파일 머리 없음 · 근거: `git diff 08c6506..HEAD -- docs/plans/` 0줄. 커밋 분할로 중간 커밋 두 구간이 빨갛다(정적 대조): ⓐ `13b73ab`~`a3b0f05` 는 `test_db_email_code.py` 가 아직 없는 `scripts.outbox_preview` 를 import, ⓑ `6622d1e`~`b4500c3` 는 `expected_paths.txt` 에 `/v1/files/{key}` 가 있는데 ROUTERS 에 files 가 없어 `test_openapi_*` 빨강·`test_files_*` 404 — 125행 "단계마다 관문 녹색" 위반. T0b Important 1 과 같은 발견 두 번째 → CLAUDE.md "Things Claude gets wrong" 후보 · **처리: 반영(이 커밋)** — 기록 칸 9행·편차(A 10·B 8·리드 4)·소유 파일 머리를 채웠다. 중간 커밋의 빨강은 이력을 다시 쓰지 않고 편차로 적었다.
+
+**nit(표시 5)** — 줄 번호는 리뷰 시점(5688f82) 기준
+
+| # | [nit·분류] 파일:줄 | 요지 | 처리 |
+|---|---|---|---|
+| 1 | [nit·Bugs] `app/endpoints/files.py:31` · `schemas/auth.py:12` · `schemas/admin.py:10-12` · `core/cursor.py:34` | 입력 모양 빈틈이 500: key·login_id 의 NUL 이 psycopg DataError, 커서 i 가 BIGINT 밖이면 ValueError→422 전환을 비킴. 대조 전이라 추측 통로는 아님 | **반영**: key 모양 밖은 같은 404(`584bd65`), login_id 제어 문자 422(`3047f7a`), `decode_cursor` 범위 검사(`584bd65`) |
+| 2 | [nit·Security] `service/auth/login.py:49-60` | 실패 세기와 넣기 사이 잠금 없음 → 동시 요청은 9 + 풀 동시 수(15)까지 통과 | **반영 일부**: `pg_advisory_xact_lock(hashtextextended(kind‖subject‖client, 0))` 한 문장(`3047f7a`). 동시성 시험은 Design 5절 18 `test_db_concurrency.py` 가 생기는 T2b 에서 |
+| 3 | [nit·Security] `app/endpoints/files.py:22,48-52` | `media_type=row.content_type` 그대로, `nosniff`·`Content-Disposition` 없음. T1 은 업로드가 없어 지금은 쓸 길 없음 | **반영**: `X-Content-Type-Options: nosniff` + 기본 `attachment`(`584bd65`) |
+| 4 | [nit·Bugs] `app/endpoints/files.py:48` · `scripts/file_gc.py:62-64` · `service/files/store.py:41-42` | 행은 있는데 바이트가 없으면 Starlette RuntimeError(절대 경로 포함) 500. gc 의 mtime 재확인~unlink 와 업로드의 `is_file`→`utime` 사이 짧은 경쟁 창 | **반영**: 끝점이 `is_file()` 먼저 보고 sha256 앞 12자 로그 + problem 500(`584bd65`). 경쟁 창은 위험 표에 추가 |
+| 5 | [nit·Compliance] `docs/process/2026-10-21-phase1-backend-design.md:105` | 5절 1행 `DbSession(app/deps.py:29)` 가 낡음(지금 42행) | **반영**: 줄 번호 없이 이름만(`584bd65`) |
+
+미표시 nit 7건: 미리 보기 본문에 실제 6자리가 찍힘(**반영** `584bd65`, 미리 보기는 마스킹) · 엔진 `hide_parameters` 없음(**반영** `3047f7a`) · `sessions.py:41` expires_at·`crud/outbox.py:32` sent_at 이 앱 시계(비교는 DB now()) → **보류**(T2a 에서 DB 시계로 통일 검토) · 인증 없는 로그인의 argon2 대조에 세마포어 없음(동시 상한 = 풀 15) → **보류** · auth_attempt·auth_session 보존 기한·청소 없음 → **보류**(운영 단계) · `gc_candidates` 가 `.tmp-*` 잔여를 안 지움 → **보류**(T6 gc 보강) · ruff format 재배치로 diff 소음 → 보류.
+
+**verifier-t1 낮은 위험 3건**: 바이트 없는 파일 행(→ nit 4 로 반영) · auth_attempt 정리 잡 없음(보류) · 로그인 시간 차이 시험 없음(DUMMY_HASH 대조에 기댐, 보류).
+
+**편차 판단(reviewer)**: A ①~⑩ 전부 타당(⑤ 의 동시 상한은 미표시 nit) · B ①~⑦ 전부 타당(⑥ 은 diff 소음) · 리드 — 워커 2명 분할·커밋 묶음 분할은 **보류**(소유 머리 없음·중간 커밋 빨강 → 이 커밋으로 머리를 적고 편차로 기록), 시험 DB 분리·sync 생략은 타당.
+
+**요약**: Important 1 → 0(이 커밋) / nit 12(반영 7, 보류 5). 코드에 동작을 깨는 버그·비밀 누출 없음, 시험 약화 없음. 병합 가능 의견(결정은 승인자). 전제였던 기록 칸(verifier `make verify`·증명 7·대조 실험 4)은 채웠다.
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+**리드(팀 구성·순서)**
+1. 계획 "레인 A, 워커 하나" 와 달리 워커 2명으로 나눴다(사용자 지시 "승인을 몰아서 빠르게"). 소유: worker-a = 의존성·`core/config.py`·`core/passwords.py`·0002·models·crud(flush·admin·auth·outbox·stored_file·scope)·service/auth·schemas auth/admin·deps·endpoints auth/admins·routers·probe·계약 시험 auth/admins/conflict/openapi·통합 시험 auth_session/email_code. worker-b = `core/{cursor,clock}.py`·schemas page·crud page·service/files·endpoints files·scripts 3·단위 시험 cursor/clock·통합 시험 page/admin_commands·계약 시험 files·pyproject 계약 ②·문서. 공유 파일(routers·models/__init__·probe_routes)은 A 만 편집. 시험 DB 를 분리했다(B 는 새로 만든 `classfit_b_test`) — 두 pytest 세션의 세션 픽스처(downgrade base)가 서로 지우지 않게.
+2. T0b 병합 뒤 `sync_task.sh` 를 하지 않았다. T1 가지가 T0b 머리(226b8b5)에서 났고 master `b14b180` 의 트리가 그와 같아 들일 변경이 0 이다. 병합은 3-way(merge-base 226b8b5)로 그대로 된다.
+3. 커밋 묶음이 계획 작업 순서와 다르다: 5단계가 A 의 `13b73ab`(core·crud·service) 와 B 의 `529c885`(cursor·clock·page·files store)·`a3b0f05`(crud page) 로, 6단계가 `6622d1e`(끝점·deps·계약 시험)·`b4500c3`(files 끝점)·`db44c63`(routers files 등록) 로 나뉘었다.
+
+**worker-a**
+1. `flush_or_conflict(session, message, *rows)` — 넣을 행을 인자로 받는다. SQLAlchemy 2.0.55 의 `begin_nested()` 가 SAVEPOINT 를 열기 전에 대기 변경을 flush 하므로(`_take_snapshot`), 행을 savepoint 안에서 add 해야 23505 뒤에도 바깥 요청 트랜잭션이 산다. 시험 `test_flush_or_conflict_keeps_outer_transaction` 추가. Design 5절 5 문구를 문서 커밋에서 맞췄다.
+2. 계획에 없던 시험 `test_admin_login_missing_or_malformed_bearer_401` 추가.
+3. `Settings`: 빈 문자열 `FILE_STORE_ROOT` 는 None(미구성)으로 본다(`Path("")` 가 현재 폴더가 되는 것을 막음). 수명·잠금 칸은 1 이상만.
+4. 429 응답에 `Retry-After`(login_lock_minutes×60).
+5. argon2 해시·대조는 `asyncio.to_thread` 로.
+6. `sessions.create_session` 은 lifetime 을 인자로 받고 설정은 login 이 읽는다.
+7. `crud/scope.py` 는 service 를 import 할 수 없어 `Subject` Protocol + `OwnerCheck=(session, subject, owner_id)→bool`.
+8. `stored_file.owner_id` 는 BigInteger, key 는 crud 가 `token_urlsafe(16)` 로 만든다. `email_verification.code_hash` 는 NULL 허용(발급 전).
+9. deps 에 `bearer_token` 을 공개해 logout 이 쓴다.
+10. 잠금 판정은 (i) 그대로 창 안 실패 수만 센다 — 성공 로그인이 실패 수를 지우지 않는다(리뷰 확인 요청).
+
+**worker-b**
+1. `store.path_for(root, sha256)` — 계획의 `path_for(sha256)` 에 root 인자를 더했다(루트는 설정에서 온다).
+2. `keyset_page(session, stmt, cursor, limit)` — crud 규칙(첫 인자 session)대로 session 을 더했고 반환은 `(items, next_cursor, has_more)` 튜플, 정렬은 (created_at, id) 내림차순 하나.
+3. `store_bytes(root, data) -> sha256` 은 디스크만 다룬다. stored_file 행은 호출자가 `crud.insert_stored_file` 로 넣는다.
+4. 관리 명령 `run` 은 async. create_admin 은 `ask=` 로 getpass 를 주입받고, file_gc 는 settings 를 셋째 인자로 받는다. 모르는 인자는 값을 찍지 않고 2(`--password <값>` 이 stderr 에 새지 않게). file_gc 는 지우기 직전 mtime 을 다시 본다.
+5. `scripts/__init__.py` 를 만들지 않았다(이름 공간 패키지로 `python -m scripts.x` 와 pytest import 둘 다 된다).
+6. 1부 파일 4개의 ruff format 정리를 `a3b0f05` 에 함께 넣었다(동작 변화 없음).
+7. 문서: plan.md T1 착수 조건에 "= 이 가지의 approve 커밋(충족)" 을 T0b 전례대로 더했다. Design 5절 8 의 `service/auth.issue_email_code` 를 실제 경로 `service/auth/email_code.py` 로. 5절 9·10 은 서명을 적지 않아 그대로. spec 6행 강제 칸 "시험(예정)" → "시험(T1 일부, T2b 예정)". 리드가 A 의 실제 이름 목록을 늦게 넘겨 Design 반영이 두 커밋(`24e81c3` · `5688f82`)으로 나뉘었다: 1절 429 + `Retry-After` · 2절 argon2id · 4절 0002 code_hash NULL 허용 · 5절 8·13 `classfit.service.auth.email_code` · 5절 15 `app.dependency_overrides[classfit.app.deps.today]`. 서명·제약 이름 목록은 Design 본문에 넣지 않았다(코드가 정본).
+8. `crud/page.py` 커서의 id 값이 INTEGER 로 캐스트되던 것을 BIGINT 칸 타입을 따르게 고쳤다(a3b0f05).
+
+**대조 실험(worker-a, 임시 clone, 사본 삭제)**: ① `raise unauthorized()` 로 바꿈 → `test_auth_attempt_row_survives_401` 빨강 ② sqlstate 비교 제거 → `test_flush_or_conflict_check_is_500` 빨강 ③ 잠금 세기에서 client 조건 제거 → `test_auth_lockout_other_client_not_locked` 빨강 ④ 0002 의 learner_course CHECK 삭제 → `test_auth_session_*` 2건 빨강. 계약 ②(worker-b): service.auth → service.files import 를 넣으면 `2. service 구성요소는 서로 모른다 BROKEN`.
+
+**리뷰 반영 커밋(계획 밖 변경)**
+- `3047f7a`(A): login_id 제어 문자 422(`no_control_chars` AfterValidator) · 잠금 advisory lock — 지시는 login.py 의 SQL 한 문장이었으나 계층 규칙(raw SQL 은 crud)대로 `crud/auth.py::lock_attempt_key(session, *, kind, subject_hash, client)` 로 두고 `admin_login` 맨 앞에서 부름 · `make_engine` 에 `hide_parameters=True` 기본값. 시험 `test_admin_login_control_chars_in_login_id_422` 추가. 전체 73 passed.
+- `584bd65`(B): files key 모양 밖은 같은 404 · `X-Content-Type-Options: nosniff` + `Content-Disposition: attachment; filename="<key>"` · 바이트 없는 행은 sha256 앞 12자만 로그 + problem 500 `/problems/internal` · `decode_cursor` 는 `type(i) is int and 0 < i < 2**63` 아니면 ValueError · outbox_preview 미리 보기 본문 `인증 코드: ******` · Design 5절 1 `DbSession`(app/deps.py) 줄 번호 제거. 시험 `test_files_malformed_key_404`·`test_files_missing_bytes_500`·`test_email_code_preview_masks_digits` + 커서 사례 2 추가. 대조 실험(고침 3곳 되돌림): 3 failed(DataError · 절대 경로 든 RuntimeError · 본문에 6자리).
+
+**중간 커밋이 빨갛던 구간(reviewer Important 1)**: ⓐ `13b73ab`~`a3b0f05` 는 `test_db_email_code.py` 가 아직 없는 `scripts.outbox_preview` 를 import(워커 병렬 분할 때문) ⓑ `6622d1e`~`b4500c3` 는 `expected_paths.txt` 에 `/v1/files/{key}` 가 있는데 ROUTERS 에 files 가 없음. 이력은 다시 쓰지 않았다. 다음 태스크부터는 다른 워커 산출물에 기대는 시험·기대 파일은 그 산출물 커밋 뒤에 커밋한다.
+
+**check_task_order 예상과 실제**: 계획은 T0b 병합 전 FAIL 을 예상했으나 승인 전에 T0b 가 이미 master 에 있어 approve 시점부터 OK 였다(plan 커밋 직후에만 FAIL 9건).
 
 
 
