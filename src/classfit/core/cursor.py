@@ -21,7 +21,8 @@ def encode_cursor(t: datetime, i: int) -> str:
 
 def decode_cursor(s: str) -> tuple[datetime, int]:
     """(시각, id). 알파벳 밖 글자·JSON 아님·칸 빠짐·시간대 없는 시각·정수 아닌 id 는 ValueError."""
-    if not _ALPHABET.fullmatch(s):  # b64decode 는 기본값이 알파벳 밖 글자를 버리고 지나간다
+    # b64decode 는 기본값이 알파벳 밖 글자를 버리고 지나간다. 그래서 먼저 막는다
+    if not _ALPHABET.fullmatch(s):
         raise ValueError("깨진 커서")
     try:
         raw = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))

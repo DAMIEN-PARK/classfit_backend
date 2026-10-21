@@ -20,7 +20,8 @@ def test_cursor_roundtrip() -> None:
     ]
     for t, i in cases:
         s = encode_cursor(t, i)
-        assert "=" not in s and "+" not in s and "/" not in s  # URL 질의에 그대로 싣는다
+        # URL 질의에 그대로 싣는다
+        assert "=" not in s and "+" not in s and "/" not in s
         assert decode_cursor(s) == (t, i)
 
 

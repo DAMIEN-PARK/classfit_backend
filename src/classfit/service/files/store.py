@@ -64,7 +64,11 @@ def gc_candidates(root: Path, referenced: set[str], grace: timedelta) -> list[Pa
             continue
         for path in sorted(prefix.iterdir()):
             name = path.name
-            if not _SHA256.fullmatch(name) or name[:2] != prefix.name or not path.is_file():
+            if (
+                not _SHA256.fullmatch(name)
+                or name[:2] != prefix.name
+                or not path.is_file()
+            ):
                 continue
             if name in referenced or path.stat().st_mtime > cutoff:
                 continue
