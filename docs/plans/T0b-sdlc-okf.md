@@ -10,7 +10,7 @@ URL: ""
 
 # Plan: T0b sdlc-okf (from plan.md#T0b, 2026-10-21)
 
-- 근거: 플랜 r3 §5.2 T0b 행 · 부록 E4~E7·E9·E10 · §6 E-2~E-7·E-9 · 승인 기록(2026-10-21) · r1 D7(문서마다 채울 내용의 출처) · OKF 안내서 §5.2·§6·§7.2·§7.3·§8·§9 · SDLC 안내서 §5 4단계·§6.3·§6.4 · T0a 리뷰 nit 4·5(`docs/plans/T0a-sdlc-bootstrap.md` 리뷰 절). 태스크 출처는 r3 §5.2 T0b 이고, 이 태스크에서 `docs/process/plan.md` 로 옮긴다. 그 뒤로는 plan.md#T0b 가 출처다.
+- 근거: 플랜 r3 §5.2 T0b 행 · 부록 E4~E7·E9·E10 · §6 E-2~E-7·E-9 · 승인 기록(2026-10-21) · r1 D7(문서마다 채울 내용의 출처) · OKF 안내서 §5.2·§6·§7.2·§7.3·§8·§9 · SDLC 안내서 §5 4단계·§6.3·§6.4 · T0a 리뷰 nit 4·5([`docs/plans/T0a-sdlc-bootstrap.md`](T0a-sdlc-bootstrap.md) 리뷰 절). 태스크 출처는 r3 §5.2 T0b 이고, 이 태스크에서 [`docs/process/plan.md`](../process/plan.md) 로 옮긴다. 그 뒤로는 plan.md#T0b 가 출처다.
 - 승인: 
 - 승인 방법: 승인자 `DAMIEN-PARK` 이 이 가지에 `git commit --allow-empty -m "approve: T0b" -m "Approved-by: DAMIEN-PARK"` 를 더한다. 그 커밋 전에는 코드 변경이 없고, 에이전트는 위 줄과 `Approved-by` 를 쓰지 않는다(r3 §5.1-2).
 - 가지 `T0b-sdlc-okf`, `git merge-base T0b-sdlc-okf master` = `181006e510f630b914ca7af69c2a7bd02e9955a8`(master `merge: T0a sdlc-bootstrap`).
@@ -47,15 +47,15 @@ URL: ""
 | 경로 | 종류 | 단계 | 한 줄 이유 (출처) |
 |---|---|---|---|
 | `docs/plans/T0b-sdlc-okf.md` | new | E0 | 이 계획. 가지 첫 커밋 `plan: T0b sdlc-okf`, 트레일러 없음(r3 §5.1-1) |
-| `docs/process/intent.md` | new | D1 | product. 틀 `docs/process/templates/intent.md`(SDLC §6.3). 기획안 01 제품 정의·03 운영 원칙 13·9-1 현행 실측(r1 D7). 바라는 결과는 잴 수 있는 문장으로 쓴다. 예: 관리자가 코드 수정 없이 강의 1건을 개설·배정·코드 발급하고, 수강생이 코드와 이메일로 입장해 강의안을 연다 |
-| `docs/process/intents/2026-10-21-phase1-backend.md` | new | D1 | feature. r3 §2 가정 · §7 열린 질문 · 부록 A3(시안 전용 5종 1차 제외) · A5(공개홈은 API 만) · r1 B3 "명시적으로 빼는 것" |
-| `docs/process/research/2026-10-21-mockup-review.md` | new | D1 | r3 부록 A1~A5 를 옮긴다(A6 은 ADR-001). 머리말 `type: Research` |
-| `docs/process/spec.md` | new | D2 | SDLC §6.4 틀 4절. 아래 "spec.md 내용" |
-| `docs/process/2026-10-21-phase1-backend-design.md` | new | D2 | Design 정본. r3 §4 결정 · 부록 C ERD · 부록 D 공통 규칙(r1 B0~B2 와 다르면 r3). 규칙표에 **T 열**. 엔드포인트는 적지 않는다(OpenAPI 정본, r3 §4). 부록에 r3 A4 "규칙 ↔ 시험 이름" 대응표(열 규칙·T·시험 이름, 이름은 r3 부록 D 규약과 부록 B 시험 세부) |
-| `docs/process/adr/ADR-001-mockups.md` | new | D2 | r3 §4 ADR-001 행 + 부록 A6(C1 참고 자료로만, C2·C3 기각). 머리말 `type: ADR` |
-| `docs/process/adr/ADR-004-public-home.md` | new | D2 | r3 §4 ADR-004 행 + 부록 A5 + §7-1(H-1 답에 따라 다시 본다). 머리말 `type: ADR` |
-| `docs/process/plan.md` | new | D3 | SDLC §6.4 틀. 1 규칙(r3 §5.1 한 바퀴) · 2 단계와 레인(1인, 레인 A) · 3 순서표 13행 T0a(완료, merge `181006e`)·T0b·T1·T2a·T2b·T3~T8·T9a·T9b. 열은 선행·관문 요약(r3 §5.2)·마이그레이션(부록 C 0002~0011)·계획 파일·상태 |
-| `docs/process/agent.md` | new | D3 | SDLC §6.4 틀. 승인자 `DAMIEN-PARK`. 편성표는 빌더 세션·팀 워커·verifier·reviewer(다른 세션)·CI(GitHub Actions, master push·PR). "하지 않는 것"은 승인(approve 커밋·승인 트레일러) · master 직접 변경(병합·push·reset) · 사용자 미커밋 변경 건드리기(checkout·restore·stash 포함) · 테스트 약화 · 정책 완화 · 운영 배포 |
+| [`docs/process/intent.md`](../process/intent.md) | new | D1 | product. 틀 [`docs/process/templates/intent.md`](../process/templates/intent.md)(SDLC §6.3). 기획안 01 제품 정의·03 운영 원칙 13·9-1 현행 실측(r1 D7). 바라는 결과는 잴 수 있는 문장으로 쓴다. 예: 관리자가 코드 수정 없이 강의 1건을 개설·배정·코드 발급하고, 수강생이 코드와 이메일로 입장해 강의안을 연다 |
+| [`docs/process/intents/2026-10-21-phase1-backend.md`](../process/intents/2026-10-21-phase1-backend.md) | new | D1 | feature. r3 §2 가정 · §7 열린 질문 · 부록 A3(시안 전용 5종 1차 제외) · A5(공개홈은 API 만) · r1 B3 "명시적으로 빼는 것" |
+| [`docs/process/research/2026-10-21-mockup-review.md`](../process/research/2026-10-21-mockup-review.md) | new | D1 | r3 부록 A1~A5 를 옮긴다(A6 은 ADR-001). 머리말 `type: Research` |
+| [`docs/process/spec.md`](../process/spec.md) | new | D2 | SDLC §6.4 틀 4절. 아래 "spec.md 내용" |
+| [`docs/process/2026-10-21-phase1-backend-design.md`](../process/2026-10-21-phase1-backend-design.md) | new | D2 | Design 정본. r3 §4 결정 · 부록 C ERD · 부록 D 공통 규칙(r1 B0~B2 와 다르면 r3). 규칙표에 **T 열**. 엔드포인트는 적지 않는다(OpenAPI 정본, r3 §4). 부록에 r3 A4 "규칙 ↔ 시험 이름" 대응표(열 규칙·T·시험 이름, 이름은 r3 부록 D 규약과 부록 B 시험 세부) |
+| [`docs/process/adr/ADR-001-mockups.md`](../process/adr/ADR-001-mockups.md) | new | D2 | r3 §4 ADR-001 행 + 부록 A6(C1 참고 자료로만, C2·C3 기각). 머리말 `type: ADR` |
+| [`docs/process/adr/ADR-004-public-home.md`](../process/adr/ADR-004-public-home.md) | new | D2 | r3 §4 ADR-004 행 + 부록 A5 + §7-1(H-1 답에 따라 다시 본다). 머리말 `type: ADR` |
+| [`docs/process/plan.md`](../process/plan.md) | new | D3 | SDLC §6.4 틀. 1 규칙(r3 §5.1 한 바퀴) · 2 단계와 레인(1인, 레인 A) · 3 순서표 13행 T0a(완료, merge `181006e`)·T0b·T1·T2a·T2b·T3~T8·T9a·T9b. 열은 선행·관문 요약(r3 §5.2)·마이그레이션(부록 C 0002~0011)·계획 파일·상태 |
+| [`docs/process/agent.md`](../process/agent.md) | new | D3 | SDLC §6.4 틀. 승인자 `DAMIEN-PARK`. 편성표는 빌더 세션·팀 워커·verifier·reviewer(다른 세션)·CI(GitHub Actions, master push·PR). "하지 않는 것"은 승인(approve 커밋·승인 트레일러) · master 직접 변경(병합·push·reset) · 사용자 미커밋 변경 건드리기(checkout·restore·stash 포함) · 테스트 약화 · 정책 완화 · 운영 배포 |
 | `scripts/check_docs.sh` | new, +x | D4 | r3 E-7·E-9. 아래 "check_docs.sh 검사" |
 
 **spec.md 내용 (D2)**
@@ -86,7 +86,7 @@ URL: ""
 | `scripts/okf/okf.py.sha256` | new | E1 | 해시 64자 한 줄만(E-5) |
 | `pyproject.toml` | modify | E1 | ruff `extend-exclude` 에 `"scripts/okf"`(그대로면 ruff 9건, Architect 재현) |
 | `docs/okf.toml` | new | E1 | 아래 "okf.toml" |
-| `docs/requirements/2026-10-21-요구정의서.md` | modify | E2·E3 | label 이 머리말(`type: Requirements`·H1 제목·파일 이름의 날짜)을 새로 만든다. 본문은 §1.1 근거 표 P1 행의 링크 1개만 바꾼다(위험 표 5행) |
+| [`docs/requirements/2026-10-21-요구정의서.md`](../requirements/2026-10-21-요구정의서.md) | modify | E2·E3 | label 이 머리말(`type: Requirements`·H1 제목·파일 이름의 날짜)을 새로 만든다. 본문은 §1.1 근거 표 P1 행의 링크 1개만 바꾼다(위험 표 5행) |
 | docs 문서들의 백틱 이름 | modify | E3 | link 가 백틱 이름을 상대 경로 링크로 감싼다. 글자는 그대로다. T0a 문서와 이 계획도 포함된다 |
 | docs 의 목차 파일 7개 | new | E4 | index 가 만드는 자동 목차(뿌리·plans·process·process/adr·process/intents·process/research·requirements) |
 | `scripts/okf/guard.sh` | new, +x | E6 | OKF §7.2 원문 + 맨 앞에 `okf.py` sha256 을 `okf.py.sha256` 과 대조해 다르면 exit 1 |

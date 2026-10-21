@@ -1,0 +1,43 @@
+# OKF(Open Knowledge Format) 설정 — docs/ 묶음. 도구는 scripts/okf/okf.py(BHQ 원본 사본, sha 는 okf.py.sha256).
+# 부르는 법(zsh 에서도 쪼개지지 않게 함수로): okf() { .venv/bin/python scripts/okf/okf.py --root docs --config docs/okf.toml "$@"; }
+# 근거: OKF 안내서 §5.2 템플릿 · §5.3 규칙 정하는 법 · 계획 docs/plans/T0b-sdlc-okf.md "okf.toml (E1)" 절.
+
+okf_version = "0.2"
+spec_commit = "0b87c52c6ef999286c745e19998fdfcd03d5dbee"
+spec_commit_date = "2026-08-21"   # 사람이 읽으라고 적는다(도구는 읽지 않는다)
+bundle_name = "docs"
+
+# 틀은 개념 문서가 아니다. 그 아래 전부가 묶음에서 빠진다.
+exclude_dirs = ["process/templates"]
+
+# 폴더 없이 이름만 적혔을 때 잇지 않는 흔한 이름
+stop_names = ["README.md", "CLAUDE.md", "AGENTS.md", "SKILL.md", "index.md", "log.md"]
+
+# 위에서부터 처음 맞는 것을 쓴다. 폴더 규칙 먼저, 이름 꼴 규칙 다음(§5.3).
+# "나머지 전부" 규칙은 두지 않는다 — 모르는 문서가 생기면 도구가 멈춰야 사람이 종류를 정한다.
+# plans/T* 는 plans/* 보다 좁다. README 도 계획도 아닌 새 파일이 plans/ 에 생기면 도구가 멈춘다(의도).
+rules = [
+  { pattern = "process/intents/*",   type = "Intent" },
+  { pattern = "process/adr/*",       type = "ADR" },
+  { pattern = "process/research/*",  type = "Research" },
+  { pattern = "plans/README.md",     type = "Readme" },
+  { pattern = "plans/T*",            type = "Task Plan" },
+  { pattern = "runbooks/*",          type = "Runbook" },
+  { pattern = "requirements/*",      type = "Requirements" },
+  { pattern = "process/intent.md",   type = "Intent" },
+  { pattern = "process/spec.md",     type = "Spec" },
+  { pattern = "process/plan.md",     type = "Plan" },
+  { pattern = "process/agent.md",    type = "Agent Guide" },
+  { pattern = "process/*-design.md", type = "Design" },
+]
+
+# 글자는 파일 이름과 같지만 뜻은 그 파일이 아닌 줄. { file, line_has, tokens }.
+# 처음엔 비운다. link 문장 판정(다른 세션)에서 틀린 링크가 나오면 여기에 적는다.
+# 2026-10-22 판정(T0b E3, verifier): T0b 계획 "okf.toml (E1)" 절 rules 칸의 pattern 값은 설정 값이지 문서 참조가 아니다.
+#   같은 칸의 무늬(process/intents/* 등)는 이을 수 없어, 다섯만 이으면 절반만 링크가 되어 오해를 낳는다(OKF §8-1).
+no_link = [
+  { file = "plans/T0b-sdlc-okf.md", line_has = "`rules` (위부터)", tokens = ["plans/README.md", "process/intent.md", "process/spec.md", "process/plan.md", "process/agent.md"] },
+]
+
+# 묶음 밖은 잇지 않는다.
+external_roots = []

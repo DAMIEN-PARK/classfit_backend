@@ -6,7 +6,7 @@ type: Readme
 
 태스크마다 계획을 여기 커밋하고, 승인자가 승인한 뒤에만 코드를 바꾼다. 흐름의 정본은 r3 §5.1 이다.
 
-- 파일명: `T<n>-<slug>.md`. 틀은 `docs/process/templates/task-plan.md`. 번호는 r3 §5.2 의 태스크 표(T0b 뒤에는 `docs/process/plan.md` 의 태스크 순서표)를 따른다.
+- 파일명: `T<n>-<slug>.md`. 틀은 [`docs/process/templates/task-plan.md`](../process/templates/task-plan.md). 번호는 r3 §5.2 의 태스크 표(T0b 뒤에는 [`docs/process/plan.md`](../process/plan.md) 의 태스크 순서표)를 따른다.
 - 가지 이름은 `T<n>-<slug>` 이고, 계획 파일이 그 가지의 첫 커밋이다.
 - 승인자의 `approve: T<n>` 빈 커밋(`Approved-by:` 트레일러)이 첫 `T<n>:` 커밋보다 앞에 있어야 한다. 그 전에는 코드 변경이 없다. 에이전트는 `Approved-by` 를 쓰지 않는다.
 
