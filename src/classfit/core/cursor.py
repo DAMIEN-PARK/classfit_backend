@@ -12,6 +12,7 @@ import re
 from datetime import datetime
 
 _ALPHABET = re.compile(r"[A-Za-z0-9_-]+")
+_MAX_ID = 2**63  # BIGINT 상한. 넘으면 DB 가 오류를 내서 422 대신 500 이 된다
 
 
 def encode_cursor(t: datetime, i: int) -> str:
@@ -20,7 +21,7 @@ def encode_cursor(t: datetime, i: int) -> str:
 
 
 def decode_cursor(s: str) -> tuple[datetime, int]:
-    """(시각, id). 알파벳 밖 글자·JSON 아님·칸 빠짐·시간대 없는 시각·정수 아닌 id 는 ValueError."""
+    """(시각, id). 알파벳 밖 글자·JSON 아님·칸 빠짐·시간대 없는 시각·0 < id < 2**63 밖은 ValueError."""
     # b64decode 는 기본값이 알파벳 밖 글자를 버리고 지나간다. 그래서 먼저 막는다
     if not _ALPHABET.fullmatch(s):
         raise ValueError("깨진 커서")
@@ -31,6 +32,6 @@ def decode_cursor(s: str) -> tuple[datetime, int]:
         i = data["i"]
     except (ValueError, TypeError, KeyError, binascii.Error) as exc:
         raise ValueError("깨진 커서") from exc
-    if t.tzinfo is None or type(i) is not int:
+    if t.tzinfo is None or type(i) is not int or not 0 < i < _MAX_ID:
         raise ValueError("깨진 커서")
     return t, i

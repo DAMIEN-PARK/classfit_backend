@@ -102,7 +102,7 @@ r3 부록 D 가 본문이다. r1 B0 의 규칙은 r3 와 겹치지 않는 것만
 
 | # | 규칙 | 내용 | T | 근거 |
 |---|---|---|---|---|
-| 1 | 재사용 부품 | `DbSession`(app/deps.py:29) · `NotFound·Forbidden·Conflict·Gone·NotConfigured`(core/errors.py:22-43) · `AppError·unauthorized()·forbidden()`·`problem()`(app/errors.py:38-91) · `insert_audit`(crud/audit.py:12) · `Base·BigIdMixin·TimestampMixin`(models/base.py:26-44) · `ROUTERS`(app/routers.py:5) · 계약 픽스처 `app·client·client_noraise`(tests/contracts/conftest.py:42-65). 경계 시험의 본보기는 test_tx_boundary.py 다. 시험 전용 라우터는 probe_routes.py 처럼 ROUTERS 밖에 둔다 | T1 부터 전부 | r3 부록 D |
+| 1 | 재사용 부품 | `DbSession`(app/deps.py) · `NotFound·Forbidden·Conflict·Gone·NotConfigured`(core/errors.py:22-43) · `AppError·unauthorized()·forbidden()`·`problem()`(app/errors.py:38-91) · `insert_audit`(crud/audit.py:12) · `Base·BigIdMixin·TimestampMixin`(models/base.py:26-44) · `ROUTERS`(app/routers.py:5) · 계약 픽스처 `app·client·client_noraise`(tests/contracts/conftest.py:42-65). 경계 시험의 본보기는 test_tx_boundary.py 다. 시험 전용 라우터는 probe_routes.py 처럼 ROUTERS 밖에 둔다 | T1 부터 전부 | r3 부록 D |
 | 2 | 경로 규칙 | 관리자 `/v1/admin/…`, 강사 `/v1/me/…`, 수강생 `/v1/learner/…`, 토큰 `/v1/ax/{token}`. 동작은 `:접미사`. 목록은 커서 `{items,next_cursor,has_more}`. 파일을 가리키는 응답 칸은 `href` | T1 부터 전부 | r3 부록 B 머리 · r1 B0 |
 | 3 | 권한 | 목록·파일 조회의 첫 WHERE 는 주체 범위다(`crud/scope.py`). 남의 자원은 403, 등록 안 된 파일 소유 종류는 404 | T1 부터 전부 | r3 부록 D |
 | 4 | 트랜잭션 | 요청 1개 = 트랜잭션 1개(`db()`). service·crud 는 flush 까지만 하고 commit 하지 않는다 | 전부 | CLAUDE.md Rules |

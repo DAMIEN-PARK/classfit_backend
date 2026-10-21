@@ -2,7 +2,8 @@
 
 - 1차에는 메일을 보내지 않는다(ADR-003 결정 5). 본문은 이 명령으로 본다.
 - kind 마다 본문을 만든다. `email_code` 는 issue_email_code() 를 부른다(인증 코드를 만드는 곳은 그 함수 하나).
-- 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 찍힌 코드는 "무효 코드(미리 보기)" 다.
+- 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 코드 자리는 `******` 로 가리고 "무효 코드(미리 보기)" 라고 찍는다.
+  실제 숫자는 `--apply` 때만 stdout 에 나온다.
 - `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다.
 - 모르는 kind · params 모양 틀림은 3(전제 거절)이고 아무것도 커밋하지 않는다.
 - 종료 코드 0 끝 · 2 인자 틀림 · 3 전제 거절. 결과 JSON 은 stdout, 안내는 stderr.
@@ -26,14 +27,18 @@ from classfit.database.session import make_engine, make_session_factory
 from classfit.service.auth.email_code import issue_email_code
 
 PREVIEW_CODE = "무효 코드(미리 보기)"
+MASK = "******"
 
 
-async def _email_code(session: AsyncSession, params: dict[str, Any]) -> str:
+async def _email_code(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
     code = await issue_email_code(session, int(params["verification_id"]))
-    return f"인증 코드: {code}"
+    return f"인증 코드: {code if reveal else MASK}"
 
 
-RENDERERS: dict[str, Callable[[AsyncSession, dict[str, Any]], Awaitable[str]]] = {
+# (session, params, reveal) → 본문. reveal 은 --apply 일 때만 참이다(미리 보기의 코드는 무효라 가린다)
+RENDERERS: dict[str, Callable[[AsyncSession, dict[str, Any], bool], Awaitable[str]]] = {
     "email_code": _email_code,
 }
 CODE_KINDS = frozenset({"email_code"})
@@ -72,7 +77,7 @@ async def run(
                 )
                 return 3
             try:
-                body = await render(session, row.params)
+                body = await render(session, row.params, args.apply)
             except (KeyError, TypeError, ValueError, DomainError) as exc:
                 _err(
                     f"전제 거절: outbox id {row.id} 의 params 를 쓸 수 없다({type(exc).__name__})"

@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -11,9 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, async_sessionm
 
 from classfit.core.config import Settings
 from classfit.database.session import make_session_factory
-from classfit.models import AdminAccount, AuditLog, StoredFile
+from classfit.models import (
+    AdminAccount,
+    AuditLog,
+    EmailVerification,
+    MailOutbox,
+    StoredFile,
+)
 from classfit.service.files.store import path_for, store_bytes
-from scripts import create_admin, file_gc
+from scripts import create_admin, file_gc, outbox_preview
 
 PASSWORD = "probe-password-1234"
 
@@ -152,3 +159,34 @@ async def test_file_gc_apply_deletes_only_unreferenced_old_bytes(
     assert not path_for(tmp_path, gone).exists()
     assert path_for(tmp_path, kept_ref).is_file()
     assert path_for(tmp_path, kept_fresh).is_file()
+
+
+async def test_email_code_preview_masks_digits(
+    factory: async_sessionmaker[AsyncSession],
+    db_session: AsyncSession,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    verification = EmailVerification()
+    db_session.add(verification)
+    await db_session.flush()
+    db_session.add(
+        MailOutbox(
+            kind="email_code",
+            params={"verification_id": verification.id},
+            to="a@example.com",
+        )
+    )
+    await db_session.flush()
+
+    # 미리 보기의 코드는 무효라 숫자를 찍지 않는다
+    assert await outbox_preview.run([], factory) == 0
+    preview = capsys.readouterr()
+    (message,) = json.loads(preview.out)["messages"]
+    assert message["body"] == "인증 코드: ******"
+    assert message["code_status"] == "무효 코드(미리 보기)"
+    assert not re.search(r"\d{6}", preview.out + preview.err)
+
+    # --apply 때만 실제 6자리가 stdout 에 나온다
+    assert await outbox_preview.run(["--apply"], factory) == 0
+    (message,) = json.loads(capsys.readouterr().out)["messages"]
+    assert re.fullmatch(r"인증 코드: \d{6}", message["body"])

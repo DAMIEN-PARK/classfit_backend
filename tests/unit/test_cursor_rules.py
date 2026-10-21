@@ -41,6 +41,9 @@ def test_cursor_roundtrip() -> None:
         _b64(json.dumps({"t": "2026-10-22T00:00:00+00:00", "i": "1"}).encode()),
         _b64(json.dumps({"t": "2026-10-22T00:00:00+00:00", "i": True}).encode()),
         _b64(json.dumps({"t": 1, "i": 1}).encode()),
+        # id 는 1 부터, BIGINT(2**63 미만) 안
+        _b64(json.dumps({"t": "2026-10-22T01:00:00+00:00", "i": 0}).encode()),
+        _b64(json.dumps({"t": "2026-10-22T01:00:00+00:00", "i": 2**63}).encode()),
     ],
 )
 def test_cursor_tampered_raises(s: str) -> None:

@@ -148,4 +148,45 @@ async def test_files_ok_without_signing_key_200(
     assert r.content == DATA
     assert r.headers["content-type"].startswith("text/plain")
     assert r.headers["cache-control"] == "private, no-store"
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["content-disposition"] == f'attachment; filename="{row.key}"'
     assert calls == [7]
+
+
+async def test_files_malformed_key_404(
+    client: httpx.AsyncClient, bearer: dict[str, str], store_root: Path
+) -> None:
+    unknown = await client.get("/v1/files/no-such-key", headers=bearer)
+    # NUL · key 알파벳 밖 글자 · 너무 긴 key 는 DB 를 치지 않고 없는 key 와 같은 404
+    for key in ("%00", "a%00b", "a.b", "k" * 65):
+        r = await client.get(f"/v1/files/{key}", headers=bearer)
+        _is_problem(r, 404, "/problems/not_found")
+        assert r.json()["detail"] == unknown.json()["detail"]
+
+
+async def test_files_missing_bytes_500(
+    client: httpx.AsyncClient,
+    bearer: dict[str, str],
+    store_root: Path,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setitem(scope.OWNER_KINDS, "probe", _judge(True, []))
+    sha = hashlib.sha256(b"never stored").hexdigest()
+    row = StoredFile(
+        key="k-gone",
+        sha256=sha,
+        owner_kind="probe",
+        owner_id=7,
+        content_type="text/plain",
+        size=12,
+    )
+    db_session.add(row)
+    await db_session.flush()
+    r = await client.get(f"/v1/files/{row.key}", headers=bearer)
+    _is_problem(r, 500, "/problems/internal")
+    # 응답과 로그에 저장소 경로·sha256 전체가 없다(로그는 앞 12자만)
+    for text in (r.text, caplog.text):
+        assert str(store_root) not in text and sha not in text
+    assert sha[:12] in caplog.text
