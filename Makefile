@@ -1,5 +1,5 @@
 # BCTONE 강사관리 플랫폼 백엔드 — 패키지 classfit (임시 이름)
-# 품질 관문: make verify = editable-check → gate → lint → lint-imports → test
+# 품질 관문: make verify = editable-check → gate → lint → lint-imports → test → okf(문서 정리 guard)
 PY ?= python3.14
 # iCloud(~/Documents) 는 *.nosync 폴더를 동기화하지 않는다. 실제 venv 는 .venv.nosync 에 두고 .venv 는 심볼릭 링크다.
 # (iCloud 가 동기화한 .pth 에 숨김 플래그를 붙이면 Python 3.13+ 이 건너뛰어 편집 설치가 조용히 죽는다.)
@@ -11,7 +11,7 @@ PG_BIN ?= /opt/homebrew/opt/postgresql@17/bin
 # .env 가 있으면 그 값으로 명령을 감싼다. 셸 환경이 .env 보다 우선한다(pydantic-settings 와 같은 순서).
 ENVRUN := $(if $(wildcard .env),$(BIN)/python -m dotenv --file .env run --no-override --,)
 
-.PHONY: venv install lock unhide editable-check gate lint lint-imports test verify hooks fix-start fix-end db-create migrate run
+.PHONY: venv install lock unhide editable-check gate lint lint-imports test okf check-docs verify hooks fix-start fix-end db-create migrate run
 
 venv:
 	$(PY) -m venv $(VENV_REAL)
@@ -51,12 +51,21 @@ lint-imports: unhide
 test: unhide
 	$(ENVRUN) $(BIN)/pytest
 
+# OKF 문서 정리 guard(label·link·index 바뀔 것 0 + check --strict). PyYAML 있는 venv 파이썬을 넘긴다(OKF §8-6).
+okf:
+	OKF_PYTHON=$(BIN)/python bash scripts/okf/guard.sh docs
+
+# 문서 구조 검사(spec 색인·대조표·대응표). 외부 정본 sha 까지 재려면 CLASSFIT_REQUIRE_EXTERNAL=1 make check-docs
+check-docs:
+	bash scripts/check_docs.sh
+
 verify:
 	@$(MAKE) editable-check
 	@$(MAKE) gate
 	@$(MAKE) lint
 	@$(MAKE) lint-imports
 	@$(MAKE) test
+	@$(MAKE) okf
 
 hooks:
 	git config core.hooksPath .githooks

@@ -44,6 +44,8 @@ pytest==9.1.1
     #   pytest-asyncio
 pytest-asyncio==1.4.0
     # via -r requirements-dev.in
+pyyaml==6.0.3
+    # via -r requirements-dev.in
 rich==15.0.0
     # via import-linter
 ruff==0.17.1

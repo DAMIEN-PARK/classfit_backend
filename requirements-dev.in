@@ -4,3 +4,4 @@ pytest
 pytest-asyncio
 import-linter
 pip-tools
+pyyaml

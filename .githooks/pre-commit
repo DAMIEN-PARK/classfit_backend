@@ -2,11 +2,17 @@
 # pre-commit (core.hooksPath=.githooks, make hooks): master 직접 커밋 금지.
 # master 의 커밋은 merge_task.sh 의 병합 커밋뿐이다 — 그 스크립트는 `git merge --no-ff --no-commit` 뒤 커밋하므로
 # MERGE_HEAD 가 있을 때만 통과시킨다. 다른 가지·detached HEAD 는 통과.
-# T0b: docs/ 가 스테이징됐을 때만 OKF guard(`git diff --cached --name-only -- docs`, OKF_PYTHON=.venv/bin/python) 를 더한다(부록 E6).
+# docs/ 가 스테이징됐을 때만 OKF guard 를 돌린다(OKF §7.3, r3 부록 E6). docs 없는 커밋은 OKF 줄 없이 지나간다.
+# guard 는 스테이징이 아니라 작업 트리를 본다(OKF §7.2 한계). docs 커밋 전에 다른 초안을 치운다. CI 가 한 번 더 돈다.
 set -euo pipefail
 branch="$(git symbolic-ref --short -q HEAD || true)"
 if [ "$branch" = "master" ] && ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
   echo "pre-commit: master 직접 커밋 금지 — 가지에서 작업하고 merge_task.sh 로 병합"
   exit 1
+fi
+if [ -n "$(git diff --cached --name-only -- docs)" ]; then
+  # PyYAML 있는 venv 파이썬을 준다. 맨 python3 로 가면 정상 문서까지 모든 docs 커밋이 막힌다(OKF §8-6).
+  # bash 로 부른다 — guard.sh 의 실행 권한이 빠져도 Permission denied 로 막히지 않는다(OKF §6 6단계).
+  OKF_PYTHON="${OKF_PYTHON:-.venv/bin/python}" bash scripts/okf/guard.sh docs
 fi
 exit 0

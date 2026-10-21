@@ -16,9 +16,11 @@ dependencies = { file = ["requirements.in"] }
 [tool.setuptools.packages.find]
 where = ["src"]
 
-# ───────── ruff: 기본값 + 금지 import(TID251). 기획·시안 HTML 폴더만 제외
+# ───────── ruff: 기본값 + 금지 import(TID251). 기획·시안 HTML 폴더와 OKF 도구 사본(BHQ 원본 그대로, sha 대조)만 제외
 [tool.ruff]
-extend-exclude = ["기획", "시안"]
+extend-exclude = ["기획", "시안", "scripts/okf"]
+# 경로를 직접 줘도 제외를 지킨다(`ruff check scripts/okf` · format-on-edit 훅이 okf.py 사본을 고치지 않게, T0b 리뷰)
+force-exclude = true
 
 [tool.ruff.lint]
 extend-select = ["TID251"]
