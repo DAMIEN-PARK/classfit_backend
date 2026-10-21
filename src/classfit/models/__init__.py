@@ -4,7 +4,22 @@
 새 표를 만들면 여기에 한 줄 더한다.
 """
 
+from classfit.models.admin import AdminAccount
 from classfit.models.audit import AuditLog
+from classfit.models.auth import AuthAttempt, AuthSession, EmailVerification
 from classfit.models.base import Base, BigIdMixin, TimestampMixin
+from classfit.models.outbox import MailOutbox
+from classfit.models.stored_file import StoredFile
 
-__all__ = ["AuditLog", "Base", "BigIdMixin", "TimestampMixin"]
+__all__ = [
+    "AdminAccount",
+    "AuditLog",
+    "AuthAttempt",
+    "AuthSession",
+    "Base",
+    "BigIdMixin",
+    "EmailVerification",
+    "MailOutbox",
+    "StoredFile",
+    "TimestampMixin",
+]
