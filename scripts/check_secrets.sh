@@ -16,7 +16,9 @@ pats=(
   'postgres(ql)?(\+[a-z0-9]+)?://[^:/@[:space:]]+:[^@[:space:]]+@'
 )
 # 로컬 개발·CI 의 더미 비밀번호(…@localhost:… / …@127.0.0.1:…)만 예외. 호스트 이름이 localhost 로 시작하는 원격은 예외가 아니다.
+# 예외는 DB URL 패턴(맨 끝)에만 건다. 같은 줄에 localhost 가 있어도 다른 패턴(키·토큰)은 찍힌다(T0b 리뷰 nit 2).
 allow='@(localhost|127\.0\.0\.1)(:|/|$)'
+allow_idx=$((${#pats[@]} - 1))
 
 list_files() {
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -34,10 +36,11 @@ list_files() {
 hits=""
 i=0
 while [ "$i" -lt "${#pats[@]}" ]; do
+  a=""; if [ "$i" -eq "$allow_idx" ]; then a="$allow"; fi
   h=$(list_files | xargs -0 grep -nHIE --exclude='check_secrets.sh' -e "${pats[$i]}" 2>/dev/null \
-      | ALLOW="$allow" NAME="${names[$i]}" awk '
+      | ALLOW="$a" NAME="${names[$i]}" awk '
           match($0, /:[0-9]+:/) {
-            if (substr($0, RSTART + RLENGTH) ~ ENVIRON["ALLOW"]) next
+            if (ENVIRON["ALLOW"] != "" && substr($0, RSTART + RLENGTH) ~ ENVIRON["ALLOW"]) next
             print substr($0, 1, RSTART + RLENGTH - 2) ": " ENVIRON["NAME"]
           }')
   if [ -n "$h" ]; then hits="${hits:+$hits

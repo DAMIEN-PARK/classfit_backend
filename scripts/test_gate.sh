@@ -3,15 +3,16 @@
 # 원본 작업 트리는 건드리지 않는다 — 추적 파일의 "작업 트리 내용"을 임시 사본(.git 없음)에 복사해 넣고 빼며 잰다.
 # 사본에 .git 이 없으므로 check_secrets.sh 는 find 갈래를 탄다. .venv 는 복사하지 않고 원본의 PYTHON·RUFF 를 쓴다.
 # 층마다 그 층 하나로 막히는지 따로 본다. "ruff 또는 gate" 로 합치면 한 층이 죽어도 녹색이다(T0b, T0a 리뷰 nit 4).
-#   음성 8 — ruff 2: ① import asyncpg ② import langchain_openai → TID251
-#            gate 4: ③ asyncpg 행 ④ langchain-openai==0.2 행 ⑤ langchain_openai==0.2 행 → 금지 패키지
+#   음성 9 — ruff 2: ① import asyncpg ② import langchain_openai → TID251
+#            gate 5: ③ asyncpg 행 ④ langchain-openai==0.2 행 ⑤ langchain_openai==0.2 행 → 금지 패키지
 #                    ⑥ import langchain_foo → langchain_* import (ruff 목록 밖이라 ruff 는 통과해야 한다)
-#            hook 2: ⑦ Write import asyncpg ⑧ Edit requirements.in langchain-openai==0.2 → deny-deps exit 2
-#   양성 3 — ⑨ 깨끗한 사본이 gate·ruff 통과 ⑩ langchain-core==0.3 행 + import langchain_core 가 gate·ruff 통과
-#            ⑪ Edit requirements.in langchain-core==0.3 · Write import langchain_core → deny-deps 둘 다 exit 0
-# ⚠️ 양성 ⑨·⑩ 은 작업 트리 내용을 그대로 쓰므로, 추적 파일에 미커밋 위반(예: alembic.ini 에 DB 자격)이 있으면
+#                    ⑦ CRLF 로 저장된 금지 용어 목록의 용어가 본문의 같은 글자를 잡는다 → 금지 용어 (T0b 리뷰 nit 1)
+#            hook 2: ⑧ Write import asyncpg ⑨ Edit requirements.in langchain-openai==0.2 → deny-deps exit 2
+#   양성 3 — ⑩ 깨끗한 사본이 gate·ruff 통과 ⑪ langchain-core==0.3 행 + import langchain_core 가 gate·ruff 통과
+#            ⑫ Edit requirements.in langchain-core==0.3 · Write import langchain_core → deny-deps 둘 다 exit 0
+# ⚠️ 양성 ⑩·⑪ 은 작업 트리 내용을 그대로 쓰므로, 추적 파일에 미커밋 위반(예: alembic.ini 에 DB 자격)이 있으면
 #    gate 와 같이 빨갛다. 그 위반을 고치기 전까지는 원본 트리에서 녹색이 될 수 없다(그 경우 `make gate` 도 실패).
-# 출력 마지막 줄: "음성 8/8 OK · 양성 3/3 OK" 이면 exit 0, 아니면 "음성 n/8 · 양성 m/3" + 틀린 사례, exit 1.
+# 출력 마지막 줄: "음성 9/9 OK · 양성 3/3 OK" 이면 exit 0, 아니면 "음성 n/9 · 양성 m/3" + 틀린 사례, exit 1.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
@@ -70,13 +71,13 @@ wrong=""
 pass() { echo "$1 OK  $2"; }
 miss() { echo "$1 틀림  $2"; show_log "$3"; wrong="$wrong $1"; }
 
-# ⑨ 깨끗한 사본 — 먼저 잰다. 이게 빨가면 음성 결과는 아래 메시지 대조로만 믿을 수 있다.
-grc=0; run_gate p9 || grc=$?
-rrc=0; run_ruff p9 || rrc=$?
-if [ "$grc" -eq 0 ] && grep -q '^gate: OK$' "$logs/p9.gate" && [ "$rrc" -eq 0 ]; then
-  pos_ok=$((pos_ok + 1)); pass "⑨" "깨끗한 사본: gate OK · ruff 통과"
+# ⑩ 깨끗한 사본 — 먼저 잰다. 이게 빨가면 음성 결과는 아래 메시지 대조로만 믿을 수 있다.
+grc=0; run_gate p10 || grc=$?
+rrc=0; run_ruff p10 || rrc=$?
+if [ "$grc" -eq 0 ] && grep -q '^gate: OK$' "$logs/p10.gate" && [ "$rrc" -eq 0 ]; then
+  pos_ok=$((pos_ok + 1)); pass "⑩" "깨끗한 사본: gate OK · ruff 통과"
 else
-  miss "⑨" "깨끗한 사본이 통과해야 함 (gate rc=$grc, ruff rc=$rrc)" p9
+  miss "⑩" "깨끗한 사본이 통과해야 함 (gate rc=$grc, ruff rc=$rrc)" p10
 fi
 
 # ①② ruff 층 — TID251 하나로 막혀야 한다
@@ -120,12 +121,31 @@ else
 fi
 reset_copy
 
-# ⑦⑧ hook 층 — deny-deps.sh 가 편집 단계에서 exit 2 로 막는다
-J7='{"tool_name":"Write","tool_input":{"file_path":"src/classfit/service/_t.py","content":"import os\nimport asyncpg\n"}}'
-J8='{"tool_name":"Edit","tool_input":{"file_path":"requirements.in","old_string":"fastapi","new_string":"fastapi\nlangchain-openai==0.2\n"}}'
-n=7
-for j in "$J7" "$J8"; do
-  case $n in 7) mark="⑦"; what="Write import asyncpg" ;; *) mark="⑧"; what="Edit requirements.in langchain-openai==0.2" ;; esac
+# ⑦ gate 층 — CRLF 로 저장된 금지 용어 목록(용어 끝에 CR)도 본문의 같은 글자를 잡아야 한다. 목록의 CR 을 지우는지 잰다.
+#    용어는 둘로 나눠 적는다. 이 시험 파일 자체가 용어에 맞으면 탐침이 아니라 이 파일이 잡혀 사례가 무뎌진다.
+#    판정은 탐침 위치(file:line)가 찍혔는지로 한다. 목록 파일이 사본에 없으면(실명이 생겨 gitignore 된 뒤) 만들고 지운다.
+term="zzq""acme"
+tf="$copy/scripts/forbidden_terms.txt"
+had_tf=0
+if [ -f "$tf" ]; then had_tf=1; cp "$tf" "$work/forbidden_terms.orig"; fi
+if [ -s "$tf" ] && [ -n "$(tail -c1 "$tf")" ]; then echo >>"$tf"; fi
+printf '%s\r\n' "$term" >>"$tf"
+printf 'X = "%s"\n' "$term" >"$copy/$probe"
+grc=0; run_gate n7 || grc=$?
+if [ "$grc" -ne 0 ] && grep -q '^GATE FAIL: 금지 용어 (실고객사명·도메인)' "$logs/n7.gate" && grep -qF "$probe:1" "$logs/n7.gate"; then
+  neg_ok=$((neg_ok + 1)); pass "⑦" "CRLF 목록의 용어 → gate 금지 용어 ($probe:1)"
+else
+  miss "⑦" "CRLF 로 저장된 용어가 본문을 잡아 gate 가 막아야 함 (gate rc=$grc)" n7
+fi
+if [ "$had_tf" -eq 1 ]; then cp "$work/forbidden_terms.orig" "$tf"; else rm -f "$tf"; fi
+reset_copy
+
+# ⑧⑨ hook 층 — deny-deps.sh 가 편집 단계에서 exit 2 로 막는다
+J8='{"tool_name":"Write","tool_input":{"file_path":"src/classfit/service/_t.py","content":"import os\nimport asyncpg\n"}}'
+J9='{"tool_name":"Edit","tool_input":{"file_path":"requirements.in","old_string":"fastapi","new_string":"fastapi\nlangchain-openai==0.2\n"}}'
+n=8
+for j in "$J8" "$J9"; do
+  case $n in 8) mark="⑧"; what="Write import asyncpg" ;; *) mark="⑨"; what="Edit requirements.in langchain-openai==0.2" ;; esac
   hrc=0; run_hook "n$n" "$j" || hrc=$?
   if [ "$hrc" -eq 2 ] && grep -q '금지 의존성' "$logs/n$n.hook"; then
     neg_ok=$((neg_ok + 1)); pass "$mark" "$what → deny-deps exit 2"
@@ -135,33 +155,33 @@ for j in "$J7" "$J8"; do
   n=$((n + 1))
 done
 
-# ⑩ langchain-core 행 + import langchain_core → gate·ruff 둘 다 통과
+# ⑪ langchain-core 행 + import langchain_core → gate·ruff 둘 다 통과
 reset_copy
 add_req 'langchain-core==0.3'
 printf 'import langchain_core  # noqa: F401\n' >"$copy/$probe"
-grc=0; run_gate p10 || grc=$?
-rrc=0; run_ruff p10 || rrc=$?
-if [ "$grc" -eq 0 ] && grep -q '^gate: OK$' "$logs/p10.gate" && [ "$rrc" -eq 0 ]; then
-  pos_ok=$((pos_ok + 1)); pass "⑩" "langchain-core==0.3 행 + import langchain_core → gate OK · ruff 통과"
+grc=0; run_gate p11 || grc=$?
+rrc=0; run_ruff p11 || rrc=$?
+if [ "$grc" -eq 0 ] && grep -q '^gate: OK$' "$logs/p11.gate" && [ "$rrc" -eq 0 ]; then
+  pos_ok=$((pos_ok + 1)); pass "⑪" "langchain-core==0.3 행 + import langchain_core → gate OK · ruff 통과"
 else
-  miss "⑩" "langchain-core 행·import langchain_core 는 통과해야 함 (gate rc=$grc, ruff rc=$rrc)" p10
+  miss "⑪" "langchain-core 행·import langchain_core 는 통과해야 함 (gate rc=$grc, ruff rc=$rrc)" p11
 fi
 reset_copy
 
-# ⑪ hook 허용 — langchain-core 행과 langchain_core import 는 deny-deps 가 통과시킨다
-J11R='{"tool_name":"Edit","tool_input":{"file_path":"requirements.in","old_string":"fastapi","new_string":"fastapi\nlangchain-core==0.3\n"}}'
-J11P='{"tool_name":"Write","tool_input":{"file_path":"src/classfit/service/_t.py","content":"import langchain_core\nfrom langchain_core.messages import AIMessage\n"}}'
-hrc_r=0; run_hook p11.req "$J11R" || hrc_r=$?
-hrc_p=0; run_hook p11.py "$J11P" || hrc_p=$?
+# ⑫ hook 허용 — langchain-core 행과 langchain_core import 는 deny-deps 가 통과시킨다
+J12R='{"tool_name":"Edit","tool_input":{"file_path":"requirements.in","old_string":"fastapi","new_string":"fastapi\nlangchain-core==0.3\n"}}'
+J12P='{"tool_name":"Write","tool_input":{"file_path":"src/classfit/service/_t.py","content":"import langchain_core\nfrom langchain_core.messages import AIMessage\n"}}'
+hrc_r=0; run_hook p12.req "$J12R" || hrc_r=$?
+hrc_p=0; run_hook p12.py "$J12P" || hrc_p=$?
 if [ "$hrc_r" -eq 0 ] && [ "$hrc_p" -eq 0 ]; then
-  pos_ok=$((pos_ok + 1)); pass "⑪" "Edit requirements.in langchain-core==0.3 · Write import langchain_core → deny-deps exit 0"
+  pos_ok=$((pos_ok + 1)); pass "⑫" "Edit requirements.in langchain-core==0.3 · Write import langchain_core → deny-deps exit 0"
 else
-  miss "⑪" "langchain-core 행·import langchain_core 는 deny-deps 가 통과시켜야 함 (rc 행=$hrc_r, import=$hrc_p)" p11
+  miss "⑫" "langchain-core 행·import langchain_core 는 deny-deps 가 통과시켜야 함 (rc 행=$hrc_r, import=$hrc_p)" p12
 fi
 
-if [ "$neg_ok" -eq 8 ] && [ "$pos_ok" -eq 3 ]; then
-  echo "음성 8/8 OK · 양성 3/3 OK"
+if [ "$neg_ok" -eq 9 ] && [ "$pos_ok" -eq 3 ]; then
+  echo "음성 9/9 OK · 양성 3/3 OK"
   exit 0
 fi
-echo "음성 $neg_ok/8 · 양성 $pos_ok/3 — 틀린 사례:$wrong"
+echo "음성 $neg_ok/9 · 양성 $pos_ok/3 — 틀린 사례:$wrong"
 exit 1

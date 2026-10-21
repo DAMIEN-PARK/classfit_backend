@@ -9,7 +9,7 @@ make gate
 make lint
 make lint-imports
 bash .claude/hooks/test_hooks.sh     # 훅 회귀(E-2)
-bash scripts/test_gate.sh            # gate 회귀: ruff·gate·hook 세 층, 음성 8 · 양성 3(E-6)
+bash scripts/test_gate.sh            # gate 회귀: ruff·gate·hook 세 층, 음성 9 · 양성 3(E-6)
 # master first-parent · 가지 커밋 순서(E-1). 1(위반)·127(파일 없음)은 막고, 2("못 쟀다")는 경고만(E10, 안내서 §6.11)
 rc=0; bash scripts/check_task_order.sh || rc=$?
 if [ "$rc" -eq 2 ]; then
@@ -18,10 +18,11 @@ elif [ "$rc" -ne 0 ]; then
   exit "$rc"
 fi
 make okf   # OKF 문서 정리 guard(r3 E9). Makefile 이 PyYAML 있는 venv 파이썬을 넘긴다
-# 문서 구조 검사. push 전에는 외부 정본(기획/·시안/) sha 까지 잰다(r3 N8). 2("못 쟀다")는 check_task_order 처럼 경고만(E10)
+# 문서 구조 검사. push 전에는 외부 정본(기획/·시안/) sha 까지 잰다(r3 N8). 2("못 쟀다": git 저장소가 아니거나 master 참조 없음)는
+# check_task_order 처럼 경고만(E10). 문서·외부 정본을 못 읽는 것은 위반(1)이라 막는다.
 rc=0; CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh || rc=$?
 if [ "$rc" -eq 2 ]; then
-  echo "pre-push: 경고 — check_docs 가 못 쟀다(exit 2). push 는 계속한다"
+  echo "pre-push: 경고 — check_docs 가 못 쟀다(exit 2: master 참조 없음 등). push 는 계속한다"
 elif [ "$rc" -ne 0 ]; then
   exit "$rc"
 fi

@@ -9,6 +9,7 @@
 # 표는 백틱 글자를 읽는다. okf link 가 경로를 링크로 감싸도 백틱 글자는 링크 글 안에 남으므로 결과가 같다(OKF §8-11).
 # 표·열을 못 찾으면 위반이다(조용히 통과하지 않는다). 읽는 모양의 정본은 spec.md 4절 6번이다.
 # exit 0 통과 · 1 위반 · 2 못 쟀다(git 저장소가 아니거나 master 참조가 없다). pre-push 는 2 를 경고만 한다(check_task_order 와 같은 정책).
+# 문서를 못 읽는 것(awk·shasum 실패)은 "못 쟀다" 가 아니라 위반이다. set -e 로 그 rc 가 그대로 새어 2 와 섞이지 않게 묶는다(T0b 리뷰 nit 3).
 # macOS 기본 bash 3.2 에서 돈다(연관 배열·mapfile·${v,,} 를 쓰지 않는다).
 set -euo pipefail
 set -f   # 시험 이름을 낱말로 나눌 때 * 같은 글자가 파일 이름으로 펼쳐지지 않게
@@ -127,8 +128,9 @@ done
 
 # ①② spec 1절 정본 색인
 if [ -f "$SPEC" ]; then
-  rows=$(table_rows "$SPEC" "## 1. " "영역:raw,위치:raw,파일:first,sha256:first")
-  if table_ok "$SPEC 1절" "$rows"; then
+  rrc=0; rows=$(table_rows "$SPEC" "## 1. " "영역:raw,위치:raw,파일:first,sha256:first") || rrc=$?
+  if [ "$rrc" -ne 0 ]; then violate "$SPEC 1절" "표를 읽지 못했다(awk rc $rrc)"
+  elif table_ok "$SPEC 1절" "$rows"; then
     repo_n=0; ext_n=0; ext_checked=0
     while IFS=$'\t' read -r ln area loc path sha; do
       where="$SPEC:$ln"
@@ -146,9 +148,8 @@ if [ -f "$SPEC" ]; then
             if [ "$path" = "$EMPTY" ]; then violate "$where" "($area) 파일 칸에 백틱 경로가 없다"
             elif ! [[ $sha =~ ^[0-9a-f]{64}$ ]]; then violate "$where" "($area) sha256 칸이 백틱 안 64자 소문자 16진수가 아니다"
             elif [ ! -f "$path" ]; then violate "$where" "($area) 외부 정본이 없다: $path"
-            else
-              got=$(sha_of "$path")
-              [ "$got" = "$sha" ] || violate "$where" "($area) sha256 이 다르다: $path 색인 ${sha:0:16}… 실제 ${got:0:16}…"
+            elif ! got=$(sha_of "$path"); then violate "$where" "($area) 외부 정본을 읽지 못했다: $path"
+            elif [ "$got" != "$sha" ]; then violate "$where" "($area) sha256 이 다르다: $path 색인 ${sha:0:16}… 실제 ${got:0:16}…"
             fi
           fi
           ;;
@@ -166,8 +167,9 @@ fi
 
 # ③ spec 2절 정책 대조표
 if [ -f "$SPEC" ]; then
-  rows=$(table_rows "$SPEC" "## 2. " "#:raw,어디에 코드로:raw")
-  if table_ok "$SPEC 2절" "$rows"; then
+  rrc=0; rows=$(table_rows "$SPEC" "## 2. " "#:raw,어디에 코드로:raw") || rrc=$?
+  if [ "$rrc" -ne 0 ]; then violate "$SPEC 2절" "표를 읽지 못했다(awk rc $rrc)"
+  elif table_ok "$SPEC 2절" "$rows"; then
     pol_n=0
     while IFS=$'\t' read -r ln num cell; do
       pol_n=$((pol_n + 1))
@@ -183,8 +185,9 @@ fi
 merged=$(git log --first-parent --format=%s "$master" | sed -nE 's/^merge: (T[0-9]+[a-z]?) .*$/\1/p' | sort -u | tr '\n' ' ')
 merged=" ${merged}"
 if [ -f "$DESIGN" ]; then
-  rows=$(table_rows "$DESIGN" "## 부록 A." "T:raw,시험 이름:all")
-  if table_ok "$DESIGN 부록 A" "$rows"; then
+  rrc=0; rows=$(table_rows "$DESIGN" "## 부록 A." "T:raw,시험 이름:all") || rrc=$?
+  if [ "$rrc" -ne 0 ]; then violate "$DESIGN 부록 A" "표를 읽지 못했다(awk rc $rrc)"
+  elif table_ok "$DESIGN 부록 A" "$rows"; then
     all_n=0; target_n=0
     while IFS=$'\t' read -r ln tid names; do
       all_n=$((all_n + 1))

@@ -55,7 +55,9 @@ fi
 # 4. 실고객사명·도메인 (scripts/forbidden_terms.txt, 한 줄 하나, 글자 그대로·대소문자 무시, # 주석)
 #    pre-push·CI 는 CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1 — 목록 파일이 없으면(gitignore 뒤 주입 누락) 실패. 목록 행 0개는 통과(grep 을 부르지 않는다).
 #    용어는 정규식이 아니라 글자 그대로 잰다(grep -F -f). `XX(주)` 의 괄호가 ERE 를 깨거나 다른 뜻이 되지 않게(T0a 리뷰 nit 5).
-#    주석·빈 줄을 뺀 임시 파일을 -f 로 넘긴다. 빈 줄이 남으면 -F 는 모든 줄에 맞는다. 앞뒤 빈칸도 글자로 잰다.
+#    목록은 CR 을 지우고(CRLF 로 저장돼도 같게) 앞뒤 빈칸을 깎는다(안쪽 빈칸은 용어의 일부). 주석 줄(# 로 시작)·빈 줄은 건너뛴다.
+#    그 밖의 줄에 # 이 있으면(줄 끝 주석 등) 조용히 통과시키지 않고 목록 오류로 막는다 — 줄 번호만 찍는다(T0b 리뷰 nit 1).
+#    남은 용어만 임시 파일로 -f 에 넘긴다. 빈 줄이 남으면 -F 는 모든 줄에 맞는다.
 #    맞으면 file:line 만 찍는다. 맞은 줄 내용은 찍지 않는다(CI 로그로 실명이 새지 않게).
 #    한계: 용어가 경로 이름에 들면 file:line 의 경로로 드러난다(실측 docs/acmesecret-dir/n.md:1). 경로 이름에 실명을 쓰지 않는다.
 #    grep rc 2(목록이나 대상 파일을 못 읽음)는 삼키지 않고 실패로 본다. 없는 경로도 rc 2 가 되므로 있는 경로만 넘긴다.
@@ -64,10 +66,21 @@ if [ -f "$terms_file" ]; then
   terms_tmp=$(mktemp "${TMPDIR:-/tmp}/classfit-terms.XXXXXX") || exit 2
   hits_tmp=$(mktemp "${TMPDIR:-/tmp}/classfit-hits.XXXXXX") || { rm -f "$terms_tmp"; exit 2; }
   trap 'rm -f "$terms_tmp" "$hits_tmp"' EXIT
-  frc=0; grep -vE '^[[:space:]]*(#|$)' "$terms_file" >"$terms_tmp" || frc=$?
-  if [ "$frc" -ge 2 ]; then
+  frc=0; terms_raw=$(tr -d '\r' <"$terms_file") || frc=$?
+  bad_lines=""
+  if [ "$frc" -eq 0 ]; then
+    bad_lines=$(printf '%s\n' "$terms_raw" | OUT="$terms_tmp" awk '
+      { s = $0; sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s) }
+      s == "" || substr(s, 1, 1) == "#" { next }
+      index(s, "#") { printf "%s%d", (n++ ? "," : ""), NR; next }
+      { print s > ENVIRON["OUT"] }') || frc=$?
+  fi
+  if [ "$frc" -ne 0 ]; then
     note "금지 용어 목록 읽기 실패 ($terms_file)"
-  elif [ -s "$terms_tmp" ]; then
+  elif [ -n "$bad_lines" ]; then
+    note "금지 용어 목록 오류 — 용어 줄에 # 이 있다(줄 끝 주석은 쓰지 않는다): $terms_file 줄 $bad_lines"
+  fi
+  if [ "$frc" -eq 0 ] && [ -s "$terms_tmp" ]; then
     targets=()
     for p in src tests alembic scripts docs ./*.md; do
       if [ -e "$p" ]; then targets+=("$p"); fi
