@@ -1,0 +1,6 @@
+-c requirements.txt
+ruff
+pytest
+pytest-asyncio
+import-linter
+pip-tools

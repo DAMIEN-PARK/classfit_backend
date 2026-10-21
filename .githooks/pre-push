@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# push 전 관문. make verify · CI 와 같은 스크립트를 부른다. 시험(라이브 PG)은 CI 가 돈다.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+make editable-check   # iCloud 가 .pth 를 숨겨 편집 설치가 죽었으면 여기서 이름을 대며 멈춘다
+make gate
+make lint
+make lint-imports

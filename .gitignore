@@ -1,0 +1,14 @@
+.venv*
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.import_linter_cache/
+.env
+.env.*
+!.env.example
+.omc/
+.DS_Store

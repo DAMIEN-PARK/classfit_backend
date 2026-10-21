@@ -1,0 +1,11 @@
+# 직접 의존성만 적는다. make lock 이 requirements.txt 를 만든다.
+# 주석은 줄 단독으로만 (pyproject 가 이 파일을 dynamic dependencies 로 읽는다).
+fastapi
+uvicorn
+sqlalchemy[asyncio]<2.1
+psycopg[binary]
+alembic
+pydantic
+pydantic-settings
+httpx
+python-dotenv

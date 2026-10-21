@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"   # .python-version 의 패치 판(3.14.7)이 러너 목록에 없을 수 있어 마이너까지만
+      - run: make venv install PY=python
+      - run: make editable-check gate lint lint-imports
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: classfit
+          POSTGRES_PASSWORD: classfit
+          POSTGRES_DB: classfit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U classfit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CLASSFIT_TEST_DATABASE_URL: postgresql+psycopg://classfit:classfit@localhost:5432/classfit_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: make venv install PY=python
+      - run: make test
