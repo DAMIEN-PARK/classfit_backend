@@ -149,7 +149,16 @@ make verify                                         # T0a 시점: exit 0, "gate:
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+1. **merge_task.sh 검사 순서와 종료 코드**: 검사 셋(깨끗한 트리 → y/N 확인 → 가지 `check_task_order`)을 master 전환보다 앞에 두었다. 본문은 `main "$@"; exit 0` 한 줄로 감싸 사본 실행 중 파일이 바뀌어도 안전하다. 진행 중인 병합·병합할 것 없음은 exit 1. 종료 코드는 0 병합 · 1 검사·충돌·verify 실패 · 2 사용법.
+2. **check_task_order.sh 가 계획보다 엄격하다**: 가지 이름 `^(T[0-9]+[a-z]?)-([A-Za-z0-9][A-Za-z0-9._-]*)$`, plan 제목 `plan: <tid> <slug>` 의 슬러그가 가지와 일치, 승인 커밋은 빈 커밋 + 본문 트레일러 줄 `^Approved-by: [^[:space:]]`(대소문자 구분) 필수, `T<n>:` 는 승인 커밋 뒤, `sync: <tid>` 는 2-parent 병합, master first-parent 는 `^merge: T… <slug>$` + 본문 `^make verify: exit 0` 줄 + 트레일러 줄 필수. 종료 코드는 0 통과 · 1 위반 · 2 못 쟀다. "plan 커밋은 docs/plans/ 만" 검사는 뺐다(iCloud 읽기 오류가 `|| true` 에 삼켜지기 때문).
+3. **settings.json deny 에 E11 밖 4줄**: `Bash(bash scripts/merge_task.sh*)` · `Bash(./scripts/merge_task.sh*)` · `Bash(scripts/merge_task.sh*)` 3줄로 승인자 전용 병합 스크립트의 직접 실행을 막는다(allow `Bash(bash scripts/*)` 가 그 스크립트를 통과시키기 때문). `Bash(.venv/bin/alembic downgrade*)` 도 더했다.
+4. **deny-deps.sh 범위**: 의존성 파일 검사는 `requirements*.in` · `requirements*.txt` 만 본다. pyproject.toml 은 banned-api 설정 줄이 걸리므로 제외했다. 동기 Session 금지는 훅이 아니라 ruff 가 맡는다.
+5. **test_hooks 10건 분배**: protect-tests 3 · deny-deps 3(차단 `langchain_openai` import · requirements `langchain_openai==0.2`, 허용 `langchain_core` · `langgraph`) · deploy-gate 2 · 승인 차단(deny-approval) 2.
+6. **템플릿 머리말**: task-plan · intent 템플릿 머리말에 Archives/URL 기본값을 넣고 끝에 Resources 꼬리를 붙였다. ruby 로 머리말을 검사할 때는 `permitted_classes: [Date]` 가 필요하다.
+7. **`make hooks` 는 워커가 돌리지 않았다**: `make hooks`(merge.ff=false)는 E11 deny 대상 설정이다. 승인자가 병합 전에 돌린다.
+8. **CI 와 pre-push**: CI gates 잡에 check_task_order 단계를 더했다(E9 에는 없고 E11 이 우선). `CLASSFIT_FORBIDDEN_TERMS_REQUIRED` env 와 `fetch-depth: 0` 도 넣었다. pre-push 는 check_task_order 의 "못 쟀다"(exit 2, master 참조 없음)를 경고만 하고 push 를 막지 않는다.
+9. **deny 글롭의 알려진 구멍(verifier 메모)**: 인자 없는 `git push`, `git branch -D` · `-m` · `--force`, `git commit -m x -n` 은 deny 글롭에 걸리지 않는다. E11 이 deny 를 "불완전"하다고 둔 범위이고, 최종 방어는 pre-commit + check_task_order 두 겹이다. master 위 병합 실험 2건(자동 병합 커밋 차단 · `--no-ff --no-commit` 뒤 병합 커밋 통과)은 세션 deny 때문에 에이전트가 돌리지 못한다. 승인자가 Claude 밖 터미널에서 `/private/tmp/claude-501/-Users-damienpark-Documents-PROJECT-ClassFit/ce64a957-6aee-4b65-aee0-dc1999802ff8/scratchpad/exp_master_hooks.sh` 로 확인한다(임시 clone 에서만 병합).
+10. **환경: iCloud dataless venv**: 원본 `.venv.nosync` 에 iCloud dataless 파일이 18개 있어(verifier 측정, 통합 직전 재측정 17개) 원본 venv 로 pytest 를 돌리면 EDEADLK(`Resource deadlock avoided`)가 난다. verifier 는 스크래치 venv 로 `make verify` exit 0 · 20 passed 를 확인했다. 병합 전에 venv 를 다시 만들거나 저장소를 iCloud 밖으로 옮겨야 한다.
 
 
 
