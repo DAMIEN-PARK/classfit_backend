@@ -176,6 +176,7 @@ reviewer-t0a(다른 세션) · 2026-10-21 · 범위 `git diff master...HEAD` 33 
 9. **deny 글롭의 알려진 구멍(verifier 메모)**: 인자 없는 `git push`, `git branch -D` · `-m` · `--force`, `git commit -m x -n` 은 deny 글롭에 걸리지 않는다. E11 이 deny 를 "불완전"하다고 둔 범위이고, 최종 방어는 pre-commit + check_task_order 두 겹이다. master 위 병합 실험 2건(자동 병합 커밋 차단 · `--no-ff --no-commit` 뒤 병합 커밋 통과)은 세션 deny 때문에 에이전트가 돌리지 못한다. 승인자가 Claude 밖 터미널에서 `/private/tmp/claude-501/-Users-damienpark-Documents-PROJECT-ClassFit/ce64a957-6aee-4b65-aee0-dc1999802ff8/scratchpad/exp_master_hooks.sh` 로 확인한다(임시 clone 에서만 병합).
 10. **환경: iCloud dataless venv**: 원본 `.venv.nosync` 에 iCloud dataless 파일이 18개 있어(verifier 측정, 통합 직전 재측정 17개) 원본 venv 로 pytest 를 돌리면 EDEADLK(`Resource deadlock avoided`)가 난다. verifier 는 스크래치 venv 로 `make verify` exit 0 · 20 passed 를 확인했다. 병합 전에 venv 를 다시 만들거나 저장소를 iCloud 밖으로 옮겨야 한다.
 11. **reviewer nit 1·2·3 반영**: 이 커밋(`T0a: 리뷰 반영 — TTY 확인·master 판 검사기·add -A deny, 리뷰 절 기록`)으로 반영했다(TTY 확인, master 판 검사기 우선, git add -A/./commit -a deny). 그래서 merge_task.sh ③ 은 이제 master 판 `check_task_order.sh` 를 먼저 쓰고, 가지의 `task_order_base` 가 master 판과 다르면 중단한다(1번 항목의 "가지 `check_task_order`" 는 master 에 검사기가 없는 T0a 에만 해당). (커밋 9ff467f. reviewer 재확인 '닫힘', 잔여: `git commit --all` 긴 형 deny 를 이 마무리 커밋에서 추가, `-m x -a` 처럼 뒤에 붙는 -a 는 알려진 구멍으로 9번과 같이 최종 방어에 맡김)
+12. **요구정의서 동승**: 사용자 지시(2026-10-21)로 `docs/requirements/2026-10-21-요구정의서.md`(v1.0 검토용, 시안 3종 전체 요구 목록)를 이 가지에 함께 커밋했다. T0a 범위 밖 문서이고 머리말(`type`)이 없다. T0b 에서 `type: Requirements` 머리말과 okf.toml 종류 규칙(`requirements/*`), spec 색인 등재를 더한다. 내용은 고치지 않았다.
 
 
 
