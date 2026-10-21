@@ -14,10 +14,16 @@ anyio==4.15.1
     # via
     #   httpx
     #   starlette
+argon2-cffi==25.1.0
+    # via -r requirements.in
+argon2-cffi-bindings==26.1.0
+    # via argon2-cffi
 certifi==2026.10.19
     # via
     #   httpcore
     #   httpx
+cffi==2.1.1
+    # via argon2-cffi-bindings
 click==8.5.0
     # via uvicorn
 fastapi==0.156.5
@@ -46,6 +52,8 @@ psycopg==3.3.6
     # via -r requirements.in
 psycopg-binary==3.3.6
     # via psycopg
+pycparser==3.11
+    # via cffi
 pydantic==2.14.1
     # via
     #   -r requirements.in
