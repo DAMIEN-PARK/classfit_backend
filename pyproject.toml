@@ -29,6 +29,13 @@ extend-select = ["TID251"]
 "psycopg2".msg = "드라이버는 psycopg 3 하나"
 "openai".msg = "OpenAI 호환 API 는 httpx 로 직접 부른다"
 "langchain".msg = "LangChain 금지 (langgraph 만, 이행 의존성 langchain-core 는 허용)"
+# ruff 는 모듈 단위라 langchain_* 접두를 못 막는다 — 알려진 통합 패키지는 여기, 목록 밖 langchain_* 는 gate.sh grep 이 잡는다
+"langchain_openai".msg = "LangChain 통합 패키지 금지 — OpenAI 호환 API 는 httpx 로 직접"
+"langchain_community".msg = "LangChain 통합 패키지 금지 (langchain-core 만 허용)"
+"langchain_anthropic".msg = "LangChain 통합 패키지 금지 (langchain-core 만 허용)"
+"langchain_google_genai".msg = "LangChain 통합 패키지 금지 (langchain-core 만 허용)"
+"langchain_text_splitters".msg = "LangChain 통합 패키지 금지 (langchain-core 만 허용)"
+"langchain_experimental".msg = "LangChain 통합 패키지 금지 (langchain-core 만 허용)"
 "sqlalchemy.orm.Session".msg = "동기 세션 금지 — AsyncSession"
 "sqlalchemy.orm.sessionmaker".msg = "동기 세션 금지 — async_sessionmaker"
 "sqlalchemy.create_engine".msg = "동기 엔진 금지 — create_async_engine"

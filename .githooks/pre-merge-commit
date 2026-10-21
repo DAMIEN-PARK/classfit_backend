@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# pre-merge-commit (core.hooksPath=.githooks): `git merge` 가 병합 커밋을 자동으로 만들기 직전에 돈다.
+# 현재 가지가 master 일 때만 막는다 — master 병합은 merge_task.sh 만 한다.
+# merge_task.sh 는 `--no-ff --no-commit` 이라 이 훅을 타지 않고, 그 뒤 커밋은 pre-commit(MERGE_HEAD 있음)이 통과시킨다.
+# 다른 가지의 병합(sync_task.sh 의 `git merge --no-ff master`)은 통과(R1).
+set -euo pipefail
+branch="$(git symbolic-ref --short -q HEAD || true)"
+if [ "$branch" = "master" ]; then
+  echo "pre-merge-commit: merge_task.sh 밖의 master 병합 금지 — 승인자가 bash scripts/merge_task.sh <가지> 로 병합"
+  exit 1
+fi
+exit 0

@@ -5,19 +5,34 @@ on:
     branches: [master, main]
   pull_request:
 
+# 같은 ref 에 새 실행이 오면 앞 실행을 취소한다. master 는 기록이라 취소하지 않는다(안내서 §6.12, main → master).
+concurrency:
+  group: ci-${{ github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != 'master' }}
+
 permissions:
   contents: read
 
 jobs:
   gates:
     runs-on: ubuntu-latest
+    env:
+      CLASSFIT_FORBIDDEN_TERMS_REQUIRED: "1"   # 금지 용어 목록 파일이 없으면 gate 실패(E8)
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # check_task_order 가 master first-parent 와 가지 이력을 읽는다
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"   # .python-version 의 패치 판(3.14.7)이 러너 목록에 없을 수 있어 마이너까지만
       - run: make venv install PY=python
       - run: make editable-check gate lint lint-imports
+      - name: hook regression tests
+        run: bash .claude/hooks/test_hooks.sh
+      - name: gate regression tests
+        run: bash scripts/test_gate.sh
+      - name: task order
+        run: bash scripts/check_task_order.sh
 
   test:
     runs-on: ubuntu-latest
