@@ -9,7 +9,8 @@
 from __future__ import annotations
 
 from functools import cache
-from typing import Literal
+from pathlib import Path
+from typing import Any, Literal
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,24 +32,54 @@ class Settings(BaseSettings):
 
     # ── 없어도 되는 값
     enable_docs: bool = False
-    cors_origins: list[str] = []  # JSON 배열로 준다: CLASSFIT_CORS_ORIGINS='["https://..."]'
+    cors_origins: list[
+        str
+    ] = []  # JSON 배열로 준다: CLASSFIT_CORS_ORIGINS='["https://..."]'
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     db_pool_size: int = 5
     db_max_overflow: int = 10
+
+    # ── 기능별 값 (없으면 그 기능만 501, missing() 대상)
+    file_store_root: Path | None = (
+        None  # 예 var.nosync/files (gitignore). 저장소 밖이면 iCloud 폴더 밖에
+    )
+    # ── 예약 칸 (서명 URL 은 프론트 확정 때, ADR-003 결정 3). missing() 목록 밖
+    file_signing_key: SecretStr | None = None
+
+    # ── 수명·잠금. Design 1절 값이 기본값이고 칸 하나로 바꾼다(ADR-002 결정 5)
+    admin_session_hours: int = 8
+    learner_session_days: int = 1
+    login_lock_failures: int = (
+        10  # 같은 (계정, 클라이언트 주소)의 최근 창 실패가 이 수 이상이면 잠김
+    )
+    login_lock_minutes: int = 15  # 실패를 세는 창이자 잠김 시간
+    file_gc_grace_hours: int = 24
+
+    @field_validator("file_store_root", "file_signing_key", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, v: Any) -> Any:
+        # .env.example 을 그대로 복사한 빈 값이 Path("") = 현재 폴더로 조용히 바뀌지 않게
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
 
     @field_validator("database_url")
     @classmethod
     def _psycopg_only(cls, v: SecretStr | None) -> SecretStr | None:
         if v is not None and not v.get_secret_value().startswith(DRIVER_PREFIX):
             # 값은 오류 문구에 넣지 않는다
-            raise ValueError(f"{ENV_PREFIX}DATABASE_URL 은 {DRIVER_PREFIX} 로 시작해야 합니다")
+            raise ValueError(
+                f"{ENV_PREFIX}DATABASE_URL 은 {DRIVER_PREFIX} 로 시작해야 합니다"
+            )
         return v
 
     @field_validator("cors_origins")
     @classmethod
     def _no_wildcard_origin(cls, v: list[str]) -> list[str]:
         if "*" in v:
-            raise ValueError("CORS 출처에 '*' 를 쓰지 않는다 (allow_credentials 와 함께면 사실상 전체 허용)")
+            raise ValueError(
+                "CORS 출처에 '*' 를 쓰지 않는다 (allow_credentials 와 함께면 사실상 전체 허용)"
+            )
         return v
 
     @field_validator("db_pool_size")
@@ -56,6 +87,19 @@ class Settings(BaseSettings):
     def _pool_size_positive(cls, v: int) -> int:
         if v < 1:
             raise ValueError("1 이상이어야 합니다 (QueuePool 에서 0 은 무제한)")
+        return v
+
+    @field_validator(
+        "admin_session_hours",
+        "learner_session_days",
+        "login_lock_failures",
+        "login_lock_minutes",
+        "file_gc_grace_hours",
+    )
+    @classmethod
+    def _positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("1 이상이어야 합니다")
         return v
 
     @field_validator("db_max_overflow")
@@ -66,7 +110,7 @@ class Settings(BaseSettings):
         return v
 
     def missing(self, *fields: str) -> list[str]:
-        """빠진 필드의 환경 변수 이름만 돌려준다. 503 안내문에 그대로 쓴다."""
+        """빠진 필드의 환경 변수 이름만 돌려준다. 501(미구성) 안내문에 그대로 쓴다."""
         return [ENV_PREFIX + f.upper() for f in fields if getattr(self, f) is None]
 
     def require_database_url(self) -> str:

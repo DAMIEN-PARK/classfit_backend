@@ -75,6 +75,16 @@ layers = [
   "core",
 ]
 
+# ② service 구성요소는 서로 모른다. 구성요소 사이의 읽기는 crud 를 거친다(Design 5절 14).
+#    새 구성요소 폴더를 만들면 modules 에 더한다. 위아래 계약(rules 최하위)으로 바꾸는 일은 rules 가 생기는 T2a 다.
+[[tool.importlinter.contracts]]
+name = "2. service 구성요소는 서로 모른다"
+type = "independence"
+modules = [
+  "classfit.service.auth",
+  "classfit.service.files",
+]
+
 # ③ 코어 집합은 소비자(app·main, 나중에 mcp·cli·worker)를 import 하지 않는다.
 #    새 소비자 모듈을 만들면 forbidden_modules 에 같이 더한다.
 [[tool.importlinter.contracts]]
