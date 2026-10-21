@@ -1,0 +1,93 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(.venv/bin/*)",
+      "Bash(bash scripts/sync_task.sh*)",
+      "Bash(bash scripts/*)",
+      "Bash(bash .claude/hooks/test_hooks.sh*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(git rev-parse*)",
+      "Bash(git ls-files*)",
+      "Bash(git merge-base*)",
+      "Bash(git restore --staged*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.local)",
+      "Read(.env.prod)",
+      "Read(.env.production)",
+      "Read(./secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.claude/.credentials.json)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(alembic downgrade*)",
+      "Bash(.venv/bin/alembic downgrade*)",
+      "Bash(docker compose down -v*)",
+      "Bash(git merge)",
+      "Bash(git merge *)",
+      "Bash(git push .*)",
+      "Bash(git push *)",
+      "Bash(git update-ref *)",
+      "Bash(git branch -f *)",
+      "Bash(git branch -M *)",
+      "Bash(git reset *)",
+      "Bash(git fetch . *)",
+      "Bash(git checkout master*)",
+      "Bash(git switch master*)",
+      "Bash(git rebase *)",
+      "Bash(git cherry-pick *)",
+      "Bash(*--no-verify*)",
+      "Bash(git commit -n*)",
+      "Bash(git commit -a*)",
+      "Bash(git commit --all*)",
+      "Bash(git add -A*)",
+      "Bash(git add --all*)",
+      "Bash(git add .)",
+      "Bash(git add . *)",
+      "Bash(git config core.hooksPath*)",
+      "Bash(git config merge.ff*)",
+      "Bash(git -c core.hooksPath*)",
+      "Bash(git -c merge.ff*)",
+      "Bash(bash scripts/merge_task.sh*)",
+      "Bash(./scripts/merge_task.sh*)",
+      "Bash(scripts/merge_task.sh*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-tests.sh\"" },
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/deny-deps.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/deploy-gate.sh\"" },
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/deny-approval.sh\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/format-on-edit.sh\"" }
+        ]
+      }
+    ]
+  }
+}

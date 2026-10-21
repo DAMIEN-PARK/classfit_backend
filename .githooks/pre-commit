@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# pre-commit (core.hooksPath=.githooks, make hooks): master 직접 커밋 금지.
+# master 의 커밋은 merge_task.sh 의 병합 커밋뿐이다 — 그 스크립트는 `git merge --no-ff --no-commit` 뒤 커밋하므로
+# MERGE_HEAD 가 있을 때만 통과시킨다. 다른 가지·detached HEAD 는 통과.
+# T0b: docs/ 가 스테이징됐을 때만 OKF guard(`git diff --cached --name-only -- docs`, OKF_PYTHON=.venv/bin/python) 를 더한다(부록 E6).
+set -euo pipefail
+branch="$(git symbolic-ref --short -q HEAD || true)"
+if [ "$branch" = "master" ] && ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+  echo "pre-commit: master 직접 커밋 금지 — 가지에서 작업하고 merge_task.sh 로 병합"
+  exit 1
+fi
+exit 0

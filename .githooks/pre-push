@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 # push 전 관문. make verify · CI 와 같은 스크립트를 부른다. 시험(라이브 PG)은 CI 가 돈다.
-set -e
+# 회귀 시험·순서 검사 스크립트가 없으면 bash 가 실패해 push 를 막는다(건너뛰지 않는다).
+set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 make editable-check   # iCloud 가 .pth 를 숨겨 편집 설치가 죽었으면 여기서 이름을 대며 멈춘다
+export CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1   # 금지 용어 목록 파일이 없으면 gate 실패(E8)
 make gate
 make lint
 make lint-imports
+bash .claude/hooks/test_hooks.sh     # 훅 회귀(E-2)
+bash scripts/test_gate.sh            # gate 회귀: 음성 5 · 양성 2(E-6)
+# master first-parent · 가지 커밋 순서(E-1). 1(위반)·127(파일 없음)은 막고, 2("못 쟀다")는 경고만(E10, 안내서 §6.11)
+rc=0; bash scripts/check_task_order.sh || rc=$?
+if [ "$rc" -eq 2 ]; then
+  echo "pre-push: 경고 — check_task_order 가 못 쟀다(exit 2). push 는 계속한다"
+elif [ "$rc" -ne 0 ]; then
+  exit "$rc"
+fi
+# T0b: CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh · T2a: golden 재추출 대조(부록 E9)
