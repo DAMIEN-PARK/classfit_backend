@@ -5,6 +5,9 @@
   돌리는 감싸개로 바꿔 그 순간을 잡는다. 같은 실행에서 48시간 된 참조 0 바이트는 지워진다(gc 가 실제로 돌았다는 대조).
 - test_gc_owner_delete_cascade: 첨부 지우기·교체·세션 삭제가 stored_file 행을 같은 트랜잭션에서 지우고(SAVEPOINT 롤백이면
   함께 돌아온다), gc 는 강사 바이트를 지우되 기본 강의안 사본과 sha 가 같은 원본 바이트는 원본 행이 가리켜 남긴다.
+- test_attachment_replace_reupload_during_sweep_keeps_bytes(codex 구현 리뷰 1차, 이름에 gc_ 를 쓰지 않는다 — E-14 셈):
+  gc 의 확인과 지우기 사이에 교체가 같은 바이트를 다시 올려도 바이트가 남는다(store.remove_stale 이 무덤으로 옮긴 뒤
+  지운다). 옮긴 채 남은 무덤은 다음 gc 가 되살린다(store.restore_leftovers).
 - factory·_settings·_age 는 T1 tests/integration/test_db_admin_commands.py 꼴을 복사했다(시험 연결에 묶은 savepoint factory —
   gc 는 이 시험 트랜잭션의 행을 본다).
 - 표본 바이트는 서로 다르고 어느 픽스처 바이트와도 다르다. 같은 바이트면 내용 주소가 한 파일로 합쳐 "지워짐/남음" 이
@@ -293,3 +296,73 @@ async def test_gc_owner_delete_cascade(
     assert path_for(tmp_path, original_sha).is_file()
     for sha in (own_pdf_sha, own_image_sha, _sha(swap)):
         assert not path_for(tmp_path, sha).exists()
+
+
+async def test_attachment_replace_reupload_during_sweep_keeps_bytes(
+    db_session: AsyncSession,
+    factory: async_sessionmaker[AsyncSession],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """gc 가 늙은 참조 0 바이트를 확인하고 지우는 사이에 교체가 같은 바이트를 다시 올린다 → 바이트는 남고, 교체가 끝나면
+    첨부가 그 바이트를 가리킨다(T6 codex 구현 리뷰 1차). 옛 gc("mtime 확인 → unlink")면 재업로드한 바이트를 지운다.
+
+    Path.unlink 감싸개가 이름이 sha_b 로 끝나는 첫 지우기 직전에 진짜 store_bytes(교체의 바이트 단계)를 부른다.
+    같은 gc 실행이 앞선 gc 가 무덤으로 옮긴 채 남긴 참조 바이트(a)를 먼저 되살리는 것도 잰다(restored).
+    """
+    a = PDF + b"%t6-sweep-a\n"  # 첨부가 지금 가리키는 바이트
+    b = PDF + b"%t6-sweep-b\n"  # 늙은 참조 0 바이트 = 교체가 다시 올릴 바이트
+    sha_a, sha_b = _sha(a), _sha(b)
+    assert sha_a != sha_b
+    x, sid = await _x_session(db_session, "sweep-x@example.com")
+    row = await _file(db_session, tmp_path, x, sid, "a.pdf", a)
+    assert await _rows_by_sha(db_session, sha_a) == 1
+    assert await _rows_by_sha(db_session, sha_b) == 0
+    _age(path_for(tmp_path, store_bytes(tmp_path, b)), 48)
+    place_a = path_for(tmp_path, sha_a)
+    os.rename(place_a, place_a.with_name(f".gc-{'0' * 32}-{sha_a}"))
+
+    real_unlink = Path.unlink
+    calls: list[str] = []
+
+    def unlink(self: Path, missing_ok: bool = False) -> None:
+        if self.name.endswith(sha_b) and not calls:
+            calls.append(self.name)
+            store_bytes(
+                tmp_path, b
+            )  # 교체의 바이트 단계가 gc 의 확인과 지우기 사이에 낀다
+        real_unlink(self, missing_ok=missing_ok)
+
+    with monkeypatch.context() as patched:
+        patched.setattr(Path, "unlink", unlink)
+        swept = await _gc(factory, tmp_path, capsys)
+    assert len(calls) == 1
+    assert sha_b in swept["candidates"] and sha_b not in swept["deleted"]
+    assert path_for(tmp_path, sha_b).read_bytes() == b
+    assert swept["restored"] == [sha_a] and place_a.read_bytes() == a
+
+    # 교체의 나머지(잠금 → 새 파일 행 → file_id 바꿈). 바이트 단계는 위에서 했으므로 기록한 sha 만 돌려준다
+    def recorded(root: Path, data: bytes) -> str:
+        assert data == b
+        return sha_b
+
+    monkeypatch.setattr(my_attachment_edit, "store_bytes", recorded)
+    _, key, _ = await my_attachment_edit.replace_my_file(
+        db_session,
+        root=tmp_path,
+        max_bytes=MAX,
+        instructor_id=x,
+        attachment_id=row.id,
+        filename="b.pdf",
+        data=b,
+        actor=f"instructor:{x}",
+    )
+    assert key is not None
+    stored = await crud_stored_file.get_by_key(db_session, key)
+    assert stored is not None
+    assert (stored.sha256, stored.owner_kind, stored.owner_id) == (sha_b, OWNER, row.id)
+    assert path_for(tmp_path, stored.sha256).read_bytes() == b
+    after = await _gc(factory, tmp_path, capsys)
+    assert sha_b not in after["candidates"]
+    assert path_for(tmp_path, sha_b).read_bytes() == b
