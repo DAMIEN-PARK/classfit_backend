@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.models import AuthAttempt, AuthSession, EmailVerification
@@ -55,6 +55,19 @@ async def revoke_session(session: AsyncSession, token_hash: str) -> bool:
         .returning(AuthSession.id)
     )
     return (await session.execute(stmt)).scalar_one_or_none() is not None
+
+
+async def delete_course_sessions(session: AsyncSession, course_id: int) -> int:
+    """그 강의의 auth_session 행을 전부 지운다(만료·폐기 포함). 지운 수.
+
+    강의 삭제가 course 행보다 먼저 부른다. auth_session.course_id FK 가 NO ACTION 이라서다(T2b 결정 xi).
+    """
+    stmt = (
+        delete(AuthSession)
+        .where(AuthSession.course_id == course_id)
+        .returning(AuthSession.id)
+    )
+    return len((await session.execute(stmt)).scalars().all())
 
 
 async def lock_attempt_key(

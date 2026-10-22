@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     login_lock_minutes: int = 15  # 실패를 세는 창이자 잠김 시간
     file_gc_grace_hours: int = 24
     invite_expiry_days: int = 30  # 초대코드 만료 = 강의 종료일 + 이 일수(Design 1절)
+    # 관리자 첨부 PDF 상한(기획안 I4). 기본값이 있어 missing() 대상이 아니다
+    attachment_pdf_max_mb: int = 50
 
     @field_validator("file_store_root", "file_signing_key", mode="before")
     @classmethod
@@ -97,6 +99,7 @@ class Settings(BaseSettings):
         "login_lock_minutes",
         "file_gc_grace_hours",
         "invite_expiry_days",
+        "attachment_pdf_max_mb",
     )
     @classmethod
     def _positive(cls, v: int) -> int:

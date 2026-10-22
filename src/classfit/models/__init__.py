@@ -5,11 +5,13 @@
 """
 
 from classfit.models.admin import AdminAccount
+from classfit.models.attachment import SessionAttachment
 from classfit.models.audit import AuditLog
 from classfit.models.auth import AuthAttempt, AuthSession, EmailVerification
 from classfit.models.base import Base, BigIdMixin, TimestampMixin
 from classfit.models.course import Course, CourseDay, CourseSession, Section
 from classfit.models.invite_code import InviteCode
+from classfit.models.learner import Enrollment, Learner
 from classfit.models.outbox import MailOutbox
 from classfit.models.stored_file import StoredFile
 
@@ -24,9 +26,12 @@ __all__ = [
     "CourseDay",
     "CourseSession",
     "EmailVerification",
+    "Enrollment",
     "InviteCode",
+    "Learner",
     "MailOutbox",
     "Section",
+    "SessionAttachment",
     "StoredFile",
     "TimestampMixin",
 ]
