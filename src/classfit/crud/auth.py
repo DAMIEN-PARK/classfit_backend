@@ -1,13 +1,16 @@
 """인증 표 읽기·쓰기: auth_session · auth_attempt · email_verification. flush 까지만.
 
 시각 비교는 DB 의 now() 로 한다(앱과 DB 의 시계가 갈려도 판정이 한 시계에 묶이게).
+email_verification 은 이메일당 열린(미소비) 요청 1행이다(부분 유일 색인 uq_email_verification_open, T3 결정 xvi).
+이메일은 정규화해 넘기고 비교는 색인과 같은 SQL lower() 로 한다.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import ColumnElement, and_, delete, func, select, text, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.models import AuthAttempt, AuthSession, EmailVerification
@@ -118,11 +121,99 @@ async def count_recent_failures(
 async def set_code_hash(
     session: AsyncSession, verification_id: int, code_hash: str
 ) -> bool:
-    """인증 코드 해시를 덮고 tries 를 0 으로. 행이 없으면 False."""
+    """인증 코드 해시를 덮고 tries 를 0 으로, issued_at 을 now() 로(코드 수명의 기준). 행이 없으면 False."""
     stmt = (
         update(EmailVerification)
         .where(EmailVerification.id == verification_id)
-        .values(code_hash=code_hash, tries=0)
+        .values(code_hash=code_hash, tries=0, issued_at=func.now())
         .returning(EmailVerification.id)
     )
     return (await session.execute(stmt)).scalar_one_or_none() is not None
+
+
+def _open(email: str) -> ColumnElement[bool]:
+    return and_(
+        func.lower(EmailVerification.email) == func.lower(email),
+        EmailVerification.consumed_at.is_(None),
+    )
+
+
+async def find_open_verification(
+    session: AsyncSession, email: str
+) -> tuple[EmailVerification, datetime] | None:
+    """그 이메일의 열린 요청 행과 DB now()(만료 판정의 "지금")를 한 문장으로. 없으면 None.
+
+    행을 FOR UPDATE 로 잠근다. 다른 주소에서 같은 코드를 동시에 맞혀 봐도 tries 상한을 넘기지 않게 줄 세운다.
+    """
+    stmt = (
+        select(EmailVerification, func.now())
+        .where(_open(email))
+        .order_by(EmailVerification.id)
+        .limit(1)
+        .with_for_update(of=EmailVerification)
+        .execution_options(populate_existing=True)
+    )
+    found = (await session.execute(stmt)).first()
+    return None if found is None else (found[0], found[1])
+
+
+async def insert_verification(session: AsyncSession, email: str) -> EmailVerification:
+    """그 이메일의 열린 요청 행. 없으면 만든다(있으면 그 행 그대로 — 재요청은 같은 행이다).
+
+    INSERT … ON CONFLICT (lower(email)) WHERE consumed_at IS NULL DO NOTHING 뒤 읽는다(동시 요청도 23505 없음).
+    """
+    stmt = (
+        insert(EmailVerification)
+        .values(email=email)
+        .on_conflict_do_nothing(
+            index_elements=[func.lower(EmailVerification.email)],
+            index_where=EmailVerification.consumed_at.is_(None),
+        )
+    )
+    await session.execute(stmt)
+    return (
+        await session.scalars(
+            select(EmailVerification)
+            .where(_open(email))
+            .execution_options(populate_existing=True)
+        )
+    ).one()
+
+
+async def bump_tries(session: AsyncSession, verification_id: int) -> int:
+    """틀린 시도 1회를 더하고 새 tries 를 돌려준다."""
+    stmt = (
+        update(EmailVerification)
+        .where(EmailVerification.id == verification_id)
+        .values(tries=EmailVerification.tries + 1)
+        .returning(EmailVerification.tries)
+    )
+    return (await session.execute(stmt)).scalar_one()
+
+
+async def consume_verification(
+    session: AsyncSession, verification_id: int, instructor_id: int
+) -> None:
+    """가입이 그 요청을 소비했다(consumed_at = now(), instructor_id). 이후 그 이메일은 새 요청 행을 열 수 있다."""
+    await session.execute(
+        update(EmailVerification)
+        .where(EmailVerification.id == verification_id)
+        .values(consumed_at=func.now(), instructor_id=instructor_id)
+    )
+
+
+async def revoke_principal_sessions(
+    session: AsyncSession, principal_type: str, principal_id: int
+) -> int:
+    """그 주체의 산(폐기 안 된) 세션을 전부 폐기한다(revoked_at = now()). 폐기한 수. 강사 정지가 부른다."""
+    stmt = (
+        update(AuthSession)
+        .where(
+            AuthSession.principal_type == principal_type,
+            AuthSession.principal_id == principal_id,
+            AuthSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=func.now())
+        .returning(AuthSession.id)
+    )
+    return len((await session.execute(stmt)).scalars().all())

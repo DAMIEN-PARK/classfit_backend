@@ -10,10 +10,13 @@ from classfit.models.audit import AuditLog
 from classfit.models.auth import AuthAttempt, AuthSession, EmailVerification
 from classfit.models.base import Base, BigIdMixin, TimestampMixin
 from classfit.models.course import Course, CourseDay, CourseSession, Section
+from classfit.models.document import DocumentType, InstructorDocument
+from classfit.models.instructor import Instructor, InstructorTag
 from classfit.models.invite_code import InviteCode
 from classfit.models.learner import Enrollment, Learner
 from classfit.models.outbox import MailOutbox
 from classfit.models.stored_file import StoredFile
+from classfit.models.tag import Tag
 
 __all__ = [
     "AdminAccount",
@@ -25,13 +28,18 @@ __all__ = [
     "Course",
     "CourseDay",
     "CourseSession",
+    "DocumentType",
     "EmailVerification",
     "Enrollment",
+    "Instructor",
+    "InstructorDocument",
+    "InstructorTag",
     "InviteCode",
     "Learner",
     "MailOutbox",
     "Section",
     "SessionAttachment",
     "StoredFile",
+    "Tag",
     "TimestampMixin",
 ]

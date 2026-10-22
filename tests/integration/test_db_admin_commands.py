@@ -166,7 +166,7 @@ async def test_email_code_preview_masks_digits(
     db_session: AsyncSession,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    verification = EmailVerification()
+    verification = EmailVerification(email="a@example.com")
     db_session.add(verification)
     await db_session.flush()
     db_session.add(

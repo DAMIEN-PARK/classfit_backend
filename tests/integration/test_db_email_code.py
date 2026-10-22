@@ -21,7 +21,7 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
 
 async def _queued(session: AsyncSession) -> tuple[int, int]:
     """인증 요청 1건 + outbox 1행(kind email_code, params 에 id 만)."""
-    verification = EmailVerification()
+    verification = EmailVerification(email="a@example.com")
     session.add(verification)
     await session.flush()
     row = MailOutbox(
@@ -87,7 +87,7 @@ async def test_email_code_apply_stores_hash_and_sent_at(
 
 
 async def test_email_code_reissue_overwrites_hash(db_session: AsyncSession) -> None:
-    verification = EmailVerification(tries=3)
+    verification = EmailVerification(email="a@example.com", tries=3)
     db_session.add(verification)
     await db_session.flush()
 
