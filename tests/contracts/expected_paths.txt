@@ -1,4 +1,6 @@
 /v1/admin/admins
+/v1/admin/advanced-courses
+/v1/admin/advanced-courses/{advanced_course_id}
 /v1/admin/attachments/{attachment_id}
 /v1/admin/courses
 /v1/admin/courses/{course_id}
@@ -18,6 +20,8 @@
 /v1/admin/courses/{course_id}:archive
 /v1/admin/courses/{course_id}:reset-status
 /v1/admin/courses/{course_id}:set-status
+/v1/admin/curricula
+/v1/admin/curricula/{curriculum_id}
 /v1/admin/instructors
 /v1/admin/instructors/{instructor_id}
 /v1/admin/instructors/{instructor_id}/documents/{type_id}
@@ -26,6 +30,9 @@
 /v1/admin/instructors/{instructor_id}:reject
 /v1/admin/instructors/{instructor_id}:suspend
 /v1/admin/instructors/{instructor_id}:unsuspend
+/v1/admin/pool
+/v1/admin/pool/ax
+/v1/admin/pool/{pool_id}
 /v1/admin/sessions/{session_id}
 /v1/admin/sessions/{session_id}/attachments
 /v1/admin/tags
@@ -42,6 +49,21 @@
 /v1/learner/courses/{course_id}/portal
 /v1/learner/sessions/{session_id}/attachments
 /v1/me
+/v1/me/capabilities
+/v1/me/capabilities/{pool_id}
+/v1/me/capabilities/{pool_id}/files
+/v1/me/capability-files/{capability_file_id}
+/v1/me/curricula
+/v1/me/curricula/{curriculum_id}
+/v1/me/curricula/{curriculum_id}/files
+/v1/me/curricula/{curriculum_id}/slots
+/v1/me/curriculum-files/{curriculum_file_id}
 /v1/me/documents/{type_id}
+/v1/me/own-courses
+/v1/me/own-courses/{pool_id}
+/v1/me/own-courses/{pool_id}/files
+/v1/me/pool-files/{pool_course_file_id}
 /v1/me:reapply
+/v1/pool
+/v1/pool/{pool_id}
 /v1/tags
