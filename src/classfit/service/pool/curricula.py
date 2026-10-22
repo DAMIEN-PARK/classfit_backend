@@ -115,9 +115,10 @@ async def patch_curriculum(
     grid = {name: content.get(name, getattr(row, name)) for name in GRID_FIELDS}
     touched = [name for name in GRID_FIELDS if name in content]
     if grid["start_time"] >= grid["end_time"]:
+        clock = [n for n in ("start_time", "end_time") if n in content]
         raise GridViolation(
             "시작 시각이 끝 시각보다 앞이어야 합니다",
-            [violation(("body", n), "시작 < 끝이어야 합니다", "time_order") for n in touched],
+            [violation(("body", n), "시작 < 끝이어야 합니다", "time_order") for n in clock],
         )
     if touched:
         per_day = rules.slots_per_day(

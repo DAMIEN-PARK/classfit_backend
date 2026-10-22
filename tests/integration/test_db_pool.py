@@ -1,6 +1,6 @@
 """과정 풀 표(0006, Design 부록 A T4): 공개 카탈로그 · source·소유자·난이도·직무군 CHECK · 역량 유일 · 차시 유일·CASCADE ·
-파일 행 file_id 유일 · 역량 삭제가 파일 행과 stored_file 행을 같은 트랜잭션에서 지움 · 풀 과정 단일 진입 · 커리큘럼 잠금 자리.
-라이브 PG.
+파일 행 file_id 유일 · 역량 삭제가 파일 행과 stored_file 행을 같은 트랜잭션에서 지움 · 커리큘럼 PATCH 의 합친 값 검사 ·
+풀 과정 단일 진입 · 커리큘럼 잠금 자리. 라이브 PG.
 
 alembic check 는 CHECK 를 비교하지 않으므로 여기서 잰다. 행은 crud 로 직접 만든다(HTTP 픽스처 없음, worker-b 픽스처 미사용).
 강사는 T3 make_instructor(단일 진입점 signup)로 만든다. 단일 진입·잠금 자리 시험은 src 를 읽는다(정의 줄 제외 · ast,
@@ -32,12 +32,15 @@ from classfit.crud.curriculum import insert_curriculum, replace_slots
 from classfit.crud.pool import insert_pool_course
 from classfit.crud.stored_file import insert_stored_file
 from classfit.models import (
+    AuditLog,
     Capability,
     CapabilityFile,
     Curriculum,
     CurriculumSlot,
     StoredFile,
 )
+from classfit.service.pool import curricula as svc_curricula
+from classfit.service.pool.common import GridViolation
 from tests.fixtures.instructors import make_instructor
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
@@ -394,6 +397,52 @@ async def test_pool_capability_delete_removes_file_rows_same_tx(
     assert await _count(db_session, StoredFile, kind_files) == 1
     assert await _count(db_session, Capability) == 1
 
+
+
+async def test_pool_curriculum_patch_merged_grid_checks(db_session: AsyncSession) -> None:
+    """PATCH 가 한 칸만 바꿔도 저장값과 합친 시각·격자로 검사한다(CHECK 23514 → 500 이 아니라 422 거리, 아무것도 안 씀)."""
+    iid = await _instructor(db_session, "pool-grid@example.com")
+    fields = {
+        k: v for k, v in _curriculum("", iid).items() if k not in ("id", "instructor_id")
+    }  # 2일 · 13:00~17:00 · 50·10 → 하루 4교시
+    row = await svc_curricula.create_curriculum(db_session, instructor_id=iid, fields=fields)
+    cid = row.id
+    await svc_curricula.replace_slots(
+        db_session,
+        instructor_id=iid,
+        curriculum_id=cid,
+        slots=[{"day": 2, "slot": 4, "title": "마지막 차시"}],
+    )
+    cases = [
+        ({"end_time": dt.time(12, 0)}, ["end_time"], "time_order"),  # 저장된 시작 13:00 보다 앞
+        ({"start_time": dt.time(18, 0)}, ["start_time"], "time_order"),  # 저장된 끝 17:00 보다 뒤
+        ({"days": 1, "end_time": dt.time(9, 0)}, ["end_time"], "time_order"),
+        ({"slot_min": 70}, ["slot_min"], "slots_out_of_grid"),  # (240+10)//80 = 3교시 → 4교시 밖
+        ({"days": 1}, ["days"], "slots_out_of_grid"),  # 2일차 밖
+        ({"end_time": dt.time(16, 0)}, ["end_time"], "slots_out_of_grid"),  # 3교시
+    ]
+    for changes, fields_hit, kind in cases:
+        with pytest.raises(GridViolation) as caught:
+            await svc_curricula.patch_curriculum(
+                db_session, instructor_id=iid, curriculum_id=cid, changes=changes
+            )
+        got = [(v["loc"], v["type"]) for v in caught.value.violations]
+        assert got == [(["body", f], kind) for f in fields_hit], changes
+    stored = await db_session.scalar(select(Curriculum).where(Curriculum.id == cid))
+    assert stored is not None
+    assert (stored.days, stored.start_time, stored.end_time, stored.slot_min) == (
+        2,
+        dt.time(13, 0),
+        dt.time(17, 0),
+        50,
+    )
+    assert await _count(db_session, AuditLog, AuditLog.action == "curriculum.update") == 0
+
+    # 차시표를 먼저 줄이면 같은 PATCH 가 통과한다
+    await svc_curricula.replace_slots(db_session, instructor_id=iid, curriculum_id=cid, slots=[])
+    assert await svc_curricula.patch_curriculum(
+        db_session, instructor_id=iid, curriculum_id=cid, changes={"days": 1, "slot_min": 70}
+    ) == ["days", "slot_min"]
 
 def _callers(pattern: str) -> list[str]:
     """src 에서 pattern 이 정의 줄 밖에 나오는 파일(classfit 기준 경로)."""
