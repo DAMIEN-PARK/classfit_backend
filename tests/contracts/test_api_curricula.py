@@ -210,6 +210,17 @@ async def test_pool_curriculum_patch_or_slots_reset_reviewed_keeps_pub(
     )
     actions = [a[0] for a in await audit_rows(db_session, "curriculum.")]
     assert "curriculum.update" in actions and "curriculum.slots" in actions
+    # 관리자가 active 만 껐다 켜도 검토 뒤 고친 공개 커리큘럼의 pub 은 그대로다(리뷰 Nit 1)
+    for active in (False, True):
+        r = await client.patch(
+            f"{ADMIN}/curricula/{cur_id}", headers=admin, json={"active": active}
+        )
+        assert r.status_code == 200, r.text
+        assert (r.json()["reviewed"], r.json()["pub"], r.json()["active"]) == (
+            False,
+            True,
+            active,
+        )
 
 
 async def test_pool_curriculum_other_instructor_403_and_delete_deactivates(

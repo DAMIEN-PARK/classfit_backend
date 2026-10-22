@@ -17,7 +17,6 @@ from typing import Annotated, Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from classfit.models.curriculum import CURRICULUM_CONTENT_FIELDS, CURRICULUM_DAYS_MAX
-from classfit.schemas.attachment import Title
 from classfit.schemas.course import Clock, LongText
 from classfit.schemas.pool import (
     Difficulty,
@@ -25,6 +24,7 @@ from classfit.schemas.pool import (
     OwnerOut,
     PatchModel,
     PoolFileOut,
+    PoolTitle,
     Text,
     not_null,
 )
@@ -42,7 +42,7 @@ def _ordered(start: dt.time | None, end: dt.time | None) -> None:
 
 
 class CurriculumIn(BaseModel):
-    title: Title
+    title: PoolTitle
     job_groups: JobGroups
     difficulty: Difficulty
     days: Days
@@ -65,7 +65,7 @@ class CurriculumIn(BaseModel):
 class CurriculumPatchIn(PatchModel):
     """두 시각을 함께 주면 여기서, 한쪽만 주면 저장값과 합쳐 service 가 순서를 본다."""
 
-    title: Title | None = None
+    title: PoolTitle | None = None
     job_groups: JobGroups | None = None
     difficulty: Difficulty | None = None
     days: Days | None = None
@@ -99,7 +99,7 @@ class CurriculumPatchIn(PatchModel):
 class SlotIn(BaseModel):
     day: int = Field(ge=1)
     slot: int = Field(ge=1)
-    title: Title
+    title: PoolTitle
     description: LongText | None = None
 
     def fields(self) -> dict[str, Any]:

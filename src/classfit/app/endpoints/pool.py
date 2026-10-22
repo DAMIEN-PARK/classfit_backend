@@ -28,7 +28,7 @@ from classfit.crud import pool as crud_pool
 from classfit.crud import pool_file as crud_pool_file
 from classfit.crud.scope import Subject, owned_by
 from classfit.models import PoolCourse
-from classfit.models.pool import DIFFICULTIES, JOB_GROUPS
+from classfit.models.pool import DIFFICULTIES, JOB_GROUPS, POOL_ID_MAX
 from classfit.schemas.page import Page
 from classfit.schemas.pool import PoolDetailOut, PoolFileOut, PoolItemOut
 from classfit.service.files.store import href_for
@@ -37,13 +37,12 @@ router = APIRouter(prefix="/v1", tags=["pool"])
 
 # 풀·커리큘럼·심화 id(ax-…·own-<n>-<n>·cur-<n>-<n>·adv-<n>). 이 모양 밖은 DB 를 치지 않고 같은 404
 _TEXT_ID = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
-_TEXT_ID_MAX = 80
 
 Source = Literal["ax", "own"]
 
 
 def valid_text_id(value: str) -> bool:
-    return len(value) <= _TEXT_ID_MAX and _TEXT_ID.fullmatch(value) is not None
+    return len(value) <= POOL_ID_MAX and _TEXT_ID.fullmatch(value) is not None
 
 
 def id_or_404(value: str, message: str) -> str:

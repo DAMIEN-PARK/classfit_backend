@@ -30,15 +30,15 @@ from classfit.models.pool import (
     JOB_GROUPS,
     MINUTES_RANGE,
     POOL_CONTENT_FIELDS,
+    POOL_ITEM_MAX,
+    POOL_ITEMS_MAX,
+    POOL_SCHEDULE_CELL_MAX,
+    POOL_SCHEDULE_MAX,
+    POOL_TEXT_MAX,
+    POOL_TITLE_MAX,
 )
 from classfit.schemas.attachment import URL_MAX, Title, http_url
 from classfit.schemas.auth import no_control_chars
-
-TEXT_MAX = 2000
-ITEM_MAX = 500
-ITEMS_MAX = 30
-SCHEDULE_MAX = 50
-MEMO_MAX = 2000
 
 
 def _no_nul(value: str) -> str:
@@ -73,6 +73,8 @@ def _cell(max_length: int) -> Any:
     ]
 
 
+# 풀 과정·커리큘럼·차시·심화의 제목(표 CHECK 1~200 과 같은 상수)
+PoolTitle = _cell(POOL_TITLE_MAX)
 JobGroups = Annotated[
     list[str],
     Field(min_length=1),
@@ -95,20 +97,22 @@ Minutes = Annotated[int, Field(ge=MINUTES_RANGE[0], le=MINUTES_RANGE[1])]
 Text = Annotated[
     Annotated[
         str,
-        StringConstraints(strip_whitespace=True, max_length=TEXT_MAX),
+        StringConstraints(strip_whitespace=True, max_length=POOL_TEXT_MAX),
         AfterValidator(_no_nul),
     ]
     | None,
     AfterValidator(_blank_is_none),
 ]
-Items = Annotated[list[_cell(ITEM_MAX)], Field(max_length=ITEMS_MAX)]
+Items = Annotated[list[_cell(POOL_ITEM_MAX)], Field(max_length=POOL_ITEMS_MAX)]
 # [시각, 종류, 내용] — 기획안 7절 AX_DETAIL.schedule 꼴
-ScheduleRow = tuple[_cell(20), _cell(20), _cell(ITEM_MAX)]
-Schedule = Annotated[list[ScheduleRow], Field(max_length=SCHEDULE_MAX)]
+ScheduleRow = tuple[
+    _cell(POOL_SCHEDULE_CELL_MAX), _cell(POOL_SCHEDULE_CELL_MAX), _cell(POOL_ITEM_MAX)
+]
+Schedule = Annotated[list[ScheduleRow], Field(max_length=POOL_SCHEDULE_MAX)]
 Memo = Annotated[
     Annotated[
         str,
-        StringConstraints(strip_whitespace=True, max_length=MEMO_MAX),
+        StringConstraints(strip_whitespace=True, max_length=POOL_TEXT_MAX),
         AfterValidator(_no_nul),
     ]
     | None,
@@ -136,7 +140,7 @@ class PatchModel(BaseModel):
 class OwnCourseIn(BaseModel):
     """강사 고유 과정 등록 · 관리자 AX 과정 추가(AxCourseCreateIn)의 본문."""
 
-    title: Title
+    title: PoolTitle
     job_groups: JobGroups
     difficulty: Difficulty
     minutes: Minutes
@@ -158,7 +162,7 @@ class AxCourseCreateIn(OwnCourseIn):
 class OwnCoursePatchIn(PatchModel):
     """강사 고유 과정 수정. 내용 칸이 바뀌면 reviewed 가 거짓으로 돌아간다(pub·active 유지, 결정 vi)."""
 
-    title: Title | None = None
+    title: PoolTitle | None = None
     job_groups: JobGroups | None = None
     difficulty: Difficulty | None = None
     minutes: Minutes | None = None

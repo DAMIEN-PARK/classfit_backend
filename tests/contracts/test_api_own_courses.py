@@ -182,6 +182,17 @@ async def test_pool_own_course_patch_resets_reviewed_keeps_pub_active(
         if a[1] == f"instructor:{aid}"
     ]
     assert [(a[3], a[4]) for a in updates] == [(pool_id, {"changed": ["title"]})]
+    # 관리자가 active 만 껐다 켜도 검토 뒤 고친 공개 항목의 pub 은 그대로다(리뷰 Nit 1)
+    for active in (False, True):
+        r = await client.patch(
+            f"{ADMIN}/pool/{pool_id}", headers=admin, json={"active": active}
+        )
+        assert r.status_code == 200, r.text
+        assert (r.json()["reviewed"], r.json()["pub"], r.json()["active"]) == (
+            False,
+            True,
+            active,
+        )
 
 
 async def test_pool_own_course_edit_ax_403(

@@ -89,7 +89,7 @@ async def test_pool_admin_ax_create_reviewed_true_and_patch_content(
 async def test_pool_admin_pub_requires_reviewed_409(
     app: FastAPI, client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
-    (iid, _), _ = await instructor_pair(db_session, app.state.settings)
+    (iid, auth), _ = await instructor_pair(db_session, app.state.settings)
     _, admin = await admin_headers(db_session)
     row = await make_pool_course(db_session, owner_instructor_id=iid)
     path = f"{POOL}/{row.id}"
@@ -125,6 +125,31 @@ async def test_pool_admin_pub_requires_reviewed_409(
         409,
     )
     assert await flags() == (True, True, True)  # 아무것도 쓰지 않았다
+    # 검토 뒤 강사가 고친 공개 항목(reviewed 거짓 · pub 참, 결정 vi): 같은 값 pub=true 는 409 가 아니라
+    # 바뀐 칸 0 이고(audit 없음), 다른 플래그와 함께 오면 그 칸만 쓴다(리뷰 Nit 2)
+    r = await client.patch(
+        f"{ME}/own-courses/{row.id}", headers=auth, json={"title": "검토 뒤 고친 제목"}
+    )
+    assert r.status_code == 200, r.text
+    assert await flags() == (False, True, True)
+    before = await audit_rows(db_session, "pool_course.update")
+    r = await client.patch(path, headers=admin, json={"pub": True})
+    assert (r.status_code, r.json()["reviewed"], r.json()["pub"]) == (200, False, True)
+    assert await audit_rows(db_session, "pool_course.update") == before
+    r = await client.patch(path, headers=admin, json={"pub": True, "active": False})
+    assert (r.status_code, r.json()["pub"], r.json()["active"]) == (200, True, False)
+    added = (await audit_rows(db_session, "pool_course.update"))[len(before) :]
+    assert [a[4] for a in added] == [{"changed": ["active"]}]
+    # 내린 뒤 다시 켜는 것은 미검토 공개라 409 다
+    r = await client.patch(path, headers=admin, json={"pub": False})
+    assert (r.status_code, r.json()["pub"]) == (200, False)
+    body = problem_of(
+        await client.patch(path, headers=admin, json={"pub": True}),
+        409,
+        "/problems/conflict",
+    )
+    assert body["reviewed"] is False
+    assert await flags() == (False, False, True)
 
 
 async def test_pool_admin_patch_own_content_422(

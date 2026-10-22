@@ -18,13 +18,15 @@ from pydantic import (
 )
 
 from classfit.models.advanced import (
+    ADVANCED_AUDIENCE_MAX,
     ADVANCED_CONTENT_FIELDS,
+    ADVANCED_FEATURE_TEXT_MAX,
     ADVANCED_FEATURES_MAX,
     ADVANCED_HOURS_RANGE,
+    ADVANCED_TOOL_MAX,
 )
-from classfit.schemas.attachment import Title
 from classfit.schemas.auth import no_control_chars
-from classfit.schemas.pool import PatchModel, Text, not_null
+from classfit.schemas.pool import PatchModel, PoolTitle, Text, not_null
 
 
 def _line(max_length: int) -> Any:
@@ -35,14 +37,16 @@ def _line(max_length: int) -> Any:
     ]
 
 
-Audience = _line(100)
-Tool = _line(50)
+Audience = _line(ADVANCED_AUDIENCE_MAX)
+Tool = _line(ADVANCED_TOOL_MAX)
 Hours = Annotated[int, Field(ge=ADVANCED_HOURS_RANGE[0], le=ADVANCED_HOURS_RANGE[1])]
-Features = Annotated[list[_line(100)], Field(max_length=ADVANCED_FEATURES_MAX)]
+Features = Annotated[
+    list[_line(ADVANCED_FEATURE_TEXT_MAX)], Field(max_length=ADVANCED_FEATURES_MAX)
+]
 
 
 class AdvancedIn(BaseModel):
-    title: Title
+    title: PoolTitle
     audience: Audience
     tool: Tool
     hours: Hours
@@ -54,7 +58,7 @@ class AdvancedIn(BaseModel):
 
 
 class AdvancedPatchIn(PatchModel):
-    title: Title | None = None
+    title: PoolTitle | None = None
     audience: Audience | None = None
     tool: Tool | None = None
     hours: Hours | None = None
