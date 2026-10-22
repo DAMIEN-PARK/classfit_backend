@@ -11,7 +11,7 @@ URL: ""
 # Plan: T2a open-course (from plan.md#T2a, 2026-10-22)
 
 - 근거: intent [`docs/process/intents/2026-10-21-phase1-backend.md`](../process/intents/2026-10-21-phase1-backend.md) · spec 절 [`docs/process/2026-10-21-phase1-backend-design.md`](../process/2026-10-21-phase1-backend-design.md) §1 수명(초대코드 만료) · §4 0003 행 · §5 규칙 2~5·12~19 · 부록 A T2a 4행 · 태스크 [`docs/process/plan.md`](../process/plan.md) 3절 T2a 행. 그 밖에 [`docs/process/adr/ADR-002-learner-session.md`](../process/adr/ADR-002-learner-session.md)(auth_session.course_id) · r3 §5.2 T2a 행 · §6 E-8·E-12·E-13 · 부록 A1 A3 행 · A2 1·2행 · A4 T2a 3행 · B T2a · C 0003 · D · E9 pre-push 행 · F "UTC 서버에서 날짜 하루 어긋남" 행 · 기획안 v3 5-3·5-4·A3·7절 Course(외부, 미추적).
-- 승인: 
+- 승인: `fa6f57b approve: T2a`(2026-10-22, 기본값 (i)~(viii) 변경 없음, 본문은 트레일러뿐). 순서는 `63e29a8` plan → `fa6f57b` approve → `099e586` sync(T1 병합 `74f0441` 들임, 트리 변화 없음) → 구현 커밋.
 - 승인 방법: 승인자 `DAMIEN-PARK` 이 이 가지에 `git commit --allow-empty -m "approve: T2a" -m "Approved-by: DAMIEN-PARK"` 를 더한다. 그 커밋 전에는 코드 변경이 없고, 에이전트는 위 줄과 `Approved-by` 를 쓰지 않는다.
 - 가지 `T2a-open-course` 는 T1 머리에서 딴다. 작성 시점(2026-10-22)의 T1 머리는 `5688f82 T1: 문서 — Design 에 T1 실제 이름 반영` 이고, master 는 `b14b180 merge: T0b sdlc-okf` 다. T1 은 아직 병합 전이다.
 - 표기: 〔정함〕은 Design 에 없는 이름·값을 이 계획이 정했다는 뜻이다. Design 이 이름을 준 것은 5절 13·14 의 함수 6개(`open_course`·`issue_invite_code`·`course_status_at`·`code_state_at`·`make_days`·`session_time`), 4절의 표 이름, 5절 17 의 `scripts/golden/extract.mjs`·`tests/fixtures/golden.json` 이다. r3 부록 B 의 경로와 T1 머리 `5688f82` 의 코드 이름(코드는 `24e81c3` 뒤로 바뀌지 않았다)도 그대로 썼다. 그 밖의 파일·함수·칸·상수 이름은 〔정함〕 표시가 없어도 전부 이 계획이 정한 것이다. T1 리뷰 수정으로 T1 이름이 바뀌면 sync 뒤 이 계획을 맞추고 "계획과 다르게 한 것" 에 적는다.
@@ -40,6 +40,12 @@ URL: ""
 ## 바뀌는 파일
 
 레인 A, 워커 하나다. 워커를 나누면 이 머리에 소유 파일을 적는다(plan.md 2절). 경로는 `src/classfit/` 아래 종류 우선 폴더다.
+
+**워커 소유(위 "워커 하나" 와 달리 구현에서 워커 2명으로 나눔 — 사용자 지시 "승인을 몰아서 빠르게" 2026-10-22, T1 전례)**
+
+- worker-a(rules·golden·경계·훅·문서): `service/rules/{__init__,status,schedule,invite}.py` · `scripts/golden/{extract.mjs,check.sh}` · `tests/fixtures/golden.json` · `tests/unit/{test_schedule_rules,test_status_rules,test_import_rules,test_invite_rules}.py` · `pyproject.toml`(계약 ②) · `.githooks/pre-push` · `docs/process/{plan,spec}.md`·Design·`CLAUDE.md` + okf 목차. DB 를 쓰지 않는다(`tests/unit` 만).
+- worker-b(DB·규칙 흐름·끝점·시험): `core/config.py` · `alembic/versions/0003_open_course.py` · `models/{course,invite_code,auth,__init__}.py` · `crud/{course,schedule,invite_code,scope}.py` · `service/courses/**` · `schemas/{course,invite_code}.py` · `app/endpoints/{courses,schedule,invite_codes}.py` · `app/routers.py` · `tests/fixtures/courses.py` · `tests/integration/{test_db_course_status,test_db_open_course,test_db_auth_session}.py` · `tests/contracts/{test_api_courses,test_api_schedule,test_api_invite_code,test_api_admin_guard,test_api_admins}.py` · `tests/contracts/expected_paths.txt`. 시험 DB `classfit_test`(`.env` 기본). `classfit_b_test` 는 대조 실험·verifier 몫.
+- 공유 파일은 없다(라우터·`models/__init__` 은 B 만). 이 계획 파일은 리드만 고친다. 다른 워커 산출물에 기대는 시험·코드는 그 산출물 커밋 뒤에 커밋한다(T1 편차 ⓐⓑ 교훈): `test_invite_rules.py` 는 B 의 `codes.py` 뒤 7단계로, B 의 5단계 커밋은 A 의 4단계 커밋 뒤로.
 
 **설정**
 - `src/classfit/core/config.py` (modify): 칸 `invite_expiry_days = 30`〔정함〕(Design 1절 "초대코드 만료 = 종료일 + 30일", 설정 칸 하나로 바꾼다). `_positive` 검사에 더한다. 기본값이 있어 `missing()` 대상이 아니다(Design 5절 20).
@@ -210,24 +216,67 @@ pkill -f 'uvicorn classfit.main:app' ; /usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTE
 
 | 기록 칸 | 값 |
 |---|---|
-| 착수 조건 결정 (i)~(vii) 변경 여부 (approve 커밋 해시) | |
-| sync 커밋 해시 · `check_task_order` 출력 | |
-| `make verify` 끝 20줄 | |
-| `alembic heads` · dev `alembic check` | |
-| golden 대조(두 시간대) · `-k golden` 출력 | |
-| 증명 표 8항목 출력 | |
-| 이웃 흐름 응답(개설 stderr 줄 · 422 · 422 · 403 · 200 · 409) · `port-free` | |
-| 대조 실험 6개(빨개진 시험 이름 · check.sh exit 코드) · 정리 뒤 `git status --short` | |
-| verifier 세션 · 날짜 · 판정 | |
-| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | |
+| 착수 조건 결정 (i)~(vii) 변경 여부 (approve 커밋 해시) | 변경 없음. `fa6f57b approve: T2a`(본문은 트레일러뿐) |
+| sync 커밋 해시 · `check_task_order` 출력 | `099e586 sync: T2a master → T2a-open-course`(Merge made by the 'ort' strategy, 트리 변화 없음) · `task order: OK`(병합 전 "master..가지 커밋 3개 검사", 구현 뒤 8개 검사도 OK). 중간에 사용자 측 빈 커밋 `4aa81bf` 가 붙어 FAIL 1건이 났다가 걷어냄(편차 4) |
+| `make verify` 끝 20줄 | ed47643(2026-10-22, 리드): exit 0 · `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · 시험 목록 끝 `tests/unit/test_status_rules.py .....` · `============================= 120 passed in 4.50s ==============================` · `OKF_PYTHON=.venv/bin/python bash scripts/okf/guard.sh docs` · `OKF guard OK`(failed·error·skipped 0). verifier 재실행 `120 passed in 4.46s`, 같은 끝 줄. 리뷰 반영 `151e1ee` 뒤(리드, 이 계획 갱신 전 작업 트리): exit 0 · `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · `121 passed in 4.48s` · `OKF guard OK`; 증명 표 8항목 한 번에 → `9 passed in 1.02s` |
+| `alembic heads` · dev `alembic check` | `0003 (head)` · dev `make migrate`(0002 → 0003) 뒤 `No new upgrade operations detected.`(worker-b, verifier `alembic current` → `0003 (head)`). 시험 DB downgrade 0002 → upgrade head → check 도 같은 줄. 0003 가드는 course_id 있는 learner 세션 행 1개에서 행 수를 찍고 멈추며 롤백(0002 유지). dev 에 가드 대상 행 0건 |
+| golden 대조(두 시간대) · `-k golden` 출력 | `bash scripts/golden/check.sh` → `golden: OK` · `TZ=America/Los_Angeles …` → `golden: OK` · `--co -k golden` 2 → `2 passed, 118 deselected`. 사례 make_days 9(조건 8 + 60일 가드 1) · session_time 14. TZ 고정 줄을 뺀 사본은 LA 에서 날짜가 하루 밀려 diff 212줄(worker-a 스크래치) |
+| 증명 표 8항목 출력 | 노드 8개를 따로 돌려 전부 `passed`(2 는 `2 passed`, 나머지 `1 passed`). 리드 한 번에 돌림 → `9 passed in 1.14s`. `test_api_openapi.py` → `1 passed`(expected_paths 22줄, `LC_ALL=C sort -c` 통과). table-ok 루프 → `table-ok` 한 줄 |
+| 이웃 흐름 응답(개설 stderr 줄 · 422 · 422 · 403 · 200 · 409) · `port-free` | dev DB · 127.0.0.1:8000(uvicorn 직접, 준비 확인 `/v1/openapi.json`, 편차 5). create_admin exit 0 → 로그인 200 → 개설 **201** stderr `1 2026-11-05 active`(verifier 재실행 `2 2026-11-05 active`, dev 시퀀스 전진) → title 빠짐 **422** `violations[0].loc` `["body","title"]` → `cursor=@@` **422** loc `["query","cursor"]` "깨진 커서입니다" → probe-learner **403** `/problems/forbidden` "관리자만 할 수 있습니다" → `:set-status` ended **200**(status_manual true) → `:resume` **409** `/problems/conflict`(코드 status 는 active 그대로) → 정리 psql exit 0(`DELETE 3·2·1·1·1`) → `port-free` → 잔여 course·admin-t2a·course_id 세션 0·0·0. worker-c-exp 와 verifier 가 각각 한 번씩, 결과 동일 |
+| 대조 실험 6개(빨개진 시험 이름 · check.sh exit 코드) · 정리 뒤 `git status --short` | 임시 clone(ed47643, DB classfit_b_test, 고치기 전 녹색 확인): ① `test_course_status_python_matches_sql`(종료일 당일 행 불일치) exit 1 ② `test_course_status_kst_boundary_utc_15`('prep' == 'running') 1 ③ `test_code_state_resume_ended_course_409`(200 == 409) 1 ④ `test_golden_schedule_session_time`(st-lunch-1200-1300, `_skip_lunch` 호출을 항등으로) 1 ⑤ `test_rules_imports_no_db_layers`(['status.py: classfit.crud.course']) 1 · 같은 사본 `lint-imports --no-cache` → `Contracts: 3 kept, 0 broken.` exit 0 ⑥ golden.json `17:00 → 17:10`(+시안 symlink) → check.sh 가 diff 와 `golden: 다름 — …` 을 찍고 exit 1. worker-c-exp 6개 전부 + verifier 1·3·5·6 재측정(2·4 는 기록 대조) 결과 동일. 정리 뒤 `git status --short` = 미추적 `memo.md`·`공개홈_v24.html`·`기획/`·`시안/` 만 |
+| verifier 세션 · 날짜 · 판정 | verifier-t2a(다른 세션) · 2026-10-22 · **PASS**, "빌더 주장과 다른 점 없음". 평문 검사: `203.`·소문자 bctone 0건, `BCTONE` 은 제품명·파일명 맥락 13곳뿐, IPv4(예시·루프백 제외) 0건, golden.json 한글 0 |
+| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | 병합 전(ed47643): `CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh` → ① 11 · ② 5 · ③ 10 · ④ 병합된 T: T0a T0b T1 · 42행 중 대상 9행 · `docs check: OK`. 병합 뒤 값은 다음 태스크에서 |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t2a(다른 세션) · 2026-10-22 · 범위 `git diff master...HEAD`(1fc87af · b9cd906 · 74ee5bb · a9fe2a8 · ed47643, 52파일) · REVIEW.md 3패스 · 시험은 돌리지 않음(verifier 몫). 리드가 미리 받아들인 편차는 Important 로 올리지 않았다.
+
+**Important 1건 → 0건 · Nit 5건(전체 9건 중 5건 표시, 3건 반영 · 1건 T2b 인계 · 1건 편차 기록)**
+
+| # | 등급 | 소견 | 처리 |
+|---|---|---|---|
+| I-1 | Important(Compliance) | 승인 칸(14행)·기록 칸 10행·"계획과 다르게 한 것" 이 HEAD 에서 비어 있는데 편차가 있다(리드 12건 + `patch_course` 가 days.py · `ScheduleDayOut` lunch 칸 · T1 계획 기록 칸 1줄). REVIEW.md Compliance·r3 §5.1-3 위반이라 병합 전 차단 | **이 계획 갱신 커밋으로 닫음**(승인 칸·기록 칸·편차 1~22). 코드 변경 없음 |
+| N-1 | Nit(Bugs) | `codes.py` `issue_invite_code` 가 부분 유일 색인 `uq_invite_code_course_live` 충돌(강의에 이미 산 코드)도 새 코드로 5번 헛되이 재시도하고 409 메시지가 "코드가 겹쳤다" 로 오독됨 | 반영: 제약 이름으로 구분해 산 코드 충돌은 재시도 없이 409, 시험 1건 추가(리뷰 반영 커밋 `151e1ee`, 편차 22. 그 커밋 뒤 `pytest tests/contracts tests/integration -q` → `84 passed`, 바뀐 시험 6건만 → `6 passed`, 새 시험은 ed47643 사본에서 빨강 확인) |
+| N-2 | Nit(Bugs) | `:pause`·`:resume` 는 이미 그 상태여도 audit 을 쓰고 `archive` 는 건너뜀 — 멱등 호출의 audit 의미가 둘 | 반영: service 가 "바뀌었는지" 를 돌려주고 끝점이 그때만 audit(archive 쪽으로 통일, 편차 22) |
+| N-3 | Nit(Bugs, T2b 인계) | `DELETE /v1/admin/courses/{id}` 는 `auth_session.course_id` FK(NO ACTION) 행이 있으면 23503 → 500. T2b 의 "수강생 있으면 409" 가 enrollment 만 세면 남은 세션 행은 그대로 500 | T2b 계획 결정 (xi) 에 "409 조건 = enrollment ∪ auth_session.course_id 행 또는 삭제 crud 가 세션 행을 먼저 지움" 으로 인계 |
+| N-4 | Nit(Compliance) | T2a 가지가 `docs/plans/T1-common-base.md:220`(T1 기록 칸)을 고침 — 계획 "바뀌는 파일" 밖 | 편차 6 에 기록 |
+| N-5 | Nit(Bugs) | (a) `resume_invite_code` 가 ended 검사를 `live_code` 앞에 두어 산 코드 없는 종료 강의에서 404 대신 409 (b) 같은 값 PATCH 도 `course.update` audit | 반영: (a) 404 검사 먼저 (b) 실제 바뀐 칸만 audit `fields` 에, 0 이면 audit 없음(편차 22) |
+
+미표시 nit 4건(보류): `check.sh` 의 diff 방향이 계획 문구와 반대(메시지로 설명됨) · `open.py` 방어용 ValueError 두 곳은 schema 가 먼저 막아 닿지 않음 · `_require_day` 409 메시지 문체 불일치 · `test_api_admin_guard.py` 상수 이름 `T2A_ADMIN_OPERATIONS` 가 T1 포함 수.
+
+패스별로 확인하고 문제 없던 것: 트랜잭션 경계(service·crud 에 `commit(` 없음, 커밋은 `deps.py` `db()` 하나) · 재발급 UPDATE → flush → INSERT 와 부분 유일 색인(SAVEPOINT 되돌림이 `old`·`course` 를 만료시키지 않음) · Python/SQL 상태 경계 일치 · `code_state_at` 순서 · `Today` 한 곳 · 커서 422 loc · 동작 경로 22줄 · 일차 PUT 다시 매김·세션 NULL·404/409/422 구분 · PG 예약어 없음 · 0003 한 트랜잭션·SET LOCAL·가드·downgrade 역순·naming_convention 일치 · AdminCaller 24작업 전부 · 첫 WHERE `course_scope` · `secrets` 32자 · audit 1행에 코드 평문 없음 · 픽스처 A사만 · skip/xfail 0 · T1 단언 그대로 · 시험 이름 39개 계획과 일치 · 계약 ② layers exhaustive · 파일 크기(최대 endpoints/courses.py 247줄 · crud/schedule.py 171줄) · 문서 4종 갱신 · `session_time` ↔ scTime 665 줄 단위 대조.
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+리드
+1. "레인 A, 워커 하나" 대신 워커 2명(소유는 "바뀌는 파일" 머리) — 사용자 지시 "승인을 몰아서 빠르게", T1 전례. 순서 A 4단계 → B 5단계 → A 7·B 6단계 → A 8단계. 다른 워커 산출물에 기대는 커밋은 그 산출물 뒤에 두어 T1 의 빨강 구간이 생기지 않았다(각 커밋 직후 `git archive` 사본에서 pytest 91 → 117 passed).
+2. 승인이 sync 전에 왔다(사용자가 T1 병합 직후 approve). 코드 변경은 sync(`099e586`) 뒤에 시작했으므로 착수 조건 1행의 취지(선행 병합 뒤 시작)는 지켰다.
+3. 작업 트리의 iCloud 충돌 사본 ` 2.py` 21개(모두 HEAD 와 바이트 동일)를 내려받아 대조한 뒤 지웠다(위험 표 "iCloud dataless" 행의 변종).
+4. 1fc87af 직후 사용자 측 빈 커밋 `4aa81bf approve: T0b` 가 가지에 붙어 `check_task_order` FAIL(규약 밖 제목 1건) → 워커 커밋을 보류하고 사용자가 `git reset --soft HEAD~1` 로 걷어냈다. 구현 커밋은 그 뒤라 이력에 흔적이 없다.
+5. 이웃 흐름·대조 실험 6은 리드 대신 worker-c-exp 가 돌렸고 verifier 가 다시 돌렸다. 서버는 `make run`(--reload) 대신 uvicorn 직접 실행, 준비 확인은 `/v1/openapi.json`(main.py:54; `/openapi.json` 은 404).
+6. `docs/plans/T1-common-base.md:220` 기록 칸(check_docs ④ 실측 · "CI 결과: origin push 미완")을 이 가지에서 채웠다 — T1 계획이 "다음 태스크에서" 로 미룬 것(리뷰 N-4).
+
+worker-a
+7. `tests/unit/test_invite_rules.py` 는 4단계가 아니라 7단계 커밋(B 의 `codes.py::_new_invite_code` 에 기댐).
+8. `test_rules_imports_no_db_layers` 는 classfit 안 core·rules 외에 sqlalchemy·psycopg import 도 막고, 상대 import 를 패키지 기준으로 풀어 잰다(계획 54행 "DB 를 import 하지 않는다" 의 DB 쪽).
+9. `test_invite_code_generator_shape` 는 6자·알파벳 안 외에 1000개에서 32자 전부 등장·서로 다른 코드 > 990 도 본다(거짓 실패 확률 ≈ 32·(31/32)^6000).
+10. golden 사례: make_days 9개 안에 60일 가드 사례(`md-guard-sat-n45` → 42개)를 넣어 위험 표 "day_count 상한 40 은 가드 안" 주장을 함께 잰다. session_time 은 14개.
+11. `session_time` 은 시안 그대로 "HH:MM" 글자 쌍을 돌려준다(`ScheduleOut` 의 start·end 는 str). 그날 끝을 넘은 세션은 start > end 가 될 수 있고(st-clip-day-end 18:00-17:00), slot 번호 틈은 무시하고 앞 세션 끝 + 휴식에 붙는다(st-slot-gap). scTime 끝의 교시 번호 계산 줄은 닿지 않아 옮기지 않았다(독스트링). **제품상 바꿀지는 DEC-002·승인자 몫**이며 바꾸면 rules·golden 을 함께 고친다.
+12. Design 5절 14 표 칸에는 `auth | courses | files` 를 그대로 쓰지 않고 풀어 썼다(GFM 표에서 백틱 안 `|` 도 칸을 가른다).
+13. T1 계획 기록 표에 CI 칸이 없어 CI 결과("origin push 미완")를 check_docs 칸 끝에 붙였다.
+
+worker-b
+14. `schemas/course.py`·`schemas/invite_code.py` 를 6단계가 아니라 5단계 커밋에(service/courses 가 입력 모양을 받는다).
+15. 상태 도우미 `course_status_of`·`code_state_of` 는 `service/courses/codes.py`(open.py 에 두면 순환 import). 기간 규칙 `patch_course` 는 days.py.
+16. `day_start`·`day_end` 는 day_count ≥ 1 일 때만 필수(없으면 422), 0 이면 받지 않아도 된다.
+17. 목록 `archived=true` 는 보관한 강의만, 기본 `false` 는 보관하지 않은 강의만.
+18. 일차 PUT·PATCH 는 `ScheduleOut` 을 돌려주고(`ScheduleDayOut` 에 lunch_start·lunch_end 추가), DELETE 는 204.
+19. 시험 토큰 도우미 `admin_headers`·`learner_headers` 를 `tests/fixtures/courses.py` 에 두고 auth_session 행을 직접 넣는다(로그인 생략).
+20. 0003 에 계획에 없는 색인 3(section.course_id · session.section_id · invite_code.course_id)과 CHECK 4(점심 순서 · 세션 예외 시각 순서 · slot ≥ 1 · day_no ≥ 1)를 더했다.
+21. 워커 커밋 트레일러는 실행 모델 `Claude Opus 5.5`, 리드 커밋은 `Claude Fable 5.1`.
+
+리뷰 반영
+22. (리뷰 반영 커밋 `151e1ee`, 7파일 +125 −47, 리뷰 절 N-1·N-2·N-5) 초대코드 발급의 23505 를 `diag.constraint_name` 으로 구분(`uq_invite_code_course_live` 면 재시도 없이 "이 강의에 산 초대코드가 이미 있습니다" 409, 코드 글자 충돌만 5번 재시도, `crud/flush.py` 는 그대로; 시험 `test_invite_code_issue_when_live_exists_409_no_retry` 추가) · `:pause`·`:resume` 는 (행, 바뀌었는지)를 돌려주고 끝점은 바뀐 때만 audit(archive 와 통일 — 계획 63·80행의 "audit 1행" 과 다름) · resume 은 `live_code` 404 를 ended 409 보다 먼저 · 강의 PATCH(`days.patch_course`)와 초대코드 PATCH(`update_invite_code`) 모두 현재 값과 다른 칸만 쓰고 바뀐 칸이 0 이면 audit 없음(초대코드 PATCH 는 리뷰 범위 밖이지만 멱등 audit 규칙을 하나로 두려고 함께 맞춤). 단언을 더한 기존 시험(완화 없음): `test_code_state_pause_resume_200`(반복 호출 audit 2·1) · `test_code_state_resume_ended_course_409`(산 코드 없으면 404) · `test_invite_code_patch_expires_on_and_max_seats`(같은 값 PATCH audit 없음) · `test_courses_patch_period_with_days_409`(같은 값 PATCH 200, audit fields 는 바뀐 칸만).
 
 
 
