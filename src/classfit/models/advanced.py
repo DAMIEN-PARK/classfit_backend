@@ -17,6 +17,9 @@ from classfit.models.pool import _TITLE_CHECK
 
 ADVANCED_FEATURES_MAX = 5
 ADVANCED_HOURS_RANGE = (1, 200)
+ADVANCED_AUDIENCE_MAX = 100  # 대상 글자 수
+ADVANCED_TOOL_MAX = 50  # 도구 글자 수
+ADVANCED_FEATURE_TEXT_MAX = 100  # 특징 한 줄 글자 수(줄 수는 ADVANCED_FEATURES_MAX)
 # 내용 칸(import 지문 · 관리자 PATCH). 플래그는 pub·active
 ADVANCED_CONTENT_FIELDS = ("title", "audience", "tool", "hours", "goal", "features")
 

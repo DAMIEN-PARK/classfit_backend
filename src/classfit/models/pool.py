@@ -57,6 +57,14 @@ MINUTES_RANGE = (10, 600)  # 과정 분(API·import 공통, 결정 ii)
 POOL_FILES_MAX = 20  # 소유자(역량·고유 과정·커리큘럼 1건)당 파일 행 상한(결정 viii)
 ID_TRIES = 100  # next_id 의 존재 검사 횟수 상한(결정 xiii)
 POOL_FLAGS = ("reviewed", "pub", "active")
+# 입력 글자·목록 상한 한 벌(API 스키마 · import 공통, 리뷰 Nit 3). 넘는 import 행은 exit 2 로 멈춘다
+POOL_ID_MAX = 80  # 글자 id(ax-… · own-<n>-<n> · cur-<n>-<n> · adv-<n>)
+POOL_TITLE_MAX = 200  # 제목(표 CHECK 와 같다)
+POOL_TEXT_MAX = 2000  # 목표·산출물·실습 자료 같은 긴 글
+POOL_ITEM_MAX = 500  # 이론·실습 한 줄 · 진행표 내용 칸
+POOL_ITEMS_MAX = 30  # 이론·실습 줄 수
+POOL_SCHEDULE_MAX = 50  # 진행표 줄 수
+POOL_SCHEDULE_CELL_MAX = 20  # 진행표 시각·종류 칸
 # 내용 칸. 강사가 이 중 하나를 바꾸면 reviewed=false(결정 vi), 관리자는 고유 과정의 이 칸을 못 고친다(결정 xviii),
 # import 는 이 칸으로 내용 지문을 만든다(결정 iii)
 POOL_CONTENT_FIELDS = (

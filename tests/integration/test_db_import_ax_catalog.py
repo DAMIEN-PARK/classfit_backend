@@ -248,6 +248,8 @@ async def test_import_ax_catalog_bad_input_2(
         base["title"] = secret
         return {"courses": [{**base, **over}]}
 
+    long_id = "ax-" + "a" * 78  # 81자, 모양은 맞다(API 의 글자 id 상한 80)
+    long_goal = "목" * 2001  # API 의 긴 글 상한 2000
     duplicate = course()
     duplicate["courses"].append(dict(duplicate["courses"][0]))
     cases: dict[str, tuple[str, list[str]]] = {
@@ -266,6 +268,11 @@ async def test_import_ax_catalog_bad_input_2(
         "둘 다 빈 목록": (
             _write(tmp_path, {"courses": [], "advanced": []}, "f.json"),
             [],
+        ),
+        "id 81자": (_write(tmp_path, course(id=long_id), "g.json"), [long_id]),
+        "goal 2001자": (
+            _write(tmp_path, course(goal=long_goal), "h.json"),
+            [long_goal],
         ),
     }
     for label, (path, hidden) in cases.items():

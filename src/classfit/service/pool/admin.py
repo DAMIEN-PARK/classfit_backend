@@ -35,17 +35,23 @@ ADVANCED_FLAGS = ("pub", "active")
 def _next_flags(
     row: PoolCourse | Curriculum, changes: Mapping[str, Any]
 ) -> dict[str, Any]:
-    """본문의 플래그를 reviewed → pub → active 순으로 따져 쓸 값을 정한다. 공개 조건이 깨지면 Conflict."""
+    """본문의 플래그를 reviewed → pub → active 순으로 따져 쓸 값을 정한다. 공개 조건이 깨지면 Conflict.
+
+    Conflict 는 pub 을 실제로 켤 때(거짓 → 참)이거나 이 본문이 검토를 끌 때만이다. 검토 뒤 강사가 고쳐 reviewed 만
+    false 인 공개 항목에 같은 값 pub=true(와 다른 플래그)를 보내면 바뀐 칸만 쓴다(결정 i 같은 값 PATCH, 리뷰 Nit 2).
+    """
     out: dict[str, Any] = {}
     reviewed = changes.get("reviewed", row.reviewed)
-    if "reviewed" in changes and reviewed != row.reviewed:
+    review_off = bool(row.reviewed) and not reviewed  # 이 본문이 검토를 끈다
+    if reviewed != row.reviewed:
         out["reviewed"] = reviewed
         out["reviewed_at"] = datetime.now(UTC) if reviewed else None
     if "pub" in changes:
-        if changes["pub"] and not reviewed:
+        turning_on = changes["pub"] and not row.pub
+        if changes["pub"] and not reviewed and (turning_on or review_off):
             raise Conflict("검토하지 않은 항목은 공개할 수 없습니다", reviewed=False)
         out["pub"] = changes["pub"]
-    elif out.get("reviewed") is False and row.pub:
+    elif review_off and row.pub:
         # 이 본문이 검토를 풀면 공개도 내린다(관리자.html:1548-1549). 검토 뒤 강사가 고쳐 reviewed 만 false 인
         # 공개 항목은 다른 플래그 PATCH 로 내려가지 않는다(결정 vi)
         out["pub"] = False

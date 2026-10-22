@@ -4,6 +4,8 @@
   읽기라 같은 PUT 이 동시에 와도 23505 가 나지 않는다(T2b get_or_create_learner 꼴, T4 결정 x).
 - 목록의 첫 WHERE 는 주체 범위다(crud.scope.capability_scope). service 판정용 읽기는 범위 없는 get_capability_any 다.
 - 지우기는 역량 파일 행 → 그 stored_file 행 → 역량 행 순서다(crud.attachment._delete_where 꼴, Design 5절 11).
+- 역량 지우기와 그 역량 파일 올리기는 lock_capability 로 역량 행을 먼저 잠근다(잠금 순서 역량 행 → 파일 행 →
+  stored_file). 안 잠그면 둘이 겹칠 때 새 파일 행이 지워진 역량을 가리켜 FK 23503 → 500 이 난다(리뷰 Nit 4).
 """
 
 from __future__ import annotations
@@ -47,6 +49,21 @@ async def get_or_create_capability(
         )
     ).one()
     return row, created
+
+
+async def lock_capability(
+    session: AsyncSession, instructor_id: int, pool_course_id: str
+) -> Capability | None:
+    """역량 행을 SELECT … FOR UPDATE 로 잠그고 새로 읽는다. 없으면(그 사이 지워졌으면) None(lock_curriculum 꼴).
+
+    populate_existing: 잠금을 기다린 사이 커밋된 값을 identity map 의 옛 값이 가리지 않게 덮어 읽는다.
+    """
+    stmt = (
+        _one(instructor_id, pool_course_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return await session.scalar(stmt)
 
 
 async def get_capability_any(

@@ -398,14 +398,19 @@ async def test_pool_capability_delete_removes_file_rows_same_tx(
     assert await _count(db_session, Capability) == 1
 
 
-
-async def test_pool_curriculum_patch_merged_grid_checks(db_session: AsyncSession) -> None:
+async def test_pool_curriculum_patch_merged_grid_checks(
+    db_session: AsyncSession,
+) -> None:
     """PATCH 가 한 칸만 바꿔도 저장값과 합친 시각·격자로 검사한다(CHECK 23514 → 500 이 아니라 422 거리, 아무것도 안 씀)."""
     iid = await _instructor(db_session, "pool-grid@example.com")
     fields = {
-        k: v for k, v in _curriculum("", iid).items() if k not in ("id", "instructor_id")
+        k: v
+        for k, v in _curriculum("", iid).items()
+        if k not in ("id", "instructor_id")
     }  # 2일 · 13:00~17:00 · 50·10 → 하루 4교시
-    row = await svc_curricula.create_curriculum(db_session, instructor_id=iid, fields=fields)
+    row = await svc_curricula.create_curriculum(
+        db_session, instructor_id=iid, fields=fields
+    )
     cid = row.id
     await svc_curricula.replace_slots(
         db_session,
@@ -414,10 +419,22 @@ async def test_pool_curriculum_patch_merged_grid_checks(db_session: AsyncSession
         slots=[{"day": 2, "slot": 4, "title": "마지막 차시"}],
     )
     cases = [
-        ({"end_time": dt.time(12, 0)}, ["end_time"], "time_order"),  # 저장된 시작 13:00 보다 앞
-        ({"start_time": dt.time(18, 0)}, ["start_time"], "time_order"),  # 저장된 끝 17:00 보다 뒤
+        (
+            {"end_time": dt.time(12, 0)},
+            ["end_time"],
+            "time_order",
+        ),  # 저장된 시작 13:00 보다 앞
+        (
+            {"start_time": dt.time(18, 0)},
+            ["start_time"],
+            "time_order",
+        ),  # 저장된 끝 17:00 보다 뒤
         ({"days": 1, "end_time": dt.time(9, 0)}, ["end_time"], "time_order"),
-        ({"slot_min": 70}, ["slot_min"], "slots_out_of_grid"),  # (240+10)//80 = 3교시 → 4교시 밖
+        (
+            {"slot_min": 70},
+            ["slot_min"],
+            "slots_out_of_grid",
+        ),  # (240+10)//80 = 3교시 → 4교시 밖
         ({"days": 1}, ["days"], "slots_out_of_grid"),  # 2일차 밖
         ({"end_time": dt.time(16, 0)}, ["end_time"], "slots_out_of_grid"),  # 3교시
     ]
@@ -436,13 +453,21 @@ async def test_pool_curriculum_patch_merged_grid_checks(db_session: AsyncSession
         dt.time(17, 0),
         50,
     )
-    assert await _count(db_session, AuditLog, AuditLog.action == "curriculum.update") == 0
+    assert (
+        await _count(db_session, AuditLog, AuditLog.action == "curriculum.update") == 0
+    )
 
     # 차시표를 먼저 줄이면 같은 PATCH 가 통과한다
-    await svc_curricula.replace_slots(db_session, instructor_id=iid, curriculum_id=cid, slots=[])
+    await svc_curricula.replace_slots(
+        db_session, instructor_id=iid, curriculum_id=cid, slots=[]
+    )
     assert await svc_curricula.patch_curriculum(
-        db_session, instructor_id=iid, curriculum_id=cid, changes={"days": 1, "slot_min": 70}
+        db_session,
+        instructor_id=iid,
+        curriculum_id=cid,
+        changes={"days": 1, "slot_min": 70},
     ) == ["days", "slot_min"]
+
 
 def _callers(pattern: str) -> list[str]:
     """src 에서 pattern 이 정의 줄 밖에 나오는 파일(classfit 기준 경로)."""
@@ -489,4 +514,13 @@ def test_pool_curriculum_lock_call_sites() -> None:
         calls = _calls_in("service/pool/curricula.py", function)
         assert calls.count("lock_curriculum") >= 1, (function, calls)
     lock = _calls_in("crud/curriculum.py", "lock_curriculum")
+    assert "with_for_update" in lock, lock
+    # 역량 지우기와 그 역량 파일 올리기는 역량 행을 먼저 잠근다(리뷰 Nit 4, FK 23503 → 500 방지)
+    for relpath, function in (
+        ("service/pool/capabilities.py", "remove_capability"),
+        ("service/pool/file_targets.py", "capability_upload_target"),
+    ):
+        calls = _calls_in(relpath, function)
+        assert calls.count("lock_capability") >= 1, (relpath, function, calls)
+    lock = _calls_in("crud/capability.py", "lock_capability")
     assert "with_for_update" in lock, lock

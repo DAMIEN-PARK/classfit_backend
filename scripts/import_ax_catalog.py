@@ -20,6 +20,9 @@
     고객응대(CS) · 구매·자재·물류 · 생산·제조 · 품질·안전 · 연구개발·설계 · IT·개발·데이터 · 디자인·콘텐츠 13개 중에서.
     현행 정적 페이지의 deptId 를 직무군 이름으로 바꾸는 일은 운영자가 파일을 만들 때 한다(명령은 매핑하지 않는다).
   - difficulty 하·중·상 · minutes 10~600 · hours 1~200. 모르는 키(dept · deptName · deptId …)는 거절한다.
+  - 글자·목록 상한은 API 와 같다: id 80자 · title 200자 · goal·output·material 2000자(빈 글자는 null) ·
+    theory·practice 30줄 × 500자 · schedule 50줄(시간·종류 1~20자, 내용 1~500자) · audience 100자 · tool 50자 ·
+    features 5줄 × 100자. 넘으면 거절한다(import 한 행이 끝점에서 열리고 관리자 PATCH 로 고칠 수 있게).
 
 멱등 규칙:
   - 키는 id 다. 없는 id 만 넣는다(inserted). 있는 id 는 어떤 칸도 쓰지 않고 내용이 같으면 unchanged,

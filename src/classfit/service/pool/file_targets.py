@@ -2,6 +2,7 @@
 
 판정 순서는 404(과정·역량·커리큘럼) → 403(남의 것·AX, owned_by) → 409(소유 행이 비활성) → 409(파일 행이
 POOL_FILES_MAX 개, limit 칸)이다. 역량은 강사 × 과정 키라 403 이 없고, 그 풀 과정이 비활성이면 409 다.
+역량 파일은 역량 행을 FOR UPDATE 로 먼저 잠근다 — 같은 역량의 지우기와 겹쳐도 FK 23503 → 500 이 아니라 404 다.
 돌려준 (owner_kind, owner_id) 를 그대로 service.files.pool_files 의 add_pdf_file·add_link_file 에 넘긴다.
 """
 
@@ -11,11 +12,11 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from classfit.core.errors import Conflict
+from classfit.core.errors import Conflict, NotFound
+from classfit.crud import capability as crud_capability
 from classfit.crud import pool as crud_pool
 from classfit.crud.pool_file import count_file_rows
 from classfit.models.pool import POOL_FILES_MAX
-from classfit.service.pool.capabilities import get_capability
 from classfit.service.pool.curricula import get_own_curriculum
 from classfit.service.pool.own import get_own_course
 
@@ -44,8 +45,10 @@ async def own_course_upload_target(
 async def capability_upload_target(
     session: AsyncSession, *, instructor_id: int, pool_id: str
 ) -> UploadTarget:
-    """역량 파일(capability_file). 역량이 없으면 404, 그 풀 과정이 비활성이면 409."""
-    row = await get_capability(session, instructor_id=instructor_id, pool_id=pool_id)
+    """역량 파일(capability_file). 역량이 없으면 404, 그 풀 과정이 비활성이면 409. 역량 행을 잠근다."""
+    row = await crud_capability.lock_capability(session, instructor_id, pool_id)
+    if row is None:
+        raise NotFound("역량이 없습니다")
     course = await crud_pool.get_pool_course_any(session, pool_id)
     if course is None or not course.active:
         raise Conflict("사용 중지된 과정에는 파일을 올릴 수 없습니다")

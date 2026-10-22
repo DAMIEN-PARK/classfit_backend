@@ -3,7 +3,8 @@
 - PUT 하나가 만들기와 메모 갱신을 다 한다: 풀 과정이 없으면 NotFound → 비활성이면 Conflict → get-or-create
   (ON CONFLICT DO NOTHING) → 메모. 소유 판정은 없다 — AX·남의 고유 과정에도 표시할 수 있다.
   audit 은 새로 만들었으면 capability.create, 메모만 바뀌었으면 capability.update, 그대로면 없다.
-- 지우기는 행을 지운다: 역량 파일 행 → 그 stored_file 행 → 역량 행(crud 한 함수) → audit capability.delete.
+- 지우기는 행을 지운다: 역량 행 잠금(lock_capability) → 역량 파일 행 → 그 stored_file 행 → 역량 행(crud 한 함수)
+  → audit capability.delete. 같은 역량에 파일을 올리는 요청(service.pool.file_targets)도 같은 행을 먼저 잠근다.
 - 관리자 확인·보완 요청·관리자 추천은 1차 제외다(spec A2-8 · A3-5 · DEC-015).
 """
 
@@ -46,21 +47,13 @@ async def put_capability(
     return row, created
 
 
-async def get_capability(
-    session: AsyncSession, *, instructor_id: int, pool_id: str
-) -> Capability:
-    """본인의 그 풀 과정 역량. 없으면 NotFound."""
-    row = await crud_capability.get_capability_any(session, instructor_id, pool_id)
-    if row is None:
-        raise NotFound("역량이 없습니다")
-    return row
-
-
 async def remove_capability(
     session: AsyncSession, *, instructor_id: int, pool_id: str
 ) -> None:
-    """역량과 그 파일 행·stored_file 행을 지운다. 없으면 NotFound."""
-    row = await get_capability(session, instructor_id=instructor_id, pool_id=pool_id)
+    """역량과 그 파일 행·stored_file 행을 지운다. 없으면 NotFound. 역량 행을 먼저 잠근다."""
+    row = await crud_capability.lock_capability(session, instructor_id, pool_id)
+    if row is None:
+        raise NotFound("역량이 없습니다")
     capability_id = row.id
     files = await crud_capability.delete_capability(session, row)
     await insert_audit(
