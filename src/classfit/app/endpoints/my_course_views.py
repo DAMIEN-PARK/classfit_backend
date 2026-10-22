@@ -97,7 +97,7 @@ async def my_roster(
         items, next_cursor, has_more = await my_views.my_roster(
             session, caller, course_id=course_id, cursor=cursor, limit=limit
         )
-    except ValueError:
+    except my_views.InvalidCursor:
         raise RequestValidationError(
             [
                 {

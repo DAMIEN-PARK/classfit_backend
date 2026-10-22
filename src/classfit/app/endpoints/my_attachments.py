@@ -296,7 +296,7 @@ async def replace_my_attachment_file(
     )
     kind = row.kind
     if kind == "link":
-        raise Conflict("링크 첨부는 파일을 바꾸지 않습니다(주소는 PATCH url)")
+        raise Conflict(my_attachment_edit.LINK_REPLACE_REFUSED)
     limits = my_attachments.upload_limits(settings)
     _check_length(request, limits[kind] + MIB)
     async with request.form(max_files=1, max_fields=1) as form:

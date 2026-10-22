@@ -496,12 +496,19 @@ async def test_attachment_replace_old_href_404(
     )
     [copy] = await _listed(client, me.headers, copied)
     assert (copy["kind"], copy["origin"]) == ("pdf", "capability_file")
+    source_key = await db_session.scalar(
+        select(StoredFile.key).where(StoredFile.owner_kind == "capability_file")
+    )
+    assert source_key is not None
     r = await _replace(client, me.headers, copy["id"], "내 강의안.pdf", new + b"%v3\n")
     assert r.status_code == 200, r.text
     assert r.json()["origin"] is None
     assert [
         (i["id"], i["origin"]) for i in await _listed(client, me.headers, copied)
     ] == [(copy["id"], None)]
+    # 사본의 파일만 바뀐다 — 역량 원본 파일 행과 바이트는 그대로 열린다
+    got = await client.get(href_for(source_key), headers=me.headers)
+    assert (got.status_code, got.content) == (200, PDF)
 
 
 async def test_attachment_patch_title_position(
