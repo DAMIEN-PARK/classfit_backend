@@ -4,6 +4,7 @@
 /v1/admin/attachments/{attachment_id}
 /v1/admin/courses
 /v1/admin/courses/{course_id}
+/v1/admin/courses/{course_id}/assignee-candidates
 /v1/admin/courses/{course_id}/days
 /v1/admin/courses/{course_id}/days/{day_no}
 /v1/admin/courses/{course_id}/enrollments
@@ -17,6 +18,8 @@
 /v1/admin/courses/{course_id}/sections
 /v1/admin/courses/{course_id}/sections/{section_id}
 /v1/admin/courses/{course_id}/sections/{section_id}/sessions
+/v1/admin/courses/{course_id}/sections/{section_id}/sessions:from-pool
+/v1/admin/courses/{course_id}/sections/{section_id}:assign
 /v1/admin/courses/{course_id}:archive
 /v1/admin/courses/{course_id}:reset-status
 /v1/admin/courses/{course_id}:set-status
@@ -53,6 +56,9 @@
 /v1/me/capabilities/{pool_id}
 /v1/me/capabilities/{pool_id}/files
 /v1/me/capability-files/{capability_file_id}
+/v1/me/courses
+/v1/me/courses/{course_id}
+/v1/me/courses/{course_id}/schedule
 /v1/me/curricula
 /v1/me/curricula/{curriculum_id}
 /v1/me/curricula/{curriculum_id}/files
@@ -63,6 +69,7 @@
 /v1/me/own-courses/{pool_id}
 /v1/me/own-courses/{pool_id}/files
 /v1/me/pool-files/{pool_course_file_id}
+/v1/me/sessions/{session_id}
 /v1/me:reapply
 /v1/pool
 /v1/pool/{pool_id}
