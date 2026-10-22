@@ -82,7 +82,7 @@ r1 B1 의 표를 r3 태스크 번호로 옮겼다.
 |---|---|---|
 | 0002 | T1 | `admin_account`(id · login_id U) · `auth_session`(id · token_hash U · principal_type · principal_id · course_id, CHECK learner ⇔ course_id 있음) · `auth_attempt`(id · kind · subject_hash · client · at · ok) · `mail_outbox`(id · kind · params · to · sent_at) · `stored_file`(id · key U · sha256 · owner_kind · owner_id) · `email_verification`(id · code_hash NULL 허용 · tries, 0005 에서 앞당김) |
 | 0003 | T2a | `course`(id · client_name · status · status_manual) · `course_day`(course_id+day_no U) · `section`(course_id) · `session`(section_id · day_no · slot) · `invite_code`(course_id · code U 전 행 · course_id 부분 U where status≠replaced) · FK `auth_session.course_id→course` |
-| 0004 | T2b | `session_attachment`(session_id · file_id→stored_file 또는 url · sort) · `learner`(email U lower, 이름 없음) · `enrollment`(course_id+learner_id U · name · dept) |
+| 0004 | T2b | `session_attachment`(session_id · kind 5종 pdf·office·html·link·image · title · description · file_id→stored_file U 또는 url, CHECK link ⇔ url 있음 ∧ link 면 file_id 없음 · sort, FK 둘 다 NO ACTION) · `learner`(email U lower, 이름 없음) · `enrollment`(course_id+learner_id U · name · dept, FK 둘 다 NO ACTION) |
 | 0005 | T3 | `instructor`(email U · terms_version · terms_agreed_at) · `email_verification` 에 강사 연결 칸(표는 0002) · `tag`(kind+name U) · `instructor_tag`(PK 쌍) · `document_type`(id text) · `instructor_document`(instructor_id+type_id U · file_id) |
 | 0006 | T4 | `pool_course`(id text · owner_instructor_id) · `pool_course_file` · `capability`(instructor_id+pool_course_id U) · `capability_file` · `curriculum`(id text · instructor_id) · `curriculum_slot`(curriculum_id+day+slot U) · `curriculum_file` · `advanced_course` |
 | 0007 | T5 | ALTER `session` + pool_course_id · curriculum_id · instructor_id · ALTER `course` + curriculum_src_id |
@@ -92,7 +92,7 @@ r1 B1 의 표를 r3 태스크 번호로 옮겼다.
 | 0010 | T9a | `company` · `diagnosis`(company_id+round_no U) · `diag_link`(token U · company_id 부분 U where open) · ALTER `course` + company_id(선택) |
 | 0011 | T9b | `inquiry`(Company 연결 없음) |
 
-- `stored_file.owner_kind` 등록 순서: T2b session_attachment · T3 instructor_document·instructor_photo · T4 pool_course_file·capability_file·curriculum_file · T7 photo · T9a diagnosis_pdf. 등록되지 않은 종류는 404 다.
+- `stored_file.owner_kind` 등록 순서: T2b session_attachment(T2b 등록됨. 관리자 참 · 수강생은 같은 강의 ∧ 세션 `is_open`, `crud/scope.py`) · T3 instructor_document·instructor_photo · T4 pool_course_file·capability_file·curriculum_file · T7 photo · T9a diagnosis_pdf. 등록되지 않은 종류는 404 다.
 - 다형 참조라 FK 가 없다. 그래서 소유자 행을 지우는 crud 는 같은 트랜잭션에서 stored_file 행도 지운다.
 - head 는 정확히 하나다. 1차 끝에 `alembic heads` 가 `0011 (head)` 한 줄이다(r3 §6 E-8).
 
@@ -107,21 +107,21 @@ r3 부록 D 가 본문이다. r1 B0 의 규칙은 r3 와 겹치지 않는 것만
 | 3 | 권한 | 목록·파일 조회의 첫 WHERE 는 주체 범위다(`crud/scope.py`). 남의 자원은 403, 등록 안 된 파일 소유 종류는 404 | T1 부터 전부 | r3 부록 D |
 | 4 | 트랜잭션 | 요청 1개 = 트랜잭션 1개(`db()`). service·crud 는 flush 까지만 하고 commit 하지 않는다 | 전부 | CLAUDE.md Rules |
 | 5 | 유일 위반 | `flush_or_conflict(session, message, *rows)` 는 begin_nested 안에서 rows 를 add 하고 flush 한다. SQLAlchemy 2.0.55 의 `begin_nested()` 는 SAVEPOINT 를 열기 전에 대기 변경을 flush 하므로, 위반이 날 수 있는 행은 rows 로 넘겨 SAVEPOINT 안에서 add 한다. `exc.orig.sqlstate == '23505'` 일 때만 Conflict(409)로 바꾼다. CHECK(23514)·FK(23503) 등은 다시 던져 500 이 된다 | T1 | r3 부록 D · N5 |
-| 6 | 세고 넣는 경쟁 | 정원·재발급·열린 설문은 대상 행을 FOR UPDATE 로 잠근다 | T2b · T8 | r3 부록 D |
+| 6 | 세고 넣는 경쟁 | 정원·재발급·열린 설문은 대상 행을 FOR UPDATE 로 잠근다. T2b 의 잠금 대상은 바뀌는 코드 행이 아니라 고정된 `course` 행이다(`crud.course.lock_course`, 잠그며 populate_existing 으로 다시 읽는다). 입장 · 코드 행을 바꾸는 네 문(재발급·정지·재개·수정) · 강의 삭제가 맨 앞에서 잠그고, 잠금 순서는 course → invite_code → learner·enrollment·auth_session 이다. 입장은 잠그기 전에 코드로 course_id 스칼라만 읽고, 잠근 뒤 코드 행을 populate_existing 으로 다시 읽는다(잠금을 기다린 사이의 재발급·정지를 identity map 이 가리지 않게) | T2b · T8 | r3 부록 D · T2b 계획 결정 ii·v |
 | 7 | 실패해도 남는 쓰기 | 실패한 로그인·인증 코드 끝점은 같은 요청 트랜잭션에 `auth_attempt` 1행을 쓰고, 예외 대신 `problem()` 으로 401·422 를 반환한다. 그래서 `db()` 가 커밋한다. 대가: 그 끝점은 실패 판정 전에 다른 쓰기를 하지 않는다. 잠금 판정 키는 (계정, `request.client.host`) | T1 | r3 부록 D · N4 · N10 |
 | 8 | 인증 코드 | 생성은 `classfit.service.auth.email_code` 의 `issue_email_code(session, verification_id)` 한 함수다(구성요소 폴더라 하위 모듈로 풀었다). 요청은 outbox 에 kind=`email_code`, params={verification_id} 만 쌓는다. `scripts.outbox_preview` 는 미리 보기면 본문을 찍고 롤백하며 "무효 코드(미리 보기)"라고 찍는다. `--apply` 면 해시를 저장하고 sent_at 을 채운다. 다시 보내면 새 코드가 이전 해시를 덮는다 | T1 · T3 | r3 부록 D · N13 |
 | 9 | 파일 바이트 | 업로드는 sha256 경로에 바이트가 없으면 쓰고, 있으면 mtime 만 갱신한다. 행은 요청 트랜잭션에 넣는다. `scripts.file_gc` 는 참조 행 0 ∧ mtime 24시간 지난 바이트만 지운다(미리 보기 기본, `--apply`) | T1 · T6 | r3 부록 D · N6 |
 | 10 | 응답 모양 | 파일은 `href`(지금은 `/v1/files/{key}`)로 가리킨다. 서명 URL 로 바꿔도 칸 이름과 타입이 같다 | T1 · T2b | r3 부록 D · N12 |
-| 11 | 소유자 삭제 | 소유자 행을 지우는 crud 는 같은 트랜잭션에서 stored_file 행도 지운다 | T2b 부터 | r3 부록 C |
+| 11 | 소유자 삭제 | 소유자 행을 지우는 crud 는 같은 트랜잭션에서 stored_file 행도 지운다. T2b: 첨부의 `session_id`·`file_id` FK 가 NO ACTION 이라 세션·섹션·강의 삭제 경로가 지우기 전에 첨부 행 → 그 첨부가 소유한 stored_file 행을 먼저 지운다(`crud.attachment.delete_attachments_under`). 강의 삭제는 `service.courses.remove.remove_course` 한 곳이고, 수강생이 있으면 409, 없으면 그 강의의 auth_session 행(만료·폐기 포함)도 먼저 지운다(`crud.auth.delete_course_sessions`, 0003 FK NO ACTION). 바이트는 gc 가 지운다 | T2b 부터 | r3 부록 C · T2b 계획 결정 ix·xi |
 | 12 | 상태 열 | `Text + CheckConstraint` 로 둔다. 마이그레이션 리비전 id 는 손으로 매긴다(0002, 0003 …) | T1 부터 전부 | r1 B0 |
 | 13 | 단일 진입점 | 강의 개설 + 코드 발급은 `open_course()`(`classfit.service.courses.open`), 초대코드는 `issue_invite_code()`(`classfit.service.courses.codes`. 생성 도우미 `_new_invite_code` 는 그 파일 밖에서 부르지 않는다), 인증 코드는 `issue_email_code()`(`classfit.service.auth.email_code`) 로만 만든다 | T1 · T2a | r3 부록 E7 |
-| 14 | 구성요소·import 경계 | `service/rules`(최하위 순수 함수 `course_status_at·code_state_at·make_days·session_time`) · `service/auth` · `service/courses`(`open_course`·`issue_invite_code`). 계약 ② 는 T1 에 `type = "independence"`(`classfit.service.auth`·`classfit.service.files`)로 처음 더했고, T2a 에서 `type = "layers"`·containers `classfit.service`·exhaustive 로 바꿨다. 위층은 서로 독립인 `auth`·`courses`·`files`, 아래층은 `rules` 다. 새 구성요소 폴더는 ② 에 더하기 전엔 lint-imports 가 막는다. rules 가 crud·models·DB 를 부르지 않는 것은 계약이 아니라 `tests/unit/test_import_rules.py` 가 본다. 계약 ① 이 exhaustive 라 1차에는 새 최상위 모듈을 만들지 않는다. 구성요소 사이의 읽기는 crud 를 거친다 | T1 부터 | r3 부록 D · r1 B0 |
+| 14 | 구성요소·import 경계 | `service/rules`(최하위 순수 함수 `course_status_at·code_state_at·make_days·session_time`) · `service/auth` · `service/courses`(`open_course`·`issue_invite_code`). 계약 ② 는 T1 에 `type = "independence"`(`classfit.service.auth`·`classfit.service.files`)로 처음 더했고, T2a 에서 `type = "layers"`·containers `classfit.service`·exhaustive 로 바꿨다. 위층은 서로 독립인 `auth`·`courses`·`enroll`·`files`(T2b 가 입장 판정 `enroll` 을 더했다), 아래층은 `rules` 다. 새 구성요소 폴더는 ② 에 더하기 전엔 lint-imports 가 막는다. rules 가 crud·models·DB 를 부르지 않는 것은 계약이 아니라 `tests/unit/test_import_rules.py` 가 본다. 계약 ① 이 exhaustive 라 1차에는 새 최상위 모듈을 만들지 않는다. 구성요소 사이의 읽기는 crud 를 거친다 | T1 부터 | r3 부록 D · r1 B0 |
 | 15 | 날짜 | 날짜는 `Today`(Asia/Seoul) 한 곳에서 받고 시험이 `app.dependency_overrides[classfit.app.deps.today]` 로 주입한다. 상태 판정 함수는 오늘을 인자로 받는다 | T1 부터 | r3 §2 가정 5 |
 | 16 | 원본 한 곳 | 문항·산식·상태 규칙은 코드 한 곳에 둔다. 진단 A4 와 자가진단 P5 가 같은 원본을 쓴다 | T2a · T9a | r3 §3 원칙 ② |
 | 17 | golden 추출 | `scripts/golden/extract.mjs` 는 시안 JS(`scTime·scMakeDays·calc`)를 node 로 돌려 숫자·날짜·시각만 대조 대상으로 남긴다. 입력은 extract.mjs 가 만든 합성 사례라 회사명·인명이 처음부터 없다. 시간대는 첫 줄에서 Asia/Seoul 로 고정해 기계 시간대와 무관하다. 재추출 대조는 `scripts/golden/check.sh`(pre-push) 한 곳이고, CI 는 커밋된 `tests/fixtures/golden.json` 을 쓴다 | T2a · T9a | r3 부록 D · N8 · T2a 계획 착수 조건 "golden 이름 처리" |
-| 18 | 시험 | 파일 이름은 `test_api_*`·`test_db_*`·`test_*_rules` 이고 basename 이 유일해야 한다(tests/conftest.py:7). 수용 기준이 세는 시험 이름은 부록 A 를 따른다. 동시성 시험은 `tests/integration/test_db_concurrency.py` 에 두고, 커밋하고 끝에 지우는 별도 픽스처를 쓴다 | 전부 | r3 부록 D |
+| 18 | 시험 | 파일 이름은 `test_api_*`·`test_db_*`·`test_*_rules` 이고 basename 이 유일해야 한다(tests/conftest.py:7). 수용 기준이 세는 시험 이름은 부록 A 를 따른다. 동시성 시험은 `tests/integration/test_db_concurrency.py` 에 두고, 커밋하고 끝에 지우는 별도 픽스처를 쓴다. 픽스처는 `migrated_db_url` 로 NullPool 엔진을 따로 만들고, finally 에서 `Base.metadata.sorted_tables` 를 `TRUNCATE … RESTART IDENTITY CASCADE` 한다. 순서는 시간이 아니라 기계로 고정한다: A 가 판정 뒤 커밋 전에 멈춤 → B 태스크 → 제3 연결이 `pg_stat_activity.wait_event_type = 'Lock'` 을 보거나 B 가 끝날 때까지(최대 5초) 기다림 → A 커밋 → B 결과와 "B 가 기다렸다" 를 단언. T2b 는 로그인 잠금(`lock_attempt_key`) 시험도 여기 둔다(T1 리뷰 nit 2 이관) | 전부 | r3 부록 D · T2b 계획 결정 xiii |
 | 19 | 폭발 반경 | T1·T2a·T2b·T3·T9a·T9b 는 시험 + 대조 실험 + verifier, 나머지는 시험 + 대조 실험이다 | 전부 | r3 부록 D |
-| 20 | 설정 칸 | `FILE_STORE_ROOT`·`INQUIRY_NOTIFY_TO` 는 없으면 그 기능만 501 이다(`Settings.missing()`). 1절 수명·잠금·gc 유예 값은 1절 값을 설정 기본값으로 가지므로 `missing()` 대상이 아니다(ADR-002 결정 5, T1 계획 착수 조건 (ii)). `FILE_SIGNING_KEY` 는 예약 칸이라 `missing()` 밖이다 | T1 부터 | r3 부록 D |
+| 20 | 설정 칸 | `FILE_STORE_ROOT`·`INQUIRY_NOTIFY_TO` 는 없으면 그 기능만 501 이다(`Settings.missing()`). 1절 수명·잠금·gc 유예 값은 1절 값을 설정 기본값으로 가지므로 `missing()` 대상이 아니다(ADR-002 결정 5, T1 계획 착수 조건 (ii)). 관리자 첨부 PDF 상한 `ATTACHMENT_PDF_MAX_MB`(기본 50, 기획안 I4, T2b)도 같다. `FILE_SIGNING_KEY` 는 예약 칸이라 `missing()` 밖이다 | T1 부터 | r3 부록 D |
 
 
 
@@ -156,7 +156,7 @@ r3 부록 D 가 본문이다. r1 B0 의 규칙은 r3 와 겹치지 않는 것만
 | 같은 이메일로 다른 강의에 다른 이름을 등록해도 이 강의 명단은 그대로 | T2b | `test_enrollment_name_isolated` | r3 부록 B T2b · N9 |
 | 준비 중 카드: `is_open` ∧ 첨부 ≥1 이 아니면 잠김 | T2b | `test_portal_locked_` | r3 부록 A4 · 원칙 5 |
 | 포털 응답에 개인 키 없음 | T2b | `test_no_personal_keys_portal` | r3 부록 B T2b · E-14 |
-| 정원·재발급 동시성(FOR UPDATE) | T2b | `test_concurrent_` | r3 §5.2 T2b · E-11 |
+| 정원·재발급 동시성(course 행 FOR UPDATE) · 재발급 뒤 옛 코드 입장 404 · 로그인 실패 세기를 advisory 잠금으로 줄 세움 | T2b | `test_concurrent_enroll_capacity` · `test_concurrent_reissue_one_live` · `test_concurrent_reissue_then_enter_old_code_404` · `test_concurrent_login_failures_serialized` | r3 §5.2 T2b · E-11 · T2b 계획 결정 ii·xiii |
 | 강사 상태 전이(기획안 A2 상태표 4행), 사유 없는 반려 422, 정지 로그인 403 | T3 | `test_instructor_status_` | r3 §5.2 T3 · 부록 B T3 |
 | outbox 에 인증 코드 평문 없음, 만료 410, 시도 초과 429, 재발송하면 이전 코드 무효 | T3 | `test_instructor_email_code_` | r3 부록 A4 · 부록 B T3 |
 | 서류 열람은 audit 1행, 남의 서류 403 | T3 | `test_instructor_document_` | r3 §5.2 T3 · 부록 B T3 |

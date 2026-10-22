@@ -16,10 +16,10 @@ BCTONE 강사관리 플랫폼 백엔드(FastAPI · SQLAlchemy 2.0 async · psyco
 ## Rules
 - DB 는 async 만: `AsyncSession`·`async_sessionmaker`·`create_async_engine`, 드라이버는 psycopg 3 하나.
 - **금지 의존성:** asyncpg · psycopg2(-binary) · openai(→ httpx 로 직접) · langchain 과 `langchain_*` 모듈 · 동기 `Session`·`sessionmaker`·`create_engine`. 허용 예외는 `langchain-core`(langgraph 이행 의존성) 하나. 요청받아도 거절한다.
-- 패키지 경계: import-linter 계약 ①(종류 계층, exhaustive)·②(service 구성요소: `rules` 가 맨 아래 순수 함수, `auth`·`courses`·`files` 는 서로 모름, layers·exhaustive. 새 구성요소 폴더는 ② 에 더한다. rules 가 crud·models·DB 를 부르지 않는 것은 `tests/unit/test_import_rules.py` 가 본다)·③(코어 집합은 소비자를 모름). 새 최상위 모듈은 계약에 먼저 더한다.
+- 패키지 경계: import-linter 계약 ①(종류 계층, exhaustive)·②(service 구성요소: `rules` 가 맨 아래 순수 함수, `auth`·`courses`·`enroll`·`files` 는 서로 모름, layers·exhaustive. 새 구성요소 폴더는 ② 에 더한다. rules 가 crud·models·DB 를 부르지 않는 것은 `tests/unit/test_import_rules.py` 가 본다)·③(코어 집합은 소비자를 모름). 새 최상위 모듈은 계약에 먼저 더한다.
 - 파일 크기: 300줄, `app/endpoints/` 500줄, models·schemas 면제(`scripts/check_file_size.py`).
 - 단일 진입점(T1 이후): 강의 개설 + 코드 발급 `open_course()` · 초대코드 `issue_invite_code()` · 인증 코드 `issue_email_code()` 로만 만든다.
-- 권한 쿼리: 목록·파일 조회의 첫 WHERE = 주체 범위(`crud/scope.py`). 남의 자원 403, 등록 안 된 파일 소유 종류 404.
+- 권한 쿼리: 목록·파일 조회의 첫 WHERE = 주체 범위(`crud/scope.py`). 남의 자원 403, 등록 안 된 파일 소유 종류 404. 등록된 owner_kind: session_attachment(T2b).
 - 요청 1개 = 트랜잭션 1개(`app/deps.py` 의 `db()`). service·crud 는 flush 까지만 하고 commit 하지 않는다.
 - 미구성은 실패다: 빠진 설정은 조용히 폴백하지 않고 그 기능만 "미구성"으로 실패한다(`Settings.missing()`). 오류 본문은 problem+json 하나(`app/errors.py`).
 - 문서·픽스처·로그·커밋 메시지에 서버 IP·호스트명·고객사 실명 금지. 예시는 192.0.2.0/24 와 A사·B사. `.env`·자격 파일은 읽지도 인용하지도 않는다.
