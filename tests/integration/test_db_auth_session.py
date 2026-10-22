@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from classfit.models import AuthSession
 
 CHECK_VIOLATION = "23514"
+FK_VIOLATION = "23503"
 
 
 def _row(principal_type: str, course_id: int | None, token: str) -> AuthSession:
@@ -43,4 +44,13 @@ async def test_auth_session_admin_with_course_violates_check(
     assert (
         await _flush_violation(db_session, _row("admin", 7, "t-admin"))
         == CHECK_VIOLATION
+    )
+
+
+async def test_auth_session_learner_unknown_course_violates_fk(
+    db_session: AsyncSession,
+) -> None:
+    assert (
+        await _flush_violation(db_session, _row("learner", 999_999, "t-learner-fk"))
+        == FK_VIOLATION
     )

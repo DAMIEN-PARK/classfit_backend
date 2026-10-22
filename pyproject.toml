@@ -75,14 +75,17 @@ layers = [
   "core",
 ]
 
-# ② service 구성요소는 서로 모른다. 구성요소 사이의 읽기는 crud 를 거친다(Design 5절 14).
-#    새 구성요소 폴더를 만들면 modules 에 더한다. 위아래 계약(rules 최하위)으로 바꾸는 일은 rules 가 생기는 T2a 다.
+# ② service 구성요소: rules(순수 함수)가 맨 아래, 그 위 auth·courses·files 는 서로 모른다(Design 5절 14).
+#    구성요소 사이의 읽기는 crud 를 거친다. exhaustive 라 새 구성요소 폴더는 여기 더하기 전엔 lint-imports 가 막는다.
+#    rules 가 crud·models 를 부르지 않는 것은 이 계약이 아니라 tests/unit/test_import_rules.py 가 본다(T2a 결정 iv).
 [[tool.importlinter.contracts]]
-name = "2. service 구성요소는 서로 모른다"
-type = "independence"
-modules = [
-  "classfit.service.auth",
-  "classfit.service.files",
+name = "2. service 구성요소: rules 가 맨 아래, 나머지는 서로 모른다"
+type = "layers"
+containers = ["classfit.service"]
+exhaustive = true
+layers = [
+  "auth | courses | files",
+  "rules",
 ]
 
 # ③ 코어 집합은 소비자(app·main, 나중에 mcp·cli·worker)를 import 하지 않는다.

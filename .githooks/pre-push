@@ -26,4 +26,4 @@ if [ "$rc" -eq 2 ]; then
 elif [ "$rc" -ne 0 ]; then
   exit "$rc"
 fi
-# T2a: golden 재추출 대조(부록 E9)
+bash scripts/golden/check.sh   # golden 재추출 대조(r3 E9·N8). 시안이 바뀌거나 golden.json 을 손으로 고치면 막는다. node 없으면 미구성 exit 1

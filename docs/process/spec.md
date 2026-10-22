@@ -35,7 +35,7 @@ URL: ""
 | ADR-002 학습자 세션 | [`docs/process/adr/ADR-002-learner-session.md`](adr/ADR-002-learner-session.md) | 저장소 | git 추적 | 승인 | r3 §4 · §1.1 ④ | [Design](2026-10-21-phase1-backend-design.md) 1·2절 |
 | ADR-003 외부 포트 | [`docs/process/adr/ADR-003-external-ports.md`](adr/ADR-003-external-ports.md) | 저장소 | git 추적 | 승인 | r3 §4 | [Design](2026-10-21-phase1-backend-design.md) 1·3절 |
 | ADR-004 공개홈 | [`docs/process/adr/ADR-004-public-home.md`](adr/ADR-004-public-home.md) | 저장소 | git 추적 | 승인 · r3 §7-1 답에 따라 다시 봄 | r3 §4 · 부록 A5 | [feature intent](intents/2026-10-21-phase1-backend.md) |
-| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b 병합 · T1 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
+| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1 병합 · T2a 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
 | 에이전트 편성 | [`docs/process/agent.md`](agent.md) | 저장소 | git 추적 | 승인자 DAMIEN-PARK | r3 §5.1 · 부록 E11 | CLAUDE.md · `.claude/settings.json` |
 
 ## 2. 정책 대조표
@@ -45,15 +45,15 @@ r3 §3 원칙 ①~⑤ 와 기획안 03 운영 원칙 중 서버가 지킬 것(2�
 | # | 정책 | 어디에 코드로 있는가 | 강제·권고 | 소유자 |
 |---|---|---|---|---|
 | 1 | r3 원칙 ① 계획 먼저, 승인은 사람만 | `.claude/hooks/deny-approval.sh`(에이전트 커밋의 승인 표시 차단) · `scripts/check_task_order.sh`(가지는 plan → approve → T 커밋 순서, master 는 병합 커밋만. pre-push·CI) · `.githooks/pre-commit`(master 직접 커밋 차단) · `.githooks/pre-merge-commit`(스크립트 밖 master 병합 차단) · `.claude/settings.json` deny(병합·push·reset·훅 우회) · `scripts/merge_task.sh`(승인자 전용) · [agent.md](agent.md) 4절 | 강제(훅·CI). 같은 계정의 위조는 기계로 다 막지 못한다 | DAMIEN-PARK |
-| 2 | r3 원칙 ② 원본은 한 곳 | 이 문서 1절 + `scripts/check_docs.sh` ①②(색인 경로 실재 · 외부 정본 sha256, pre-push 는 `CLASSFIT_REQUIRE_EXTERNAL=1`) · `src/classfit/main.py`(`/v1/openapi.json`) · `tests/contracts/test_api_openapi.py`(E-13, OpenAPI 경로 집합 = `tests/contracts/expected_paths.txt`, `/v1/_probe` 없음) · 예정: T2a + `test_golden_schedule_`, T9a + `test_golden_score_`(시안 산식과 같은 원본) | 강제(pre-push·CI) | DAMIEN-PARK |
+| 2 | r3 원칙 ② 원본은 한 곳 | 이 문서 1절 + `scripts/check_docs.sh` ①②(색인 경로 실재 · 외부 정본 sha256, pre-push 는 `CLASSFIT_REQUIRE_EXTERNAL=1`) · `src/classfit/main.py`(`/v1/openapi.json`) · `tests/contracts/test_api_openapi.py`(E-13, OpenAPI 경로 집합 = `tests/contracts/expected_paths.txt`, `/v1/_probe` 없음) · `tests/unit/test_schedule_rules.py`(`test_golden_schedule_`, 일정 규칙 `src/classfit/service/rules/schedule.py` 가 시안 일정 함수와 같은 값) · 예정: T9a + `test_golden_score_`(시안 산식과 같은 원본) | 강제(pre-push·CI) | DAMIEN-PARK |
 | 3 | r3 원칙 ③ 판정은 서버가, 규칙마다 시험 1개 이상 | [Design 부록 A](2026-10-21-phase1-backend-design.md) 대응표 + `scripts/check_docs.sh` ④(병합된 T 의 행마다 `tests/` 에 def) · `tests/conftest.py`(시험 DB 가 없으면 pytest.fail, skip 금지) · `.claude/hooks/protect-tests.sh`(버그 픽스 모드에서 tests 편집 차단) | 강제(check_docs·CI test) | DAMIEN-PARK |
-| 4 | r3 원칙 ④ 지금 대표 데이터로 검증 | `tests/conftest.py`(라이브 Postgres, 세션마다 downgrade base → upgrade head) · `.github/workflows/ci.yml` test 잡(postgres:17) · 예정: T2a + `scripts/golden/extract.mjs` · `test_golden_schedule_` · 예정: T9a + `test_golden_score_`(E-12) | 강제(CI test) | DAMIEN-PARK |
+| 4 | r3 원칙 ④ 지금 대표 데이터로 검증 | `tests/conftest.py`(라이브 Postgres, 세션마다 downgrade base → upgrade head) · `.github/workflows/ci.yml` test 잡(postgres:17) · `scripts/golden/extract.mjs`(합성 사례로 시안 일정 함수를 돌린다, TZ Asia/Seoul 고정) · `scripts/golden/check.sh`(재추출 대조, pre-push) · `tests/unit/test_schedule_rules.py`(`test_golden_schedule_`, CI 는 커밋된 `tests/fixtures/golden.json`) · 예정: T9a + `test_golden_score_`(E-12) | 강제(CI test) | DAMIEN-PARK |
 | 5 | r3 원칙 ⑤ 강제는 기계로 | `Makefile` verify(editable-check → gate → lint → lint-imports → test, T0b 에서 끝에 okf) · `.githooks/pre-push` · `.github/workflows/ci.yml` gates·test · 금지 의존성 `pyproject.toml` banned-api(ruff TID251) · `.claude/hooks/deny-deps.sh` · `scripts/gate.sh` · 차단기 회귀 `scripts/test_gate.sh` · `.claude/hooks/test_hooks.sh` · 문서 `scripts/okf/guard.sh`(T0b) · `scripts/check_docs.sh` | 강제(훅·CI) | DAMIEN-PARK |
 | 6 | 기획안 원칙 2 수강생의 문은 초대코드 하나(가입·비밀번호 없음) | [ADR-002](adr/ADR-002-learner-session.md) · `tests/integration/test_db_auth_session.py`(수강생 세션은 course_id 필수, auth_session CHECK) · 예정: T2b + `test_p3_*` 9건(E-10) · `test_cross_course_portal_403` | 시험(T1 일부, T2b 예정) + ADR | DAMIEN-PARK |
 | 7 | 기획안 원칙 5 첨부가 없거나 공개가 꺼진 세션은 "준비 중" | 예정: T2b + `test_portal_locked_` | 시험(예정) | DAMIEN-PARK |
 | 8 | 기획안 원칙 10 응답은 개인과 연결해 보여 주지 않는다 | REVIEW.md 보안 패스(원칙 10 항목) · [Design](2026-10-21-phase1-backend-design.md) 1절 만족도 공개 범위 · 예정: T2b + `test_no_personal_keys_portal` · T4 + `test_no_personal_keys_catalog` · T8 + `test_no_personal_keys_i7`·`test_no_personal_keys_a5`(E-14) | 리뷰 + 시험(예정) | DAMIEN-PARK |
-| 9 | 기획안 원칙 12 실제 고객사명은 시안·데모 데이터에 쓰지 않는다 | `scripts/gate.sh` 4번(금지 용어 `scripts/forbidden_terms.txt`, 범위 src·tests·alembic·scripts·docs·루트 md, 출력은 file:line 만) · pre-push·CI 의 `CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1` · `scripts/check_secrets.sh` · CLAUDE.md Rules · 예정: T2a + `scripts/golden/extract.mjs` 가명 토큰 | 강제(CI) | DAMIEN-PARK |
-| 10 | 기획안 원칙 13 강의는 관리자가 개설하고 강사를 배정한다. 강사는 구조를 만지지 않는다 | CLAUDE.md Rules 단일 진입점 `open_course()` · 예정: T5 + `test_assign_`(미승인 배정 409) · `test_instructor_session_`(제목 PATCH 422 · 남의 세션 403) | 시험(예정) | DAMIEN-PARK |
+| 9 | 기획안 원칙 12 실제 고객사명은 시안·데모 데이터에 쓰지 않는다 | `scripts/gate.sh` 4번(금지 용어 `scripts/forbidden_terms.txt`, 범위 src·tests·alembic·scripts·docs·루트 md, 출력은 file:line 만) · pre-push·CI 의 `CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1` · `scripts/check_secrets.sh` · CLAUDE.md Rules · `scripts/golden/extract.mjs`(합성 사례만 돌려 회사명·인명이 처음부터 없다. `tests/fixtures/golden.json` 은 사례 id·숫자·날짜·시각뿐) | 강제(CI) | DAMIEN-PARK |
+| 10 | 기획안 원칙 13 강의는 관리자가 개설하고 강사를 배정한다. 강사는 구조를 만지지 않는다 | CLAUDE.md Rules 단일 진입점 `open_course()`(`src/classfit/service/courses/open.py`) · `tests/integration/test_db_open_course.py`(`test_courses_open_single_entry`) · 예정: T5 + `test_assign_`(미승인 배정 409) · `test_instructor_session_`(제목 PATCH 422 · 남의 세션 403) | 시험(T2a 일부, T5 예정) | DAMIEN-PARK |
 
 정책이 바뀌면 소유자가 정하고, 같은 커밋에서 훅·스크립트·문서를 고치고, 이 표의 행을 갱신한다.
 
@@ -63,8 +63,8 @@ r3 부록 A2 데이터 계약 차이 11건, A3 시안 전용 기능 5종, §2 �
 
 | 일자 | 우려 | 정책 # | 처리 | 상태 |
 |---|---|---|---|---|
-| 2026-10-21 | A2-1 Course 칸 이름·값 표기가 시안끼리, 시안과 기획안이 다르다(title·name, client·company, method·mode, 시수, 상태, 날짜 구분자) | 2 | title·client_name·method·hours_per_person(int)·status prep·running·ended, ISO 8601 | 결정(r3) · T2a |
-| 2026-10-21 | A2-2 InviteCode 가 기획안은 별도 개체, 관리자 시안은 Course 에 납작, 강사 시안은 객체 | 2 | 별도 표, 재발급 이력은 replaced 행 | 결정(r3) · T2a |
+| 2026-10-21 | A2-1 Course 칸 이름·값 표기가 시안끼리, 시안과 기획안이 다르다(title·name, client·company, method·mode, 시수, 상태, 날짜 구분자) | 2 | title·client_name·method·hours_per_person(int)·status prep·running·ended, ISO 8601 | 결정(r3) · T2a 반영(0003 `course`) |
+| 2026-10-21 | A2-2 InviteCode 가 기획안은 별도 개체, 관리자 시안은 Course 에 납작, 강사 시안은 객체 | 2 | 별도 표, 재발급 이력은 replaced 행 | 결정(r3) · T2a 반영(0003 `invite_code`) |
 | 2026-10-21 | A2-3 Enrollment 를 관리자는 수만, 강사는 목록으로, 기획안은 이메일로 사람을 묶는다 | 2 | learner(이메일만) + enrollment(이름·부서), 응답 여부는 계산 | 결정(r3, ADR-002) · T2b |
 | 2026-10-21 | A2-4 Session·Attachment 칸 이름이 넷(att·files·attachments·keys), 종류 img·image | 2 | keywords[], kind=image, href | 결정(r3) · T2b |
 | 2026-10-21 | A2-5 Diagnosis·DiagLink 상태 값이 다르다 | 2 | draft·review·final / open·submitted·revoked, 만료는 계산 | 결정(r3) · T9a |

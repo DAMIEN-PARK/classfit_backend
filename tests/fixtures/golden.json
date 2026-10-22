@@ -1,0 +1,1678 @@
+{
+  "make_days": [
+    {
+      "id": "md-mon-n0",
+      "in": {
+        "end_time": "17:00",
+        "n": 0,
+        "start": "2026-11-02",
+        "start_time": "13:00"
+      },
+      "out": []
+    },
+    {
+      "id": "md-mon-n1",
+      "in": {
+        "end_time": "17:00",
+        "n": 1,
+        "start": "2026-11-02",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-11-02",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        }
+      ]
+    },
+    {
+      "id": "md-mon-n4",
+      "in": {
+        "end_time": "17:00",
+        "n": 4,
+        "start": "2026-11-02",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-11-02",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-03",
+          "end": "17:00",
+          "no": 2,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-04",
+          "end": "17:00",
+          "no": 3,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-05",
+          "end": "17:00",
+          "no": 4,
+          "start": "13:00"
+        }
+      ]
+    },
+    {
+      "id": "md-fri-n5",
+      "in": {
+        "end_time": "17:00",
+        "n": 5,
+        "start": "2026-11-06",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-11-06",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-09",
+          "end": "17:00",
+          "no": 2,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-10",
+          "end": "17:00",
+          "no": 3,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-11",
+          "end": "17:00",
+          "no": 4,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-12",
+          "end": "17:00",
+          "no": 5,
+          "start": "13:00"
+        }
+      ]
+    },
+    {
+      "id": "md-sat-n1",
+      "in": {
+        "end_time": "17:00",
+        "n": 1,
+        "start": "2026-11-07",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-11-09",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        }
+      ]
+    },
+    {
+      "id": "md-sun-n4",
+      "in": {
+        "end_time": "17:00",
+        "n": 4,
+        "start": "2026-11-08",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-11-09",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-10",
+          "end": "17:00",
+          "no": 2,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-11",
+          "end": "17:00",
+          "no": 3,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-12",
+          "end": "17:00",
+          "no": 4,
+          "start": "13:00"
+        }
+      ]
+    },
+    {
+      "id": "md-monthend-n5",
+      "in": {
+        "end_time": "17:00",
+        "n": 5,
+        "start": "2026-11-26",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-11-26",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-27",
+          "end": "17:00",
+          "no": 2,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-30",
+          "end": "17:00",
+          "no": 3,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-01",
+          "end": "17:00",
+          "no": 4,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-02",
+          "end": "17:00",
+          "no": 5,
+          "start": "13:00"
+        }
+      ]
+    },
+    {
+      "id": "md-yearend-n10",
+      "in": {
+        "end_time": "17:00",
+        "n": 10,
+        "start": "2026-12-28",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-12-28",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-29",
+          "end": "17:00",
+          "no": 2,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-30",
+          "end": "17:00",
+          "no": 3,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-31",
+          "end": "17:00",
+          "no": 4,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-01",
+          "end": "17:00",
+          "no": 5,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-04",
+          "end": "17:00",
+          "no": 6,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-05",
+          "end": "17:00",
+          "no": 7,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-06",
+          "end": "17:00",
+          "no": 8,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-07",
+          "end": "17:00",
+          "no": 9,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-08",
+          "end": "17:00",
+          "no": 10,
+          "start": "13:00"
+        }
+      ]
+    },
+    {
+      "id": "md-guard-sat-n45",
+      "in": {
+        "end_time": "17:00",
+        "n": 45,
+        "start": "2026-11-07",
+        "start_time": "13:00"
+      },
+      "out": [
+        {
+          "date": "2026-11-09",
+          "end": "17:00",
+          "no": 1,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-10",
+          "end": "17:00",
+          "no": 2,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-11",
+          "end": "17:00",
+          "no": 3,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-12",
+          "end": "17:00",
+          "no": 4,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-13",
+          "end": "17:00",
+          "no": 5,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-16",
+          "end": "17:00",
+          "no": 6,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-17",
+          "end": "17:00",
+          "no": 7,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-18",
+          "end": "17:00",
+          "no": 8,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-19",
+          "end": "17:00",
+          "no": 9,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-20",
+          "end": "17:00",
+          "no": 10,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-23",
+          "end": "17:00",
+          "no": 11,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-24",
+          "end": "17:00",
+          "no": 12,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-25",
+          "end": "17:00",
+          "no": 13,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-26",
+          "end": "17:00",
+          "no": 14,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-27",
+          "end": "17:00",
+          "no": 15,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-11-30",
+          "end": "17:00",
+          "no": 16,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-01",
+          "end": "17:00",
+          "no": 17,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-02",
+          "end": "17:00",
+          "no": 18,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-03",
+          "end": "17:00",
+          "no": 19,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-04",
+          "end": "17:00",
+          "no": 20,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-07",
+          "end": "17:00",
+          "no": 21,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-08",
+          "end": "17:00",
+          "no": 22,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-09",
+          "end": "17:00",
+          "no": 23,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-10",
+          "end": "17:00",
+          "no": 24,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-11",
+          "end": "17:00",
+          "no": 25,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-14",
+          "end": "17:00",
+          "no": 26,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-15",
+          "end": "17:00",
+          "no": 27,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-16",
+          "end": "17:00",
+          "no": 28,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-17",
+          "end": "17:00",
+          "no": 29,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-18",
+          "end": "17:00",
+          "no": 30,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-21",
+          "end": "17:00",
+          "no": 31,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-22",
+          "end": "17:00",
+          "no": 32,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-23",
+          "end": "17:00",
+          "no": 33,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-24",
+          "end": "17:00",
+          "no": 34,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-25",
+          "end": "17:00",
+          "no": 35,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-28",
+          "end": "17:00",
+          "no": 36,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-29",
+          "end": "17:00",
+          "no": 37,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-30",
+          "end": "17:00",
+          "no": 38,
+          "start": "13:00"
+        },
+        {
+          "date": "2026-12-31",
+          "end": "17:00",
+          "no": 39,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-01",
+          "end": "17:00",
+          "no": 40,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-04",
+          "end": "17:00",
+          "no": 41,
+          "start": "13:00"
+        },
+        {
+          "date": "2027-01-05",
+          "end": "17:00",
+          "no": 42,
+          "start": "13:00"
+        }
+      ]
+    }
+  ],
+  "session_time": [
+    {
+      "id": "st-pm-4-slots",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": 4,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "15:50",
+            "start": "15:00"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "16:50",
+            "start": "16:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-slot60-break0",
+      "in": {
+        "break_min": 0,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": 4,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 60
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "14:00",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "15:00",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "16:00",
+            "start": "15:00"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "17:00",
+            "start": "16:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-lunch-1200-1300",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "18:00",
+            "lunch_end": "13:00",
+            "lunch_start": "12:00",
+            "no": 1,
+            "start": "09:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": 4,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 5,
+            "minutes": null,
+            "section": 1,
+            "slot": 5,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 6,
+            "minutes": null,
+            "section": 1,
+            "slot": 6,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "09:50",
+            "start": "09:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "10:50",
+            "start": "10:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "11:50",
+            "start": "11:00"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 5,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 6,
+          "time": {
+            "end": "15:50",
+            "start": "15:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-lunch-straddle-90",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "18:00",
+            "lunch_end": "13:00",
+            "lunch_start": "12:00",
+            "no": 1,
+            "start": "09:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": 90,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": 4,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "10:30",
+            "start": "09:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "11:30",
+            "start": "10:40"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-lunch-outside-day",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": "13:00",
+            "lunch_start": "12:00",
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-lunch-mid-afternoon",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": "15:00",
+            "lunch_start": "14:30",
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "15:50",
+            "start": "15:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "16:50",
+            "start": "16:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-mixed-90-50",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": 90,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": 50,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": 0,
+            "section": 1,
+            "slot": 4,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "14:30",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "15:30",
+            "start": "14:40"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "16:30",
+            "start": "15:40"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "17:00",
+            "start": "16:40"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-exception-time",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": "11:30",
+            "time_start": "10:00"
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": null,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": null,
+            "time_end": "09:40",
+            "time_start": "09:00"
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "11:30",
+            "start": "10:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "09:40",
+            "start": "09:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-clip-day-end",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": 90,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": 90,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": 90,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": 4,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "14:30",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "16:10",
+            "start": "14:40"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "17:00",
+            "start": "16:20"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "17:00",
+            "start": "18:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-same-slot",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "15:50",
+            "start": "15:00"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "16:50",
+            "start": "16:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-slot-gap",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 3,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": 5,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "15:50",
+            "start": "15:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-null-no-slot-no-day",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": null,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": null,
+            "id": 3,
+            "minutes": null,
+            "section": 1,
+            "slot": null,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 2,
+            "id": 4,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": null
+        },
+        {
+          "id": 3,
+          "time": null
+        },
+        {
+          "id": 4,
+          "time": null
+        }
+      ]
+    },
+    {
+      "id": "st-sections-and-days",
+      "in": {
+        "break_min": 10,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          },
+          {
+            "end": "12:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 2,
+            "start": "09:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 3,
+            "minutes": null,
+            "section": 2,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 4,
+            "minutes": null,
+            "section": 2,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 2,
+            "id": 5,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 2,
+            "id": 6,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": 50
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 3,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 4,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        },
+        {
+          "id": 5,
+          "time": {
+            "end": "09:50",
+            "start": "09:00"
+          }
+        },
+        {
+          "id": 6,
+          "time": {
+            "end": "10:50",
+            "start": "10:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "st-defaults-null",
+      "in": {
+        "break_min": null,
+        "days": [
+          {
+            "end": "17:00",
+            "lunch_end": null,
+            "lunch_start": null,
+            "no": 1,
+            "start": "13:00"
+          }
+        ],
+        "sessions": [
+          {
+            "day_no": 1,
+            "id": 1,
+            "minutes": null,
+            "section": 1,
+            "slot": 1,
+            "time_end": null,
+            "time_start": null
+          },
+          {
+            "day_no": 1,
+            "id": 2,
+            "minutes": null,
+            "section": 1,
+            "slot": 2,
+            "time_end": null,
+            "time_start": null
+          }
+        ],
+        "slot_min": null
+      },
+      "out": [
+        {
+          "id": 1,
+          "time": {
+            "end": "13:50",
+            "start": "13:00"
+          }
+        },
+        {
+          "id": 2,
+          "time": {
+            "end": "14:50",
+            "start": "14:00"
+          }
+        }
+      ]
+    }
+  ]
+}
