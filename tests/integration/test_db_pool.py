@@ -1,15 +1,20 @@
 """과정 풀 표(0006, Design 부록 A T4): 공개 카탈로그 · source·소유자·난이도·직무군 CHECK · 역량 유일 · 차시 유일·CASCADE ·
-파일 행 file_id 유일 · 역량 삭제가 파일 행과 stored_file 행을 같은 트랜잭션에서 지움. 라이브 PG.
+파일 행 file_id 유일 · 역량 삭제가 파일 행과 stored_file 행을 같은 트랜잭션에서 지움 · 풀 과정 단일 진입 · 커리큘럼 잠금 자리.
+라이브 PG.
 
 alembic check 는 CHECK 를 비교하지 않으므로 여기서 잰다. 행은 crud 로 직접 만든다(HTTP 픽스처 없음, worker-b 픽스처 미사용).
-강사는 T3 make_instructor(단일 진입점 signup)로 만든다.
+강사는 T3 make_instructor(단일 진입점 signup)로 만든다. 단일 진입·잠금 자리 시험은 src 를 읽는다(정의 줄 제외 · ast,
+T3 tests/integration/test_db_instructor.py 의 _callers·_calls_in 꼴). 잠금이 실제로 줄 세우는지는 재지 않는다(T4 결정 xix).
 """
 
 from __future__ import annotations
 
+import ast
 import dataclasses
 import datetime as dt
 import json
+import re
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -35,8 +40,10 @@ from classfit.models import (
 )
 from tests.fixtures.instructors import make_instructor
 
+SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
 UNIQUE_VIOLATION = "23505"
 CHECK_VIOLATION = "23514"
+_DEFINITION = re.compile(r"^\s*(async\s+def|def|class)\s")
 NOW = dt.datetime(2026, 10, 22, 9, 0, tzinfo=dt.UTC)
 
 # 결정 vii 의 출력 칸(정확히)
@@ -386,3 +393,51 @@ async def test_pool_capability_delete_removes_file_rows_same_tx(
     )
     assert await _count(db_session, StoredFile, kind_files) == 1
     assert await _count(db_session, Capability) == 1
+
+
+def _callers(pattern: str) -> list[str]:
+    """src 에서 pattern 이 정의 줄 밖에 나오는 파일(classfit 기준 경로)."""
+    rx = re.compile(pattern)
+    found = []
+    for path in sorted(SRC.rglob("*.py")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if any(rx.search(line) for line in lines if not _DEFINITION.match(line)):
+            found.append(path.relative_to(SRC).as_posix())
+    return found
+
+
+def _calls_in(relpath: str, function: str) -> list[str]:
+    """그 파일의 그 함수 본문에서 부르는 이름(f(…) 의 f, x.f(…) 의 f)."""
+    tree = ast.parse((SRC / relpath).read_text(encoding="utf-8"))
+    (body,) = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name == function
+    ]
+    names = []
+    for node in ast.walk(body):
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Attribute):
+                names.append(func.attr)
+            elif isinstance(func, ast.Name):
+                names.append(func.id)
+    return names
+
+
+def test_pool_course_created_only_in_service() -> None:
+    assert _callers(r"\binsert_pool_course\(") == [
+        "service/pool/admin.py",
+        "service/pool/catalog_import.py",
+        "service/pool/own.py",
+    ]
+    assert _callers(r"\bPoolCourse\(") == ["crud/pool.py"]
+
+
+def test_pool_curriculum_lock_call_sites() -> None:
+    for function in ("replace_slots", "patch_curriculum"):
+        calls = _calls_in("service/pool/curricula.py", function)
+        assert calls.count("lock_curriculum") >= 1, (function, calls)
+    lock = _calls_in("crud/curriculum.py", "lock_curriculum")
+    assert "with_for_update" in lock, lock
