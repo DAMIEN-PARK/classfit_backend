@@ -3,7 +3,7 @@
 - 범위: 세션 하나라도 배정된 강의(crud.scope.course_scope 강사 갈래). 판정은 404 → 403 이다 — 범위 없는 getter
   (get_course · get_session_and_course)로 없으면 404, 있으면 범위(강의는 in_scope, 세션은 담당 == 주체)로 403.
 - 범위 안이면 그 강의의 모든 세션을 읽기 전용으로 본다(남의 세션도 제목·시각·설명·키워드·공개·첨부 수·강사 이름·id).
-  첨부는 개수만 준다(파일 판정 OWNER_KINDS["session_attachment"] 은 강사에게 거짓이다, T6 몫).
+  첨부는 개수만 준다 — 강사의 첨부 목록·파일 열람은 T6(내 세션 ∨ 열린 세션).
 - 일정표는 관리자 일정표와 같은 계산(days.schedule_of, CRS-010). 목록은 관리자 목록과 같은 crud.course.list_stmt(첫
   WHERE course_scope) + 키셋 커서에 내가 맡은 세션 수를 붙인다.
 - 내 세션 고치기는 설명·키워드·공개만이다(그 밖의 칸은 schemas 가 422). 세션 없음 404 → 강의 행 잠금 → 세션을 다시 읽어

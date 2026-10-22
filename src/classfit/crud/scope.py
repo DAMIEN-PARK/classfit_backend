@@ -4,14 +4,15 @@
 종류는 T2b 부터 Design 4절 순서로 등록한다(session_attachment → instructor_document … → diagnosis_pdf).
 판정은 (session, 주체, owner_id) → 범위 안이면 True(아니면 403).
 강의 범위 course_scope 도 기본 거절이다: 관리자는 전부, 수강생은 토큰의 강의 하나(T2b), 강사는 세션 하나라도 배정된
-강의(T5 결정 xii), 나머지는 아무것도 못 본다. 강사 범위 instructor_scope 는 관리자 전부 · 강사 자기 자신 · 그 밖 거절이다(T3).
+강의(T5 결정 xii), 나머지는 아무것도 못 본다. 세션 범위 session_scope 는 관리자 전부 · 강사는 자기가 맡은 세션 · 그 밖
+거절이다(T6 결정 xxii). 강사 범위 instructor_scope 는 관리자 전부 · 강사 자기 자신 · 그 밖 거절이다(T3).
 과정 풀 범위(T4)도 기본 거절이다: pool_scope 는 관리자 전부 · 강사는 활성 과정, own_course_scope·curriculum_scope·
 capability_scope 는 관리자 전부 · 강사는 자기 것. 범위 함수는 목록과 "범위 밖은 404" 인 읽기에만 쓴다. 쓰기·소유 판정은
 service 가 범위 없는 getter 로 읽어 404 → 403(owned_by) → 409 순으로 한다(T4 결정 i).
 
 등록된 owner_kind:
-- session_attachment(T2b) — 관리자 참 · 수강생은 같은 강의 ∧ 세션 is_open · 그 밖 거짓(T6 이 강사를 넓힌다).
-  강사는 T5 의 강의 범위 안이어도 거짓이다(범위보다 먼저 수강생만 통과시킨다, T5 결정 xii).
+- session_attachment(T2b) — 관리자 참 · 수강생은 같은 강의 ∧ 세션 is_open · 강사는 범위 강의의 내 세션 ∨ 열린 세션
+  (T6 결정 vi — 내 세션은 공개 전에도, 같은 강의의 남의 세션은 수강생에게 열린 것만) · 그 밖 거짓.
 - instructor_document(T3) — owner_id = 강사 id. 본인 강사만 참(주체 종류까지 본다), 관리자도 거짓이다.
   관리자의 열람 문은 audit 을 남기는 관리자 서류 끝점 하나다(T3 결정 ix·x).
 - instructor_photo(T3) — owner_id = 강사 id. 관리자 ∨ 본인 강사. 등록만 했고 행을 만드는 끝점은 아직 없다(결정 xv).
@@ -26,7 +27,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
-from sqlalchemy import ColumnElement, false, select, true
+from sqlalchemy import ColumnElement, false, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.models import (
@@ -64,8 +65,9 @@ def course_scope(subject: Subject) -> ColumnElement[bool]:
     """강의 목록의 첫 WHERE(Design 5절 3). 관리자는 전부, 수강생은 자기 강의 하나, 강사는 세션 하나라도 배정된 강의,
     그 밖은 기본 거절.
 
-    수강생 명단(crud.enrollment.list_stmt)·첨부 목록(crud.attachment._listed)은 강사 주체로 부르지 않는다 — 명단 PII
-    (이름·이메일)·첨부 key 가 강사 갈래 범위를 그대로 통과한다(T6 에서 강사 화면이 필요하면 따로 정한다, T5 리뷰 Nit 4).
+    명단·첨부 목록은 강사 주체로 부르지 않는다 — 코드 가드가 막는다(T6 결정 xxii). 관리자 명단(crud.enrollment.list_stmt)·
+    첨부 목록(crud.attachment._listed)은 강사 주체면 ValueError 다. 강사 명단은 crud.enrollment.roster_stmt, 강사 첨부
+    목록은 crud.attachment_edit.list_for_my_session(첫 WHERE session_scope)이다.
     """
     if subject.type == "admin":
         return true()
@@ -78,6 +80,15 @@ def course_scope(subject: Subject) -> ColumnElement[bool]:
             .where(CourseSession.instructor_id == subject.id)
         )
         return Course.id.in_(assigned)
+    return false()
+
+
+def session_scope(subject: Subject) -> ColumnElement[bool]:
+    """세션 목록의 첫 WHERE(T6 결정 xxii ①). 관리자는 전부, 강사는 자기가 맡은 세션, 그 밖은 기본 거절."""
+    if subject.type == "admin":
+        return true()
+    if subject.type == "instructor":
+        return CourseSession.instructor_id == subject.id
     return false()
 
 
@@ -137,10 +148,15 @@ def owned_by(subject: Subject, owner_instructor_id: int | None) -> bool:
 async def _session_attachment(
     session: AsyncSession, subject: Subject, owner_id: int
 ) -> bool:
-    """owner_id = session_attachment.id. 수강생은 자기 강의의 열린 세션 첨부만(잠긴 세션 파일은 403, T2b 결정 vii)."""
+    """owner_id = session_attachment.id. 수강생은 자기 강의의 열린 세션 첨부만(잠긴 세션 파일은 403, T2b 결정 vii).
+    강사는 범위 강의(세션 하나라도 맡은 강의)에서 내 세션 ∨ 열린 세션의 첨부(T6 결정 vi)."""
     if subject.type == "admin":
         return True
-    if subject.type != "learner":
+    if subject.type == "learner":
+        visible = CourseSession.is_open.is_(True)
+    elif subject.type == "instructor":
+        visible = or_(session_scope(subject), CourseSession.is_open.is_(True))
+    else:
         return False
     found = (
         select(SessionAttachment.id)
@@ -148,7 +164,7 @@ async def _session_attachment(
         .join(Section, Section.id == CourseSession.section_id)
         .join(Course, Course.id == Section.course_id)
         .where(course_scope(subject))
-        .where(SessionAttachment.id == owner_id, CourseSession.is_open.is_(True))
+        .where(SessionAttachment.id == owner_id, visible)
     )
     return bool(await session.scalar(select(found.exists())))
 
