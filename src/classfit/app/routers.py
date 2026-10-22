@@ -1,6 +1,7 @@
 """라우터 등록부. 새 자원은 여기 튜플에만 더한다. 라우터마다 APIRouter(prefix="/v1")."""
 
 from classfit.app.endpoints import (
+    admin_instructors,
     admins,
     attachments,
     auth,
@@ -9,9 +10,12 @@ from classfit.app.endpoints import (
     enter,
     files,
     health,
+    instructor_documents,
+    instructors,
     invite_codes,
     portal,
     schedule,
+    tags,
 )
 
 ROUTERS = (
@@ -26,4 +30,8 @@ ROUTERS = (
     portal.router,
     attachments.router,
     enrollments.router,
+    instructors.router,
+    instructor_documents.router,
+    admin_instructors.router,
+    tags.router,
 )
