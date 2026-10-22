@@ -7,6 +7,9 @@
 - 지우기: 읽어서 audit 칸을 잡고 → 첨부 행 → 그 stored_file 행(crud 한 함수) → audit. 바이트는 gc 몫이다.
 - audit 은 action session_attachment.create·.delete · target_type session_attachment · target_id 첨부 id 글자 ·
   detail {session_id, kind} 다(결정 xii). 바이트를 쓴 뒤 행이 롤백되면 바이트는 참조 0 이라 gc 가 지운다.
+  audit_attachment 는 T6 강사 첨부 쓰기(service.files.my_attachments·my_attachment_edit)도 부른다 — update 는
+  detail 에 바뀐 칸 이름 fields 를 더한다(T6 결정 xii, 이 파일의 호출은 fields 없이 그대로).
+- PDF_MAGIC 의 원본은 service.rules.attachment 다. 여기서 다시 내보낸다(서류·풀 파일 import 그대로, T6).
 - 셋 다 첫 DB 쓰기 전에 강의 행을 잠그고(crud.course.lock_course), 잠근 뒤 대상 행을 다시 읽는다(T5 결정 xviii —
   배정의 "첨부 0개" 판정·기본 강의안 사본과 줄 선다, 그 사이 지워졌으면 404). pdf 는 바이트를 쓴 뒤·행을 넣기 전에
   잡는다(최대 50MB 디스크 쓰기 동안 강의 행을 쥐면 같은 강의의 입장이 그만큼 기다린다). 지우기는 crud 지우기의 반환값
@@ -16,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
 
@@ -29,10 +33,10 @@ from classfit.crud.audit import insert_audit
 from classfit.crud.stored_file import insert_stored_file
 from classfit.models import SessionAttachment, StoredFile
 from classfit.service.files.store import store_bytes
+from classfit.service.rules.attachment import PDF_MAGIC
 
 OWNER_KIND = "session_attachment"
 PDF_CONTENT_TYPE = "application/pdf"
-PDF_MAGIC = b"%PDF-"
 _NO_SESSION = "세션이 없습니다"
 _NO_ATTACHMENT = "첨부가 없습니다"
 
@@ -45,7 +49,7 @@ class PdfRejected(ValueError):
         self.reason = reason
 
 
-async def _audit(
+async def audit_attachment(
     session: AsyncSession,
     *,
     actor: str,
@@ -53,14 +57,19 @@ async def _audit(
     attachment_id: int,
     session_id: int,
     kind: str,
+    fields: Sequence[str] | None = None,
 ) -> None:
+    """첨부 쓰기 audit 1행. fields(바뀐 칸 이름)는 줄 때만 detail 에 싣는다."""
+    detail: dict[str, object] = {"session_id": session_id, "kind": kind}
+    if fields is not None:
+        detail["fields"] = list(fields)
     await insert_audit(
         session,
         actor=actor,
         action=action,
         target_type=OWNER_KIND,
         target_id=str(attachment_id),
-        detail={"session_id": session_id, "kind": kind},
+        detail=detail,
     )
 
 
@@ -103,7 +112,7 @@ async def add_pdf_attachment(
         size=len(data),
     )
     await crud_attachment.set_file_id(session, row, stored.id)
-    await _audit(
+    await audit_attachment(
         session,
         actor=actor,
         action="session_attachment.create",
@@ -141,7 +150,7 @@ async def add_link_attachment(
         description=description,
         url=url,
     )
-    await _audit(
+    await audit_attachment(
         session,
         actor=actor,
         action="session_attachment.create",
@@ -167,7 +176,7 @@ async def delete_attachment(
         raise NotFound(_NO_ATTACHMENT)
     if not await crud_attachment.delete_attachment(session, attachment_id):
         raise NotFound(_NO_ATTACHMENT)
-    await _audit(
+    await audit_attachment(
         session,
         actor=actor,
         action="session_attachment.delete",

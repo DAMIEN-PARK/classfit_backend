@@ -1,12 +1,20 @@
-"""강사 첨부의 crud 판정·범위(T6 결정 vi·xxi·xxii): 파일 열람 판정표 · 강사 첨부 목록 범위 · 관리자 목록의 강사 거절. 라이브 PG.
+"""강사 첨부의 crud 판정·범위(T6 결정 vi·xv·xxi·xxii): 파일 열람 판정표 · 강사 첨부 목록 범위 · 관리자 목록의 강사 거절 ·
+잠금 호출 자리. 라이브 PG.
 
 행은 crud·service 로 직접 만든다(HTTP 없음). 배정은 운영 경로 sections.patch_session 이다(tests/fixtures/my_attachments.py).
 시험 안에서 행 id·시퀀스 번호를 단언하지 않는다(T4 대조 실험 13).
+잠금 호출 자리 시험은 src 를 ast 로 읽는다(T5 tests/integration/test_db_assign.py 의 _function·_calls 를 복사하고 호출마다
+키워드 이름·값도 담게 바꿨다). 잠금이 실제로 줄 세우는지는 tests/integration/test_db_attachment_race.py 의 행동 시험이 잰다.
 """
 
 from __future__ import annotations
 
+import ast
 import hashlib
+import inspect
+from dataclasses import dataclass, field
+from pathlib import Path
+from types import ModuleType
 
 import pytest
 from sqlalchemy.exc import InvalidRequestError
@@ -15,7 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from classfit.core.config import Settings
 from classfit.crud import attachment as crud_attachment
 from classfit.crud import attachment_edit as crud_attachment_edit
+from classfit.crud import course as crud_course
 from classfit.crud import enrollment as crud_enrollment
+from classfit.crud import schedule as crud_schedule
+from classfit.crud import scope as crud_scope
+from classfit.crud import stored_file as crud_stored_file
 from classfit.crud.learner import get_or_create_learner
 from classfit.crud.page import keyset_page
 from classfit.crud.scope import OWNER_KINDS
@@ -29,6 +41,36 @@ from tests.fixtures.instructors import make_instructor
 from tests.fixtures.my_attachments import assigned_session
 
 ADMIN = Principal("admin", 1)
+SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
+# 강사 첨부 쓰기 다섯(T6 결정 xv). 두 파일의 공개 async def 중 쓰기를 부르는 것은 이 다섯뿐이어야 한다
+WRITERS = {
+    "service/files/my_attachments.py": (
+        "add_my_file",
+        "add_my_link",
+        "delete_my_attachment",
+    ),
+    "service/files/my_attachment_edit.py": ("patch_my_attachment", "replace_my_file"),
+}
+ADDS = {"add_my_file", "add_my_link"}
+WITH_BYTES = {"add_my_file", "replace_my_file"}
+WRITE_CALLS = {
+    "insert_attachment",
+    "insert_stored_file",
+    "set_file_id",
+    "swap_file",
+    "apply_changes",
+    "set_sorts",
+    "delete_attachment",
+    "audit_attachment",
+}
+CRUD_MODULES: tuple[ModuleType, ...] = (
+    crud_attachment,
+    crud_attachment_edit,
+    crud_course,
+    crud_schedule,
+    crud_scope,
+    crud_stored_file,
+)
 
 
 async def _approved(session: AsyncSession, email: str) -> int:
@@ -212,3 +254,117 @@ async def test_instructor_view_admin_lists_refuse_instructor(
         db_session, crud_enrollment.list_stmt(ADMIN, course.id), None, 10
     )
     assert {r.learner.email for r in page} == {email for email, _, _ in people}
+
+
+@dataclass(frozen=True)
+class _Call:
+    owner: str | None  # 받는 이름(crud_attachment.insert_attachment 면 crud_attachment)
+    name: str
+    at: tuple[int, int]  # (줄, 칸)
+    keywords: dict[str, str] = field(
+        default_factory=dict
+    )  # 키워드 이름 → 값 글자(ast.unparse)
+
+
+def _tree(relpath: str) -> ast.Module:
+    return ast.parse((SRC / relpath).read_text(encoding="utf-8"))
+
+
+def _function(relpath: str, function: str) -> ast.AsyncFunctionDef | ast.FunctionDef:
+    (body,) = [
+        node
+        for node in ast.walk(_tree(relpath))
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name == function
+    ]
+    return body
+
+
+def _calls(node: ast.AST) -> list[_Call]:
+    """node 안의 호출을 소스 순서(줄, 칸)로. ast.walk 는 소스 순서를 보장하지 않는다."""
+    found: list[_Call] = []
+    for sub in ast.walk(node):
+        if not isinstance(sub, ast.Call):
+            continue
+        keywords = {k.arg: ast.unparse(k.value) for k in sub.keywords if k.arg}
+        func = sub.func
+        if isinstance(func, ast.Attribute):
+            owner = func.value.id if isinstance(func.value, ast.Name) else None
+            found.append(
+                _Call(owner, func.attr, (sub.lineno, sub.col_offset), keywords)
+            )
+        elif isinstance(func, ast.Name):
+            found.append(_Call(None, func.id, (sub.lineno, sub.col_offset), keywords))
+    return sorted(found, key=lambda c: c.at)
+
+
+def _first(calls: list[_Call], name: str, where: str) -> tuple[int, int]:
+    hits = [c.at for c in calls if c.name == name]
+    assert hits, f"{where}: {name}( 호출이 없다"
+    return hits[0]
+
+
+def _crud_names() -> set[str]:
+    return {
+        name
+        for module in CRUD_MODULES
+        for name, value in vars(module).items()
+        if inspect.isfunction(value) and value.__module__ == module.__name__
+    }
+
+
+def test_attachment_lock_call_sites() -> None:
+    crud_names = _crud_names()
+    for relpath, functions in WRITERS.items():
+        for fn in functions:
+            where = f"{relpath}::{fn}"
+            calls = _calls(_function(relpath, fn))
+            lock = _first(calls, "lock_course", where)
+            # ① 잠금이 첫 쓰기 앞
+            writes = [c.at for c in calls if c.name in WRITE_CALLS]
+            assert writes and lock < min(writes), f"{where}: 쓰기가 잠금 앞이다"
+            # ② 바이트 쓰기는 잠금 앞
+            if fn in WITH_BYTES:
+                assert _first(calls, "to_thread", where) < lock, where
+            # ③ 잠근 뒤 fresh=True 다시 읽기
+            reread = "get_session_and_course" if fn in ADDS else "get_with_session"
+            assert any(
+                c.name == reread and c.at > lock and c.keywords.get("fresh") == "True"
+                for c in calls
+            ), f"{where}: 잠근 뒤 {reread}(fresh=True) 가 없다"
+            # ④ 넣기 둘은 잠근 뒤 상한을 다시 센다
+            if fn in ADDS:
+                assert any(
+                    c.name == "count_for_session" and c.at > lock for c in calls
+                ), where
+            # ⑤ PATCH 는 잠근 뒤 목록을 다시 읽고 나서 다시 매긴다
+            if fn == "patch_my_attachment":
+                rows = _first(calls, "rows_for_session", where)
+                assert lock < rows < _first(calls, "set_sorts", where), where
+            # ⑥ session.get 판 getter 를 쓰지 않는다
+            assert all(c.name != "get_attachment" for c in calls), where
+            # ⑦ crud 는 모듈 별칭 속성으로 부른다(감싸개가 먹는 꼴)
+            bare = [
+                c.name
+                for c in calls
+                if c.name in crud_names and not (c.owner or "").startswith("crud_")
+            ]
+            assert bare == [], f"{where}: crud 를 별칭 밖에서 부른다 — {bare}"
+
+    for relpath, functions in WRITERS.items():
+        tree = _tree(relpath)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith(
+                "classfit.crud"
+            ):
+                assert node.module == "classfit.crud", (relpath, node.module)
+                assert all(a.asname == f"crud_{a.name}" for a in node.names), relpath
+        # ⑧ 쓰기를 부르는 공개 async def 는 위 다섯뿐(규약 밖 새 쓰기 함수를 막는다)
+        writers = {
+            node.name
+            for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef)
+            and not node.name.startswith("_")
+            and any(c.name in WRITE_CALLS for c in _calls(node))
+        }
+        assert writers == set(functions), (relpath, writers)

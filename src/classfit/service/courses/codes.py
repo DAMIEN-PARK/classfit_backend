@@ -98,6 +98,18 @@ async def issue_invite_code(
     )
 
 
+def notice_text(course: Course, code: InviteCode) -> str:
+    """고객사 담당자에게 보낼 안내문 글자: 강의명·기간·코드·만료일. 관리자·강사 안내문이 이 함수 하나다(T6 결정 xiii ③)."""
+    return "\n".join(
+        (
+            f"[{course.title}] 수강 안내",
+            f"교육 기간: {course.start_on.isoformat()} ~ {course.end_on.isoformat()}",
+            f"초대코드: {code.code}",
+            f"코드 만료일: {code.expires_on.isoformat()}",
+        )
+    )
+
+
 async def live_code(session: AsyncSession, course_id: int) -> InviteCode:
     row = await crud_code.get_live_code(session, course_id)
     if row is None:

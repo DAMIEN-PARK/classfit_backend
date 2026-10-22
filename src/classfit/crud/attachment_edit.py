@@ -39,6 +39,18 @@ async def get_with_session(
     return None if found is None else (found[0], found[1], found[2])
 
 
+async def with_file(session: AsyncSession, row: SessionAttachment) -> AttachmentRow:
+    """(첨부, 파일 key, 파일 크기) — 응답 모양. link·파일 없는 행은 key·size 가 None."""
+    if row.file_id is None:
+        return row, None, None
+    found = (
+        await session.execute(
+            select(StoredFile.key, StoredFile.size).where(StoredFile.id == row.file_id)
+        )
+    ).first()
+    return (row, None, None) if found is None else (row, found[0], found[1])
+
+
 async def count_for_session(session: AsyncSession, session_id: int) -> int:
     """그 세션의 첨부 수(관리자 것·사본 포함, 상한 판정)."""
     stmt = (
