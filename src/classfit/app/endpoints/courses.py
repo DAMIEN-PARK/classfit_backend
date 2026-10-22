@@ -4,6 +4,8 @@
 - 목록은 키셋 커서 {items, next_cursor, has_more}. 첫 WHERE 는 주체 범위(crud.scope.course_scope)다.
   깨진 커서는 422 problem 이고 violations[].loc 는 ["query", "cursor"] 다.
 - 응답 status 는 오늘(Today, Asia/Seoul) 기준 계산값이다. 목록 필터는 같은 규칙의 SQL 판으로 거른다.
+- 삭제는 service.courses.remove.remove_course 다: 수강생이 있으면 409, 없으면 그 강의의 세션 행·첨부를 먼저 지운다
+  (T2b 계획 결정 ix·xi).
 - 상태를 바꾸는 요청(개설·수정·삭제·보관·상태 지정·되돌리기)은 audit_log 1행을 같은 트랜잭션에 쓴다
   (target course·id 글자, T2a 계획 결정 viii). 멱등 호출(이미 보관 · 같은 값 PATCH)은 audit 을 쓰지 않는다.
 - 동작은 접미사 경로(`{course_id}:archive` 등)다. 같은 경로의 다른 메서드가 먼저 맞아도 Starlette 는 다음 라우트를 찾는다.
@@ -39,6 +41,7 @@ from classfit.service.auth.sessions import Principal
 from classfit.service.courses.codes import code_state_of, course_status_of
 from classfit.service.courses.days import patch_course
 from classfit.service.courses.open import open_course
+from classfit.service.courses.remove import remove_course
 
 router = APIRouter(prefix="/v1/admin", tags=["courses"])
 
@@ -187,13 +190,13 @@ async def patch_course_info(
     "/courses/{course_id}",
     status_code=204,
     response_class=Response,
-    responses=_NOT_FOUND,
+    responses={**_NOT_FOUND, 409: {"description": "수강생이 있는 강의"}},
 )
 async def delete_course(
     course_id: int, session: DbSession, caller: AdminCaller
 ) -> Response:
     await course_or_404(session, course_id)
-    await crud_course.delete_course(session, course_id)
+    await remove_course(session, course_id)
     await audit_course(session, caller, "course.delete", course_id)
     return Response(status_code=204)
 

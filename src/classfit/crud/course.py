@@ -28,6 +28,21 @@ async def get_course(session: AsyncSession, course_id: int) -> Course | None:
     return await session.get(Course, course_id)
 
 
+async def lock_course(session: AsyncSession, course_id: int) -> Course | None:
+    """강의 행을 SELECT … FOR UPDATE 로 잠그고 새로 읽는다. 없으면(그 사이 지워졌으면) None.
+
+    같은 강의의 입장·코드 관리 네 문·강의 삭제가 이 행 하나로 줄 선다(T2b 결정 v, Design 5절 6).
+    populate_existing: 잠금을 기다린 사이 커밋된 값을 identity map 의 옛 값이 가리지 않게 덮어 읽는다.
+    """
+    stmt = (
+        select(Course)
+        .where(Course.id == course_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return await session.scalar(stmt)
+
+
 async def update_course(session: AsyncSession, row: Course, **fields: Any) -> Course:
     """칸을 바꾸고 flush. updated_at 은 onupdate 로 바뀌고 만료되니 응답에 쓰려면 다시 읽는다."""
     for name, value in fields.items():

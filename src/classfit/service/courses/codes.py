@@ -8,6 +8,8 @@
 - 재발급은 산 행을 replaced 로 바꿔 flush 한 뒤 새 행을 넣는다. 만료일·정원은 옛 행에서 옮긴다(T2a 계획 결정 ii).
 - 재개는 강의가 ended 면 409 다. 정지·재발급은 종료 강의에서도 된다(상태는 계산상 stopped, 결정 iii).
 - 정지·재개·수정은 (행, 바뀌었는지)를 돌려준다. 이미 그 상태거나 같은 값이면 쓰지 않고, 끝점은 그때 audit 을 쓰지 않는다.
+- 코드 행을 바꾸는 네 문(재발급·정지·재개·수정)은 맨 앞에서 그 강의 행을 잠근다(T2b 계획 결정 v). 입장·강의 삭제와
+  같은 행이라 줄을 선다. 바뀌는 코드 행이 아니라 고정된 강의 행을 잠가, 둘째 재발급이 산 코드 행을 잃지 않는다.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.core.errors import Conflict, NotFound
+from classfit.crud import course as crud_course
 from classfit.crud import invite_code as crud_code
 from classfit.crud.flush import flush_or_conflict
 from classfit.models import Course, InviteCode
@@ -102,8 +105,17 @@ async def live_code(session: AsyncSession, course_id: int) -> InviteCode:
     return row
 
 
+async def _lock(session: AsyncSession, course_id: int) -> Course:
+    """강의 행을 FOR UPDATE 로 잠그고 새로 읽는다(결정 v). 그 사이 지워졌으면 404."""
+    course = await crud_course.lock_course(session, course_id)
+    if course is None:
+        raise NotFound("강의가 없습니다")
+    return course
+
+
 async def reissue_invite_code(session: AsyncSession, course_id: int) -> InviteCode:
     """옛 산 행을 replaced 로 → flush → 새 행. 옛 코드는 바로 무효다(기획안 5-4)."""
+    await _lock(session, course_id)
     old = await live_code(session, course_id)
     expires_on, max_seats = old.expires_on, old.max_seats
     await crud_code.update_code(session, old, status="replaced")
@@ -116,6 +128,7 @@ async def pause_invite_code(
     session: AsyncSession, course_id: int
 ) -> tuple[InviteCode, bool]:
     """(행, 바뀌었는지). 이미 paused 면 쓰지 않는다."""
+    await _lock(session, course_id)
     row = await live_code(session, course_id)
     if row.status == "paused":
         return row, False
@@ -124,10 +137,14 @@ async def pause_invite_code(
 
 
 async def resume_invite_code(
-    session: AsyncSession, course: Course, *, today: date
+    session: AsyncSession, course_id: int, *, today: date
 ) -> tuple[InviteCode, bool]:
-    """(행, 바뀌었는지). 산 코드가 없으면 404 가 먼저, 종료(계산값 ended) 강의면 409. 이미 active 면 쓰지 않는다."""
-    row = await live_code(session, course.id)
+    """(행, 바뀌었는지). 산 코드가 없으면 404 가 먼저, 종료(계산값 ended) 강의면 409. 이미 active 면 쓰지 않는다.
+
+    종료 판정은 잠그며 새로 읽은 강의 행(populate_existing)으로 한다.
+    """
+    course = await _lock(session, course_id)
+    row = await live_code(session, course_id)
     if course_status_of(course, today) == "ended":
         raise Conflict("종료된 강의의 초대코드는 다시 열 수 없습니다")
     if row.status == "active":
@@ -140,6 +157,7 @@ async def update_invite_code(
     session: AsyncSession, course_id: int, changes: dict[str, Any]
 ) -> tuple[InviteCode, list[str]]:
     """만료일·정원을 바꾼다. (행, 실제로 바뀐 칸 이름). 준 칸 중 현재 값과 다른 칸만 쓴다."""
+    await _lock(session, course_id)
     row = await live_code(session, course_id)
     changed = {k: v for k, v in changes.items() if getattr(row, k) != v}
     if changed:

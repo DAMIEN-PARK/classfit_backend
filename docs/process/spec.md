@@ -35,7 +35,7 @@ URL: ""
 | ADR-002 학습자 세션 | [`docs/process/adr/ADR-002-learner-session.md`](adr/ADR-002-learner-session.md) | 저장소 | git 추적 | 승인 | r3 §4 · §1.1 ④ | [Design](2026-10-21-phase1-backend-design.md) 1·2절 |
 | ADR-003 외부 포트 | [`docs/process/adr/ADR-003-external-ports.md`](adr/ADR-003-external-ports.md) | 저장소 | git 추적 | 승인 | r3 §4 | [Design](2026-10-21-phase1-backend-design.md) 1·3절 |
 | ADR-004 공개홈 | [`docs/process/adr/ADR-004-public-home.md`](adr/ADR-004-public-home.md) | 저장소 | git 추적 | 승인 · r3 §7-1 답에 따라 다시 봄 | r3 §4 · 부록 A5 | [feature intent](intents/2026-10-21-phase1-backend.md) |
-| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1 병합 · T2a 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
+| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1·T2a 병합 · T2b 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
 | 에이전트 편성 | [`docs/process/agent.md`](agent.md) | 저장소 | git 추적 | 승인자 DAMIEN-PARK | r3 §5.1 · 부록 E11 | CLAUDE.md · `.claude/settings.json` |
 
 ## 2. 정책 대조표
@@ -49,9 +49,9 @@ r3 §3 원칙 ①~⑤ 와 기획안 03 운영 원칙 중 서버가 지킬 것(2�
 | 3 | r3 원칙 ③ 판정은 서버가, 규칙마다 시험 1개 이상 | [Design 부록 A](2026-10-21-phase1-backend-design.md) 대응표 + `scripts/check_docs.sh` ④(병합된 T 의 행마다 `tests/` 에 def) · `tests/conftest.py`(시험 DB 가 없으면 pytest.fail, skip 금지) · `.claude/hooks/protect-tests.sh`(버그 픽스 모드에서 tests 편집 차단) | 강제(check_docs·CI test) | DAMIEN-PARK |
 | 4 | r3 원칙 ④ 지금 대표 데이터로 검증 | `tests/conftest.py`(라이브 Postgres, 세션마다 downgrade base → upgrade head) · `.github/workflows/ci.yml` test 잡(postgres:17) · `scripts/golden/extract.mjs`(합성 사례로 시안 일정 함수를 돌린다, TZ Asia/Seoul 고정) · `scripts/golden/check.sh`(재추출 대조, pre-push) · `tests/unit/test_schedule_rules.py`(`test_golden_schedule_`, CI 는 커밋된 `tests/fixtures/golden.json`) · 예정: T9a + `test_golden_score_`(E-12) | 강제(CI test) | DAMIEN-PARK |
 | 5 | r3 원칙 ⑤ 강제는 기계로 | `Makefile` verify(editable-check → gate → lint → lint-imports → test, T0b 에서 끝에 okf) · `.githooks/pre-push` · `.github/workflows/ci.yml` gates·test · 금지 의존성 `pyproject.toml` banned-api(ruff TID251) · `.claude/hooks/deny-deps.sh` · `scripts/gate.sh` · 차단기 회귀 `scripts/test_gate.sh` · `.claude/hooks/test_hooks.sh` · 문서 `scripts/okf/guard.sh`(T0b) · `scripts/check_docs.sh` | 강제(훅·CI) | DAMIEN-PARK |
-| 6 | 기획안 원칙 2 수강생의 문은 초대코드 하나(가입·비밀번호 없음) | [ADR-002](adr/ADR-002-learner-session.md) · `tests/integration/test_db_auth_session.py`(수강생 세션은 course_id 필수, auth_session CHECK) · 예정: T2b + `test_p3_*` 9건(E-10) · `test_cross_course_portal_403` | 시험(T1 일부, T2b 예정) + ADR | DAMIEN-PARK |
-| 7 | 기획안 원칙 5 첨부가 없거나 공개가 꺼진 세션은 "준비 중" | 예정: T2b + `test_portal_locked_` | 시험(예정) | DAMIEN-PARK |
-| 8 | 기획안 원칙 10 응답은 개인과 연결해 보여 주지 않는다 | REVIEW.md 보안 패스(원칙 10 항목) · [Design](2026-10-21-phase1-backend-design.md) 1절 만족도 공개 범위 · 예정: T2b + `test_no_personal_keys_portal` · T4 + `test_no_personal_keys_catalog` · T8 + `test_no_personal_keys_i7`·`test_no_personal_keys_a5`(E-14) | 리뷰 + 시험(예정) | DAMIEN-PARK |
+| 6 | 기획안 원칙 2 수강생의 문은 초대코드 하나(가입·비밀번호 없음) | [ADR-002](adr/ADR-002-learner-session.md) · `tests/integration/test_db_auth_session.py`(수강생 세션은 course_id 필수, auth_session CHECK) · `tests/contracts/test_api_enter.py`(`test_p3_*` 9건 · `test_reissue_*` 2건 · `test_cross_course_portal_403` · `test_enrollment_name_isolated`, E-10 13건. 입장 판정 `src/classfit/service/enroll/enter.py`) · `tests/integration/test_db_enroll.py`(learner 이메일 lower 유일 · 등록은 `enter_course` 한 곳) | 시험(T1·T2b) + ADR | DAMIEN-PARK |
+| 7 | 기획안 원칙 5 첨부가 없거나 공개가 꺼진 세션은 "준비 중" | `tests/contracts/test_api_portal.py`(`test_portal_locked_` 3건: 카드 잠김 · 잠긴 세션의 첨부 목록·`href` 403) · 카드 판정 `src/classfit/service/rules/portal.py` 의 `card_state` · 파일 판정 `src/classfit/crud/scope.py`(`session_attachment` 는 세션 `is_open` 일 때만) · `tests/unit/test_enter_rules.py`(`test_enter_card_state_needs_open_and_attachment`) | 시험 | DAMIEN-PARK |
+| 8 | 기획안 원칙 10 응답은 개인과 연결해 보여 주지 않는다 | REVIEW.md 보안 패스(원칙 10 항목) · [Design](2026-10-21-phase1-backend-design.md) 1절 만족도 공개 범위 · `tests/contracts/test_api_portal.py`(`test_no_personal_keys_portal`, 수강생·관리자 포털과 첨부 목록에 `email`·`name`·`dept`·`learner_id`·`enrollment_id` 키 0) · 예정: T4 + `test_no_personal_keys_catalog` · T8 + `test_no_personal_keys_i7`·`test_no_personal_keys_a5`(E-14) | 리뷰 + 시험(T2b 일부, 나머지 예정) | DAMIEN-PARK |
 | 9 | 기획안 원칙 12 실제 고객사명은 시안·데모 데이터에 쓰지 않는다 | `scripts/gate.sh` 4번(금지 용어 `scripts/forbidden_terms.txt`, 범위 src·tests·alembic·scripts·docs·루트 md, 출력은 file:line 만) · pre-push·CI 의 `CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1` · `scripts/check_secrets.sh` · CLAUDE.md Rules · `scripts/golden/extract.mjs`(합성 사례만 돌려 회사명·인명이 처음부터 없다. `tests/fixtures/golden.json` 은 사례 id·숫자·날짜·시각뿐) | 강제(CI) | DAMIEN-PARK |
 | 10 | 기획안 원칙 13 강의는 관리자가 개설하고 강사를 배정한다. 강사는 구조를 만지지 않는다 | CLAUDE.md Rules 단일 진입점 `open_course()`(`src/classfit/service/courses/open.py`) · `tests/integration/test_db_open_course.py`(`test_courses_open_single_entry`) · 예정: T5 + `test_assign_`(미승인 배정 409) · `test_instructor_session_`(제목 PATCH 422 · 남의 세션 403) | 시험(T2a 일부, T5 예정) | DAMIEN-PARK |
 
@@ -65,8 +65,8 @@ r3 부록 A2 데이터 계약 차이 11건, A3 시안 전용 기능 5종, §2 �
 |---|---|---|---|---|
 | 2026-10-21 | A2-1 Course 칸 이름·값 표기가 시안끼리, 시안과 기획안이 다르다(title·name, client·company, method·mode, 시수, 상태, 날짜 구분자) | 2 | title·client_name·method·hours_per_person(int)·status prep·running·ended, ISO 8601 | 결정(r3) · T2a 반영(0003 `course`) |
 | 2026-10-21 | A2-2 InviteCode 가 기획안은 별도 개체, 관리자 시안은 Course 에 납작, 강사 시안은 객체 | 2 | 별도 표, 재발급 이력은 replaced 행 | 결정(r3) · T2a 반영(0003 `invite_code`) |
-| 2026-10-21 | A2-3 Enrollment 를 관리자는 수만, 강사는 목록으로, 기획안은 이메일로 사람을 묶는다 | 2 | learner(이메일만) + enrollment(이름·부서), 응답 여부는 계산 | 결정(r3, ADR-002) · T2b |
-| 2026-10-21 | A2-4 Session·Attachment 칸 이름이 넷(att·files·attachments·keys), 종류 img·image | 2 | keywords[], kind=image, href | 결정(r3) · T2b |
+| 2026-10-21 | A2-3 Enrollment 를 관리자는 수만, 강사는 목록으로, 기획안은 이메일로 사람을 묶는다 | 2 | learner(이메일만) + enrollment(이름·부서), 응답 여부는 계산 | 결정(r3, ADR-002) · T2b 반영(0004 `learner`·`enrollment`) |
+| 2026-10-21 | A2-4 Session·Attachment 칸 이름이 넷(att·files·attachments·keys), 종류 img·image | 2 | keywords[], kind=image, href | 결정(r3) · T2b 반영(0004 `session_attachment`, kind 5종 pdf·office·html·link·image · 응답 `href`) |
 | 2026-10-21 | A2-5 Diagnosis·DiagLink 상태 값이 다르다 | 2 | draft·review·final / open·submitted·revoked, 만료는 계산 | 결정(r3) · T9a |
 | 2026-10-21 | A2-6 Company 규모가 시안 5구간, 문의 4구간 | 2 | 회사 5구간, 문의 4구간 그대로 | 결정(r3) · T9a·T9b |
 | 2026-10-21 | A2-7 강사 서류가 기획안 3종, 시안 4종 + 계약서 + 기타 | 2 | document_type 표, 시드 3종. 최종 항목은 DEC-006 | 1차 결정(r3) · DEC-006 열림 |

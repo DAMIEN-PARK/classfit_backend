@@ -2,11 +2,15 @@
 
 from classfit.app.endpoints import (
     admins,
+    attachments,
     auth,
     courses,
+    enrollments,
+    enter,
     files,
     health,
     invite_codes,
+    portal,
     schedule,
 )
 
@@ -18,4 +22,8 @@ ROUTERS = (
     courses.router,
     schedule.router,
     invite_codes.router,
+    enter.router,
+    portal.router,
+    attachments.router,
+    enrollments.router,
 )

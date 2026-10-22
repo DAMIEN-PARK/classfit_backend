@@ -21,6 +21,26 @@ async def get_live_code(session: AsyncSession, course_id: int) -> InviteCode | N
     return await session.scalar(stmt)
 
 
+async def find_course_id_by_code(session: AsyncSession, code: str) -> int | None:
+    """그 코드의 강의 id 만(replaced 행 포함). ORM 행을 세션에 올리지 않는다.
+
+    입장은 잠금 전에 이것만 읽고, 강의 행을 잠근 뒤 get_by_code_fresh 로 다시 읽는다(T2b 결정 ii).
+    """
+    return await session.scalar(
+        select(InviteCode.course_id).where(InviteCode.code == code)
+    )
+
+
+async def get_by_code_fresh(session: AsyncSession, code: str) -> InviteCode | None:
+    """그 코드의 행(replaced 포함)을 DB 값으로 덮어 읽는다. 잠금을 기다린 사이의 재발급·정지를 놓치지 않게."""
+    stmt = (
+        select(InviteCode)
+        .where(InviteCode.code == code)
+        .execution_options(populate_existing=True)
+    )
+    return await session.scalar(stmt)
+
+
 async def update_code(
     session: AsyncSession, row: InviteCode, **fields: Any
 ) -> InviteCode:
