@@ -5,29 +5,38 @@
 """
 
 from classfit.models.admin import AdminAccount
+from classfit.models.advanced import AdvancedCourse
 from classfit.models.attachment import SessionAttachment
 from classfit.models.audit import AuditLog
 from classfit.models.auth import AuthAttempt, AuthSession, EmailVerification
 from classfit.models.base import Base, BigIdMixin, TimestampMixin
 from classfit.models.course import Course, CourseDay, CourseSession, Section
+from classfit.models.curriculum import Curriculum, CurriculumFile, CurriculumSlot
 from classfit.models.document import DocumentType, InstructorDocument
 from classfit.models.instructor import Instructor, InstructorTag
 from classfit.models.invite_code import InviteCode
 from classfit.models.learner import Enrollment, Learner
 from classfit.models.outbox import MailOutbox
+from classfit.models.pool import Capability, CapabilityFile, PoolCourse, PoolCourseFile
 from classfit.models.stored_file import StoredFile
 from classfit.models.tag import Tag
 
 __all__ = [
     "AdminAccount",
+    "AdvancedCourse",
     "AuditLog",
     "AuthAttempt",
     "AuthSession",
     "Base",
     "BigIdMixin",
+    "Capability",
+    "CapabilityFile",
     "Course",
     "CourseDay",
     "CourseSession",
+    "Curriculum",
+    "CurriculumFile",
+    "CurriculumSlot",
     "DocumentType",
     "EmailVerification",
     "Enrollment",
@@ -37,6 +46,8 @@ __all__ = [
     "InviteCode",
     "Learner",
     "MailOutbox",
+    "PoolCourse",
+    "PoolCourseFile",
     "Section",
     "SessionAttachment",
     "StoredFile",
