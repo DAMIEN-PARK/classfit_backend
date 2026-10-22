@@ -25,6 +25,8 @@ def test_enter_code_input_normalizes_case_and_spaces() -> None:
     assert parse_invite_input("abcdef") == "ABCDEF"
     assert parse_invite_input("  aBc23Z \n") == "ABC23Z"
     assert parse_invite_input("\tHJKLMN") == "HJKLMN"
+    # 정규화해도 6자가 아니면(긴 입력 포함) malformed 다
+    assert parse_invite_input("  " + "abcdef" * 11 + " ") == "malformed"
     # 알파벳 32자는 모두 그대로 통과한다
     for i in range(0, len(INVITE_ALPHABET), 6):
         chunk = (INVITE_ALPHABET[i : i + 6] + INVITE_ALPHABET)[:6]

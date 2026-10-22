@@ -421,7 +421,9 @@ async def test_enter_malformed_code_422(
 ) -> None:
     _set_today(app, RUNNING)
     await open_test_course(db_session)
-    for raw in ("ABCDE", "ABCDEFG", "AB-CDE", "AB CDE", "", "   "):
+    # 65자·256자(입력 상한)도 일반 422 가 아니라 malformed 다(결정 i: 길이 오류)
+    long_codes = ("B" * 65, "B" * 256)
+    for raw in ("ABCDE", "ABCDEFG", "AB-CDE", "AB CDE", "", "   ", *long_codes):
         _problem(
             await client.post(LOOKUP, json={"code": raw}),
             422,

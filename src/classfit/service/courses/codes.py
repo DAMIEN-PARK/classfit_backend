@@ -137,14 +137,14 @@ async def pause_invite_code(
 
 
 async def resume_invite_code(
-    session: AsyncSession, course: Course, *, today: date
+    session: AsyncSession, course_id: int, *, today: date
 ) -> tuple[InviteCode, bool]:
     """(행, 바뀌었는지). 산 코드가 없으면 404 가 먼저, 종료(계산값 ended) 강의면 409. 이미 active 면 쓰지 않는다.
 
-    잠금이 course 행을 새로 읽으므로(populate_existing) 종료 판정은 잠근 뒤의 값으로 한다.
+    종료 판정은 잠그며 새로 읽은 강의 행(populate_existing)으로 한다.
     """
-    course = await _lock(session, course.id)
-    row = await live_code(session, course.id)
+    course = await _lock(session, course_id)
+    row = await live_code(session, course_id)
     if course_status_of(course, today) == "ended":
         raise Conflict("종료된 강의의 초대코드는 다시 열 수 없습니다")
     if row.status == "active":

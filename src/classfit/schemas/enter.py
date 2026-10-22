@@ -1,6 +1,7 @@
 """입장 입출력 모양(T2b 계획 결정 i·iii·iv·vi). 인증 없는 끝점이라 입력을 좁게 받는다.
 
-- 코드는 글자 그대로 받는다. 정규화(앞뒤 공백·대문자)와 형식 판정(혼동 문자 먼저)은 service.rules.invite 가 한다.
+- 코드는 글자 그대로 받는다. 정규화(앞뒤 공백·대문자)와 형식 판정(혼동 문자 먼저, 6자가 아닌 길이는 malformed)은
+  service.rules.invite 가 한다. CODE_INPUT_MAX 는 입력 크기 상한일 뿐이라 넉넉히 둔다(넘으면 일반 422).
 - 이메일은 앞뒤 공백을 지우고 소문자로 바꾼 뒤 254자 · 정규식 ^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$ · 제어 문자 없음을 본다.
   pydantic.EmailStr 은 email-validator 의존성이 필요해 쓰지 않는다.
 - 이름은 1~50자, 부서는 0~50자 자유 글자다. 비우면(공백뿐 포함) 안 준 것과 같다. 새 등록에 이름이 없으면 service 가 422 로 막는다.
@@ -19,6 +20,7 @@ from pydantic import AfterValidator, BaseModel, Field
 from classfit.schemas.auth import no_control_chars
 
 EMAIL_MAX = 254
+CODE_INPUT_MAX = 256
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 CourseStatus = Literal["prep", "running", "ended"]
@@ -49,7 +51,7 @@ def _optional_text(limit: int) -> Callable[[str | None], str | None]:
     return check
 
 
-Code = Annotated[str, Field(max_length=64)]
+Code = Annotated[str, Field(max_length=CODE_INPUT_MAX)]
 Email = Annotated[str, Field(max_length=1024), AfterValidator(normalize_email)]
 Name = Annotated[str | None, AfterValidator(_optional_text(50))]
 

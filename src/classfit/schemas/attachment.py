@@ -48,12 +48,11 @@ def http_url(value: str) -> str:
     return url
 
 
-def _blank_is_none(value: str | None) -> str | None:
+def _optional_line(value: str | None) -> str | None:
+    """앞뒤 공백 제거 → 제어 문자 422(title·입장 스키마와 같은 정책) → 비면 None."""
     if value is None:
         return None
-    if "\x00" in value:
-        raise ValueError("NUL 문자를 쓸 수 없습니다")
-    return value.strip() or None
+    return no_control_chars(value.strip()) or None
 
 
 Title = Annotated[
@@ -69,7 +68,7 @@ class AttachmentFormIn(BaseModel):
     kind: Literal["pdf", "link"]
     title: Title
     description: Annotated[
-        str | None, Field(max_length=DESCRIPTION_MAX), AfterValidator(_blank_is_none)
+        str | None, Field(max_length=DESCRIPTION_MAX), AfterValidator(_optional_line)
     ] = None
     url: str | None = Field(default=None, max_length=URL_MAX * 2, validate_default=True)
 

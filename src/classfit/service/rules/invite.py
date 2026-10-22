@@ -17,7 +17,7 @@ InviteInputError = Literal["confusable", "malformed"]
 
 def parse_invite_input(raw: str) -> str | InviteInputError:
     """입장 입력의 정규화 코드. 혼동 문자(0·O·1·I)가 하나라도 있으면 "confusable" 이 먼저고,
-    그 밖에 길이·문자가 틀리면 "malformed" 다. 정규화 코드는 대문자 6자라 두 값과 겹치지 않는다.
+    그 밖에 길이(6자가 아님, 짧든 길든)·문자가 틀리면 "malformed" 다. 정규화 코드는 대문자 6자라 두 값과 겹치지 않는다.
     """
     code = raw.strip().upper()
     if any(ch in CONFUSABLE for ch in code):

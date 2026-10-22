@@ -93,7 +93,7 @@ async def resume_invite_code(
     course_id: int, session: DbSession, caller: AdminCaller, today: Today
 ) -> InviteCodeOut:
     course = await course_or_404(session, course_id)
-    row, changed = await codes.resume_invite_code(session, course, today=today)
+    row, changed = await codes.resume_invite_code(session, course.id, today=today)
     if changed:
         await audit_course(
             session, caller, "invite_code.resume", course_id, {"invite_code_id": row.id}

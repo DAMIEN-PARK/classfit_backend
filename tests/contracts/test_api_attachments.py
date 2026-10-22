@@ -179,6 +179,27 @@ async def test_admin_attachment_not_pdf_422(
     await _nothing_written(db_session)
 
 
+async def test_admin_attachment_description_control_char_422(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    # description 도 title 과 같이 제어 문자를 422 로 막는다(psycopg 로 넘기지 않는다)
+    auth, _, sid = await _setup(client, db_session)
+    for description in ("설명\x07", "\u0001설명", "가\x00나"):
+        r = await client.post(
+            f"{ADMIN}/sessions/{sid}/attachments",
+            headers=auth,
+            data={
+                "kind": "link",
+                "title": "참고",
+                "description": description,
+                "url": "https://example.com/a",
+            },
+        )
+        body = _problem(r, 422)
+        assert [v["loc"] for v in body["violations"]] == [["body", "description"]]
+    await _nothing_written(db_session)
+
+
 async def test_admin_attachment_link_scheme_422(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
