@@ -17,9 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.core.errors import Conflict
 from classfit.crud.flush import flush_or_conflict
+from classfit.crud.like import LIKE_ESCAPE, contains_pattern
 from classfit.models import InstructorTag, Tag
 
-_LIKE_ESCAPE = "\\"
 DUPLICATE = "같은 이름의 태그가 이미 있습니다"
 
 
@@ -75,12 +75,7 @@ async def list_tags(
     if active_only:
         stmt = stmt.where(Tag.active.is_(True))
     if q:
-        escaped = (
-            q.replace(_LIKE_ESCAPE, _LIKE_ESCAPE * 2)
-            .replace("%", _LIKE_ESCAPE + "%")
-            .replace("_", _LIKE_ESCAPE + "_")
-        )
-        stmt = stmt.where(Tag.name.ilike(f"%{escaped}%", escape=_LIKE_ESCAPE))
+        stmt = stmt.where(Tag.name.ilike(contains_pattern(q), escape=LIKE_ESCAPE))
     stmt = stmt.order_by(Tag.sort, Tag.name, Tag.id).limit(limit + 1)
     rows = list((await session.scalars(stmt)).all())
     return rows[:limit], len(rows) > limit

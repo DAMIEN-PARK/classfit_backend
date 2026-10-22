@@ -8,6 +8,7 @@ alembic check 는 CHECK·시드를 비교하지 않으므로 여기서 잰다. �
 from __future__ import annotations
 
 import ast
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -15,14 +16,17 @@ from typing import Any
 import pytest
 from sqlalchemy import func, select, text, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from classfit.core.errors import Conflict
+from classfit.crud.audit import insert_audit
 from classfit.crud.auth import consume_verification, insert_verification
 from classfit.crud.instructor import insert_instructor
 from classfit.crud.instructor_document import upsert_document
+from classfit.crud.outbox import enqueue
 from classfit.crud.stored_file import insert_stored_file
 from classfit.crud.tag import insert_tag
+from classfit.database.session import make_session_factory
 from classfit.models import (
     DocumentType,
     EmailVerification,
@@ -30,6 +34,7 @@ from classfit.models import (
     InstructorDocument,
 )
 from classfit.service.auth.email_code import issue_email_code
+from scripts import outbox_preview
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
 UNIQUE_VIOLATION = "23505"
@@ -209,6 +214,47 @@ async def test_instructor_email_code_issue_sets_issued_at(
     assert past is not None and renewed is not None
     assert renewed > past
     assert renewed == filled
+
+
+async def test_outbox_preview_rejected_needs_reject_audit(
+    db_connection: AsyncConnection,
+    db_session: AsyncSession,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """반려 메일의 사유는 params.audit_id 가 가리키는 반려 audit 에서만 읽는다. 승인 audit 을 가리키면 3."""
+    row = await insert_instructor(
+        db_session,
+        **_fields("a@example.com", status="rejected", reject_reason="서류 부족"),
+    )
+    audits = {
+        action: await insert_audit(
+            db_session,
+            actor="admin:1",
+            action=f"instructor.{action}",
+            target_type="instructor",
+            target_id=str(row.id),
+            detail={"reason": "서류 부족"} if action == "reject" else None,
+        )
+        for action in ("approve", "reject")
+    }
+    factory = make_session_factory(
+        db_connection, join_transaction_mode="create_savepoint"
+    )
+
+    async def queue(audit_id: int) -> None:
+        params = {"instructor_id": row.id, "audit_id": audit_id}
+        await enqueue(
+            db_session, kind="instructor_rejected", params=params, to=row.email
+        )
+
+    await queue(audits["reject"].id)
+    assert await outbox_preview.run([], factory) == 0
+    (message,) = json.loads(capsys.readouterr().out)["messages"]
+    assert "사유: 서류 부족" in message["body"]
+
+    await queue(audits["approve"].id)
+    assert await outbox_preview.run([], factory) == 3
+    assert "전제 거절" in capsys.readouterr().err
 
 
 def _callers(pattern: str) -> list[str]:

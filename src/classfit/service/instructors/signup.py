@@ -5,6 +5,8 @@
 - 가입 판정 순서(T3 결정 i·ii·xiii): 시도 키 잠금(email_code, 이메일 해시, 주소) → 열린 요청 행 잠그며 읽기(없음·
   발송 전은 mismatch) → 만료(issued_at 기준, 지금은 DB now()) → 시도 상한 → 코드 대조(틀리면 tries + 1, mismatch)
   → 중지 태그 검사 → 새 분야 태그 → 강사 행 → 태그 잇기 → 요청 소비 → 성공 시도 행.
+- 열린 요청이 없거나 발송 전이어도 core 의 DUMMY_HASH 로 같은 argon2 대조를 한 번 거친다(T1 로그인과 같은 꼴 —
+  응답 시간으로 "그 이메일의 열린 요청 유무" 가 갈리지 않게).
 - 코드 실패 셋은 실패 시도 행을 남기고 결과 값으로 돌려준다(예외 없음 — 끝점이 problem() 을 반환해 tries 와 시도 행이
   커밋된다, Design 5절 7). 이미 가입된 이메일(Conflict)과 중지 태그(InactiveTags)는 예외라 그 요청은 롤백된다.
 - 중지 태그 검사는 아무 행도 쓰기 전에 한다. 태그 이름은 crud.tag.normalize_tag_name 으로 맞춘 뒤 비교한다.
@@ -22,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.core.config import Settings
 from classfit.core.errors import Conflict
-from classfit.core.passwords import hash_password, verify_password
+from classfit.core.passwords import DUMMY_HASH, hash_password, verify_password
 from classfit.crud import auth as crud_auth
 from classfit.crud import instructor as crud_instructor
 from classfit.crud import tag as crud_tag
@@ -114,10 +116,10 @@ async def signup(
         session, kind=ATTEMPT_KIND, subject_hash=subject, client=client
     )
     found = await crud_auth.find_open_verification(session, email)
-    if found is None:
-        return await _failed(session, "mismatch", subject=subject, client=client)
-    row, now = found
-    if row.code_hash is None or row.issued_at is None:  # 아직 발송 전
+    row, now = found if found is not None else (None, None)
+    if row is None or now is None or row.code_hash is None or row.issued_at is None:
+        # 열린 요청 없음·아직 발송 전도 같은 대조를 한 번 거친다(응답 시간으로 요청 유무가 드러나지 않게)
+        await asyncio.to_thread(verify_password, DUMMY_HASH, code)
         return await _failed(session, "mismatch", subject=subject, client=client)
     if code_expired(row.issued_at, now, settings.email_code_minutes):
         return await _failed(session, "expired", subject=subject, client=client)

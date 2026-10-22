@@ -13,6 +13,7 @@ from sqlalchemy import ColumnElement, and_, delete, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from classfit.core.errors import Conflict
 from classfit.models import AuthAttempt, AuthSession, EmailVerification
 
 
@@ -161,6 +162,8 @@ async def insert_verification(session: AsyncSession, email: str) -> EmailVerific
     """그 이메일의 열린 요청 행. 없으면 만든다(있으면 그 행 그대로 — 재요청은 같은 행이다).
 
     INSERT … ON CONFLICT (lower(email)) WHERE consumed_at IS NULL DO NOTHING 뒤 읽는다(동시 요청도 23505 없음).
+    DO NOTHING 과 읽기 사이에 다른 트랜잭션이 그 열린 행을 소비·커밋하면 읽기가 비므로 넣기를 한 번 더 한다.
+    그래도 비면 Conflict(409, 다시 요청).
     """
     stmt = (
         insert(EmailVerification)
@@ -170,14 +173,17 @@ async def insert_verification(session: AsyncSession, email: str) -> EmailVerific
             index_where=EmailVerification.consumed_at.is_(None),
         )
     )
-    await session.execute(stmt)
-    return (
-        await session.scalars(
-            select(EmailVerification)
-            .where(_open(email))
-            .execution_options(populate_existing=True)
-        )
-    ).one()
+    read = (
+        select(EmailVerification)
+        .where(_open(email))
+        .execution_options(populate_existing=True)
+    )
+    for _ in range(2):
+        await session.execute(stmt)
+        row = (await session.scalars(read)).one_or_none()
+        if row is not None:
+            return row
+    raise Conflict("인증 요청이 겹쳤습니다. 다시 요청하세요")
 
 
 async def bump_tries(session: AsyncSession, verification_id: int) -> int:

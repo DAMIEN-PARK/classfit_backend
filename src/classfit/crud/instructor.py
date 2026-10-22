@@ -17,10 +17,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.crud.flush import flush_or_conflict
+from classfit.crud.like import LIKE_ESCAPE, contains_pattern
 from classfit.crud.scope import Subject, instructor_scope
 from classfit.models import DocumentType, Instructor, InstructorDocument, InstructorTag
-
-_LIKE_ESCAPE = "\\"
 
 
 def _by_email(email: str) -> Select[tuple[Instructor]]:
@@ -96,15 +95,6 @@ async def set_status(
     return row
 
 
-def _like(q: str) -> str:
-    escaped = (
-        q.replace(_LIKE_ESCAPE, _LIKE_ESCAPE * 2)
-        .replace("%", _LIKE_ESCAPE + "%")
-        .replace("_", _LIKE_ESCAPE + "_")
-    )
-    return f"%{escaped}%"
-
-
 def list_stmt(
     subject: Subject, status: str | None, q: str | None
 ) -> Select[tuple[Instructor]]:
@@ -116,12 +106,12 @@ def list_stmt(
     if status is not None:
         stmt = stmt.where(Instructor.status == status)
     if q:
-        pattern = _like(q)
+        pattern = contains_pattern(q)
         stmt = stmt.where(
             or_(
-                Instructor.name.ilike(pattern, escape=_LIKE_ESCAPE),
-                Instructor.org.ilike(pattern, escape=_LIKE_ESCAPE),
-                Instructor.email.ilike(pattern, escape=_LIKE_ESCAPE),
+                Instructor.name.ilike(pattern, escape=LIKE_ESCAPE),
+                Instructor.org.ilike(pattern, escape=LIKE_ESCAPE),
+                Instructor.email.ilike(pattern, escape=LIKE_ESCAPE),
             )
         )
     return stmt

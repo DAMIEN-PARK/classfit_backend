@@ -4,7 +4,7 @@
 - kind 마다 본문을 만든다. `email_code` 는 issue_email_code() 를 부른다(인증 코드를 만드는 곳은 그 함수 하나).
 - `instructor_approved`·`instructor_rejected`(T3)는 params {instructor_id, audit_id} 로 강사 이름과 반려 사유를 읽는다.
   사유는 강사 행이 아니라 그 audit 행의 detail.reason(불변 스냅샷)이다 — 재신청이 행의 사유를 비워도 본문은 같다.
-  사유 칸이 비면 빈 글자로 찍는다. 강사·audit 행이 없거나 audit 이 그 강사의 것이 아니면 3 이다.
+  사유 칸이 비면 빈 글자로 찍는다. 강사·audit 행이 없거나 audit 이 그 강사의 반려(instructor.reject) 기록이 아니면 3 이다.
 - 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 코드 자리는 `******` 로 가리고 "무효 코드(미리 보기)" 라고 찍는다.
   실제 숫자는 `--apply` 때만 stdout 에 나온다.
 - `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다.
@@ -62,8 +62,9 @@ async def _instructor_rejected(
     audit = await session.get(AuditLog, int(params["audit_id"]))
     if audit is None:
         raise NotFound("audit 행이 없습니다")
-    if (audit.target_type, audit.target_id) != ("instructor", str(row.id)):
-        raise ValueError("audit 행이 그 강사의 것이 아니다")
+    expected = ("instructor.reject", "instructor", str(row.id))
+    if (audit.action, audit.target_type, audit.target_id) != expected:
+        raise ValueError("audit 행이 그 강사의 반려 기록이 아니다")
     reason = audit.detail.get("reason") or ""
     return (
         f"{row.name} 강사님, 가입 신청이 반려되었습니다. 사유: {reason}\n"
