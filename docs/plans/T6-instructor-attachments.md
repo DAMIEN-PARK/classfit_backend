@@ -11,7 +11,7 @@ URL: ""
 # Plan: T6 instructor-attachments (from plan.md#T6, 2026-10-22)
 
 - 근거: intent [`docs/process/intents/2026-10-21-phase1-backend.md`](../process/intents/2026-10-21-phase1-backend.md)(E-14 개인 키 4곳 + gc 2 :37 · 외부 의존 PDF·HTML 패키지 열기 501 :44 · 빼는 것 HTML 패키지 서빙 :57 · xlsx :59 · 화면 단위 조립 :88 · 열린 질문 5 :108) · spec 절 [`docs/process/2026-10-21-phase1-backend-design.md`](../process/2026-10-21-phase1-backend-design.md) §3 HTML 패키지(:74) · §4 0007 행(:88)·T6 행(:89) · owner_kind 등록 순서(:95) · 다형 참조·소유자 삭제(:96) · §5 규칙 2·3·6·9·10·11·19·20(:106·:107·:110·:113·:114·:115·:123·:124) · 부록 A T6 3행(:170-172) · 읽는 모양(:133-136) · 태스크 [`docs/process/plan.md`](../process/plan.md) 3절 T6 행(:55 — T5 리뷰 Nit 4 메모 포함) · T7·T8 행(:56-57). 그 밖에 [`docs/process/spec.md`](../process/spec.md) 2절 #7(:53)·#8(:54)·#10(:56) · 3절 A2-4(:69)·A3-2(:78)·DEC-009(:91)·DEC-010(:92)·DEC-011(:93)·T5 새 행(:100-103) · [`docs/process/adr/ADR-003-external-ports.md`](../process/adr/ADR-003-external-ports.md)(결정 4 :22 · 결정 5 :23 · 결정 7 :25 · 후속 T6 :64) · [`docs/requirements/2026-10-21-요구정의서.md`](../requirements/2026-10-21-요구정의서.md) 권한 매트릭스(:99-101) · 서버 검사·관리자 첨부 예외(:111) · COM-002(:145) · COM-005(:148) · ENT-002(:198) · ENT-008(:204) · MAT-001~007(:210-216) · 데이터(:379·:392) · NFR-005·006(:404-405) · UAT-005(:423) · UAT-010(:428) · DEC-010·011(:453-454) · r3 변경 기록 N6(18) · Critic r2 (c)2(42) · §3 A2(115) · §5.2 T6 행(167) · §6 E-14(188) · §7-5(202) · 부록 A1 I4·I1·I5·I6 행(225) · A4(268-270) · B T6 끝점(306)·시험 세부(319) · D 시험 규약(353)·폭발 반경(354) · 위험 표(464-465) · [`docs/plans/T5-course-assign.md`](T5-course-assign.md)(`8078d19` 판 — 결정 i·x·xi·xii·xiii·xvii·xviii·xxi·xxiii :33·:42·:43·:44·:45·:49·:50·:53·:55 · 리뷰 Nit 1·4·6 :351·:354·:356 · 편차 6·10·22) · T5 커밋 `e848499`(Nit 4 독스트링) · `6ca028b`(plan.md T6 메모) · `1cca8ca`(BIGINT 경로 id 422, codex 구현 리뷰 반영) · `8078d19`(codex 구현 리뷰 기록) · [`docs/plans/T4-course-pool.md`](T4-course-pool.md)(결정 viii·ix :30 · 기록 칸 :257-268) · 기획안 v3 원칙 10 :247 · I1 :524·:531 · I3-1 :577 · I4 :598-618 · I5 :625-636 · I6 :644-648 · L2 :691·:696 · 8-3 :951 · 11절 5 :1037 · `시안/강사.html`·`시안/학습자.html`(외부, 미추적).
-- 승인: 
+- 승인: `8ecfeee approve: T6`(2026-10-23, 승인자 `DAMIEN-PARK`, 트레일러만, 한 번). 결정 (i)~(xxii) 는 기본값 그대로(xxi 강사 명단 최소 노출 · iv 세션당 20개 포함). 승인 전 codex 외부 리뷰 4회(`523f46b` BLOCK 4 → `556a6f7` OK-WITH-FIXES 1 → `8c9c65c` OK-WITH-FIXES 1 → `14a276d` OK)를 거쳤고 그때마다 plan 커밋을 고쳐 썼다(amend). 순서는 plan `14a276d` → 승인 `8ecfeee` → 구현 `c133932`·`11147d5`·`75f1fd2`·`d3b9be9` → 문서 `2637804` → 리뷰 반영 `7af990a`·`d9485a2` → 계획 갱신이다. 가지는 master `78806ec` 에서 땄고 sync 는 없다.
 - 승인 방법: 승인자 `DAMIEN-PARK` 이 이 가지에 `git commit --allow-empty -m "approve: T6" -m "Approved-by: DAMIEN-PARK"` 를 더한다. 그 커밋 전에는 코드 변경이 없고, 에이전트는 위 줄과 `Approved-by` 를 쓰지 않는다.
 - **T5 는 병합됐다**(2026-10-22) — master `78806ec merge: T5 course-assign`(트리 = T5 가지 머리 `8078d19`, `git rev-parse 78806ec^{tree} 8078d19^{tree}` 같음, 병합 본문 `make verify: exit 0`, origin push `461e7bd..78806ec`, CI run 39801234470 success, 병합 직후 check_docs ④ T0a~T5 · 43행 중 30행 · docs check: OK). 병합 전 가지 `T5-course-assign` 머리 `8078d19`(코드는 `1cca8ca` 와 같다 — `e77d234` plan → `7945ce3` approve → 구현 `e8f61b9`·`87d501c`·`19e2481` → 문서 `3f61fbb` → 리뷰 반영 `6ca028b`·`e848499` → 계획 갱신 `ff16a42` → codex 구현 리뷰 반영 `1cca8ca` → 계획 갱신(codex 리뷰 기록) `8078d19` — 마지막 커밋은 [`docs/plans/T5-course-assign.md`](T5-course-assign.md) 하나만 고쳤다, `git diff --name-only 1cca8ca 8078d19`). T5 병합 해시(리드가 채움, 2026-10-23): **`78806ec merge: T5 course-assign`**. **가지 `T6-instructor-attachments` 는 그 병합 커밋에서 리드가 딴다** — 이 계획 파일이 그 가지의 첫 커밋이다(plan.md 1절 9 · 3절 T6 행 선행 T5). plan.md 3절 T6 행에 가지 이름이 없어 slug 는 행 제목 "강사 첨부·강사 화면" 의 중심인 `instructor-attachments` 로 정했다(강사 화면 읽기 다섯도 들지만 쓰기·판정·gc 가 무게 중심이다). 병합 뒤 분기라 `sync_task.sh` 는 필요 없다.
 - **이 계획의 코드 줄은 셋으로 나뉜다.** ① T5 가 고치지 않은 T1~T4 파일은 master `461e7bd` 줄이다(`git diff --name-only 461e7bd 8078d19` 51파일에 없으므로 T5 가지에서도 같은 줄) ② T5 가 만들거나 고친 파일과 T5 이름은 `git show ff16a42:<경로> | cat -n`·`grep -n` 으로 쟀고, `1cca8ca` 가 고친 일곱 파일 가운데 이 계획이 줄을 인용하는 넷 — `schemas/course.py`·`app/endpoints/assign.py`·`tests/contracts/test_api_assign.py`(:523 → :571)·`tests/contracts/test_api_my_courses.py`(:256 → :274) — 은 `1cca8ca` 줄이다(머리 `8078d19` 도 같은 줄, "T5 부품" 칸) ③ T5 가 병합 전에 더 바뀌면 리드가 알리고, 작업 순서 2 ⓒ 가 병합 판에서 코드·docs 줄을 다시 잰다. T5 이름은 작업 순서 1 의 대조 스니펫이 기계로 잰다 — `8078d19`·`1cca8ca` 에서 미리 돌려 "없음 merge: T5" 한 줄(병합 전이라 기대대로) + `t5-names-ok` 를 얻었고, `461e7bd` 에서는 "없음" 41줄 + `t5-names-ok` 1줄(모두 42줄)이 나와 빈 결과를 잡는다는 것도 봤다(결정 xix).
@@ -205,7 +205,7 @@ make verify                                         # E-3 exit 0 · "gate: OK" �
 test "$(.venv/bin/pytest tests -q --co -k 'no_personal_keys or gc_' | grep -cE '::test_(no_personal_keys|gc)_')" -eq 4 && .venv/bin/pytest tests -q -k 'no_personal_keys or gc_'   # E-14 T6 몫 → 셈 4(포털·카탈로그·gc 2) · failed·error 0. -k 'gc_' 는 T1 test_file_gc_ 2 · T5 …_then_gc_keeps_bytes 1 도 고르므로 T5 병합 판 이름 그대로면 "7 passed"
 test "$(.venv/bin/pytest tests -q --co -k golden | grep -c '::test_golden_')" -eq 3 && .venv/bin/pytest tests -q -k golden   # E-12 T6 변화 없음 → "3 passed"
 .venv/bin/pytest tests/contracts/test_api_my_attachments.py tests/contracts/test_api_my_course_views.py -q   # → "15 passed"
-.venv/bin/pytest tests/integration/test_db_my_attachment.py tests/integration/test_db_gc.py tests/integration/test_db_attachment_race.py tests/unit/test_attachment_rules.py -q   # → "16 passed"(4 + 2 + 7 + 3)
+.venv/bin/pytest tests/integration/test_db_my_attachment.py tests/integration/test_db_gc.py tests/integration/test_db_attachment_race.py tests/unit/test_attachment_rules.py -q   # → "17 passed"(5 + 2 + 7 + 3 — 리뷰 반영 `7af990a` 가 service 수준 `test_attachment_replace_kind_changed_service` 를 더했다(대조 실험 22 공백). 처음 계획은 16)
 .venv/bin/pytest tests/integration/test_db_attachment_race.py -q        # 행동 일곱 → "7 passed"(23503·lock_timeout·40P01 없음, 대기 관계 단언 포함)
 .venv/bin/pytest tests/integration/test_db_concurrency.py -q            # E-11 → "4 passed"(무수정)
 .venv/bin/pytest tests/integration/test_db_assign_race.py -q            # T5 행동 여덟 무수정 → "8 passed"
@@ -275,7 +275,7 @@ curl -s "localhost:8000/v1/me/courses/$CID/enrollments" -H "Authorization: Beare
 SA=$(shasum -a 256 "$tmp/a.pdf" | cut -d' ' -f1); CLASSFIT_FILE_STORE_ROOT="$NB" .venv/bin/python -m dotenv --file .env run --no-override -- .venv/bin/python -m scripts.file_gc | .venv/bin/python -c 'import json,sys; print(sys.argv[1] in json.load(sys.stdin)["candidates"])' "$SA"   # False · stderr "미리 보기"(교체로 참조 0 이 된 a.pdf 바이트도 mtime 이 새로워 후보가 아니다)
 curl -s -o /dev/null -w '%{http_code}\n' -X DELETE "localhost:8000/v1/admin/courses/$CID" -H "$H"   # 204(수강생 없음 — 첨부·파일 행을 먼저 지운다)
 /opt/homebrew/opt/postgresql@17/bin/psql -d classfit_dev -v ON_ERROR_STOP=1 -c "delete from mail_outbox where kind = 'session_assigned' and params->>'audit_id' in (select id::text from audit_log where action = 'session.assign' and target_type = 'course' and target_id = '$CID'); delete from audit_log where target_type = 'course' and target_id = '$CID'; delete from audit_log where target_type = 'session_attachment' and detail->>'session_id' = '$SID'"   # 정리 — 이 흐름의 배정 알림(이 강의 session.assign audit 을 가리키는 것만) → 그 audit → 이 세션 첨부 audit 순. X 의 다른 알림·audit 은 건드리지 않는다. 강사 둘은 T3 정리 줄을 따로 돌린다
-pkill -f 'uvicorn classfit.main:app'; case "$NB" in var.nosync/t6-nb.?*) test -d "$NB" && rm -rf -- "$NB" ;; *) echo "NB 가 격리 저장소가 아니라 지우지 않는다: $NB" >&2 ;; esac; rm -rf -- "$tmp"; /usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTEN || echo port-free   # 서버를 멈춘 뒤 격리 저장소 폴더 통째(지우기 직전에 경로를 다시 확인한다 — 격리 폴더 꼴이 아니면 지우지 않는다) · 임시 폴더 → "port-free"(공유 저장소 var.nosync/files 는 건드리지 않았다)
+pkill -f 'uvicorn classfit.main:app'; case "$NB" in var.nosync/t6-nb.?*) test -d "$NB" && rm -rf -- "$NB" ;; *) echo "NB 가 격리 저장소가 아니라 지우지 않는다: $NB" >&2 ;; esac; rm -rf -- "$tmp"; for i in 1 2 3 4 5 6 7 8 9 10; do /usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTEN >/dev/null || break; sleep 1; done; /usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTEN || echo port-free   # 서버를 멈춘 뒤 격리 저장소 폴더 통째(지우기 직전에 경로를 다시 확인한다 — 격리 폴더 꼴이 아니면 지우지 않는다) · 임시 폴더 → "port-free"(공유 저장소 var.nosync/files 는 건드리지 않았다)
 ```
 
 **대조 실험**(커밋 뒤 임시 clone 에서만, CLAUDE.md). 실험마다 `tmp=$(mktemp -d)` 뒤 `git clone -q --no-hardlinks . "$tmp/cN"` 사본을 따로 만든다. 사본을 고치고, 원본 `.venv` 와 `PYTHONPATH="$tmp/cN/src"` 로 그 시험만 `--rootdir "$tmp/cN"` 으로 돌려 빨간지 본다. 사본에는 `.env` 가 없으니 `CLASSFIT_TEST_DATABASE_URL` 을 셸 환경 변수로 넘긴다(tests/conftest.py). 마이그레이션을 바꾸는 실험은 없다. **실험은 시험 DB 와 시험이 만든 `tmp_path` 저장소만 쓴다** — dev DB 의 행이나 공유 저장소(`var.nosync/files`)의 바이트를 지우거나 고치는 명령을 넣지 않는다(codex 1차 #1, 이웃 흐름과 같은 원칙). 각각 **빨강이어야 함**. 한 사본에 변이 하나다(첫 실패 단언에서 멈춰 둘째를 못 잰다 — T5 실험 11 교훈).
@@ -318,25 +318,74 @@ pkill -f 'uvicorn classfit.main:app'; case "$NB" in var.nosync/t6-nb.?*) test -d
 
 | 기록 칸 | 값 |
 |---|---|
-| 착수 조건 결정 (i)~(xxii) 변경 여부 · 선택 항목 선택(특히 xxi 명단 · iv 개수 상한) (approve 커밋 해시) | |
-| T5 대조 세 줄 출력 · 분기 시점 master 해시(`merge: T5`) · `check_task_order` 출력 | |
-| 작업 순서 2 ⓐ(뒤집을 T5 단언 줄·사례) · ⓑ(잠금 자리 grep 줄 수) · ⓒ(병합 판 코드·docs 줄 번호 차이) | |
-| `make verify` 끝 20줄 | |
-| `alembic heads` · dev `alembic check` | |
-| E-13(85) · E-14(셈 4 · passed 수) · E-12(3) · 계약 15 · 통합+단위 16 · race 7 · E-11 4 · T5 race 8 · `test_concurrent_ 없음` · `tests/integration` 전체 · T1~T5 회귀 · table-ok · no-session-get · zip 고정값 한 곳 | |
-| 증명 표 24항목 출력 | |
-| 이웃 흐름 응답(200 · 생성 stderr · 200 · 501 · "404 200" · 403 · 422 · 200 · 422(2**63) · 목록 · 홈 · 포털 · 코드 · 명단 키·403 · gc 후보 False · 204) · 격리 저장소 경로(`$NB`) · 정리 psql(지운 알림·audit 행 수 — 이 흐름 것만) · `$NB` 통째 삭제 · `port-free` | |
-| 대조 실험 34개(빨개진 시험 이름 · 단언, 10 은 T1 gc 시험이 녹색으로 남는 것까지 · 11~13·24 는 `blocked` 관계 집합과 예외 종류까지 · 24·31~34 는 ⓐ·ⓑ 두 사본 각각 · 32~34 는 빨개진 **결과 단언**(제목·`file_id`·행 수·audit)과 장벽·대기 단언이 녹색으로 남은 것까지 · 28 은 단독 사본) · 정리 뒤 `git status --short` · 실험이 시험 DB·`tmp_path` 저장소 밖(dev DB·공유 저장소)을 건드리지 않았음 | |
-| verifier 세션 · 날짜 · 판정 · 권한 검사(남의 세션 쓰기 403 · 재배정 뒤 PATCH·교체·지우기 403 · 남의 닫힌 세션 파일 403 · 강사 명단에 이메일 없음 · 강사 응답 외에 `origin` 없음 · 포털 미리 보기 == 수강생 포털 · 강사 주체로 관리자 목록 호출 없음) · 이웃 흐름을 다시 돌렸다면 격리 저장소 경로와 "이 흐름 행만" 지운 정리 줄 | |
-| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | |
+| 착수 조건 결정 (i)~(xxii) 변경 여부 · 선택 항목 선택(특히 xxi 명단 · iv 개수 상한) (approve 커밋 해시) | 변경 없음((i)~(xxii) 전부 기본 — xxi 명단 최소 노출 `MyRosterOut{name, dept, enrolled_at}` · iv 세션당 20개). approve `8ecfeee`(한 번) |
+| T5 대조 세 줄 출력 · 분기 시점 master 해시(`merge: T5`) · `check_task_order` 출력 | `t5-names-ok` · `76` · `0007 (head)`(가지 `T6-instructor-attachments` HEAD = `78806ec`, bash·zsh 같음) · master `78806ec merge: T5 course-assign`(sync 없음) · `task order: OK`(2개 → 계획 갱신 포함 10개) |
+| 작업 순서 2 ⓐ(뒤집을 T5 단언 줄·사례) · ⓑ(잠금 자리 grep 줄 수) · ⓒ(병합 판 코드·docs 줄 번호 차이) | ⓐ `tests/integration/test_db_assign.py:222` `check = OWNER_KINDS["session_attachment"]` · :223 `assert not await check(db_session, _Subject("instructor", x), attachment.id)` · :213 주석 그대로(뒤집기는 `c133932` 에서 한 줄·주석 한 줄) · ⓑ 잠금 자리 grep 47줄(T5 결정 xvii 목록 밖 없음) · ⓒ 인용 파일 18개가 `8078d19` 와 병합 판에서 같음(차이 0, scratchpad/t6-wrap/step2.log) |
+| `make verify` 끝 20줄 | HEAD `2637804` exit 0(파이프 없이): `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · `============================= 384 passed in 47.22s =============================` · `OKF guard OK`. 리뷰 반영 `d9485a2` 뒤 exit 0 · `385 passed in 49.44s`(통합 시험 하나 추가) · `OKF guard OK`. verifier `2637804` exit 0 · `384 passed in 47.34s` |
+| `alembic heads` · dev `alembic check` | `0007 (head)`(T6 마이그레이션 없음) · dev `make migrate` 뒤 `alembic check` → `No new upgrade operations detected.`(worker-a 4단계) |
+| E-13(85) · E-14(셈 4 · passed 수) · E-12(3) · 계약 15 · 통합+단위 16 · race 7 · E-11 4 · T5 race 8 · `test_concurrent_ 없음` · `tests/integration` 전체 · T1~T5 회귀 · table-ok · no-session-get · zip 고정값 한 곳 | 리드(classfit_c_test, `proof.log`): E-13 `1 passed`(85줄) · E-14 셈 4 → `7 passed` · E-12 `3 passed` · 계약 `15 passed` · 통합+단위 `16 passed`(리뷰 반영 뒤 `17 passed` = 5 + 2 + 7 + 3) · race `7 passed` · E-11 `4 passed` · T5 race `8 passed` · `test_concurrent_ 없음` · `tests/integration` `98 passed`(뒤 99) · T1~T5 이웃 계약 `93 passed` · `table-ok` · `no-session-get` · `"application/zip"` 은 `src/classfit/service/rules/attachment.py` 한 곳 · `CLASSFIT_REQUIRE_EXTERNAL=1 check_docs` → **FAIL 1(환경)** — 외부 정본 `기획/BCTONE_기획안_v3.html` 이 iCloud 에 비워져(dataless) 읽으면 빈 내용(sha `e3b0c442…`), REQUIRE_EXTERNAL 없이는 ④ T0a~T5 · 44행 중 30행 `docs check: OK` |
+| 증명 표 24항목 출력 | 리드(classfit_c_test, `table24.log`): 표의 시험 노드 32개 전부 `32 passed`(셀 안 파일 이름 7개는 노드 아님) · 리뷰 반영 뒤 재실행도 같음 · verifier 노드별 각 `1 passed` · worker-b 계약 노드 22개 각각 PASSED(`d3b9be9`) |
+| 이웃 흐름 응답(200 · 생성 stderr · 200 · 501 · "404 200" · 403 · 422 · 200 · 422(2**63) · 목록 · 홈 · 포털 · 코드 · 명단 키·403 · gc 후보 False · 204) · 격리 저장소 경로(`$NB`) · 정리 psql(지운 알림·audit 행 수 — 이 흐름 것만) · `$NB` 통째 삭제 · `port-free` | worker-c(dev 0007, 격리 저장소 `var.nosync/t6-nb.0zui`, 블록을 파일로 저장해 `export NB H XTOKEN XID PTOKEN` 뒤 `bash`): store · PATCH 배정 200 · `5 pdf None` · 200 · `501 /problems/not-implemented` · `404 200` · `403 /problems/forbidden` · `422 [(['body', 'kind'], 'extra_forbidden')]` · 200 · 422(2**63) · `[('html', None), ('pdf', None)]` · `approved 1 1 0` · `[('open', 2)]` · `6 active 0` · 명단 키 3 `[]` / P 403 · gc `False`("미리 보기: 후보 0개") · 204. 정리 psql DELETE 1·3·4(이 흐름 행만) + T3 꼴 강사·관리자 정리 · dev 29표 기준선과 같음 · `$NB` 통째 삭제 · 공유 저장소 `var.nosync/files` 0 → 0 · uvicorn 500·Traceback 0 · port-free(블록 끝 lsof 는 pkill 직후 타이밍이라 LISTEN — 아래 편차 리드 4). verifier 재실행(`var.nosync/t6-nb.9SOs`)도 같은 응답 |
+| 대조 실험 34개(빨개진 시험 이름 · 단언, 10 은 T1 gc 시험이 녹색으로 남는 것까지 · 11~13·24 는 `blocked` 관계 집합과 예외 종류까지 · 24·31~34 는 ⓐ·ⓑ 두 사본 각각 · 32~34 는 빨개진 **결과 단언**(제목·`file_id`·행 수·audit)과 장벽·대기 단언이 녹색으로 남은 것까지 · 28 은 단독 사본) · 정리 뒤 `git status --short` · 실험이 시험 DB·`tmp_path` 저장소 밖(dev DB·공유 저장소)을 건드리지 않았음 | worker-c(임시 clone `2637804`(코드 = `d3b9be9`), classfit_b_test, 대조군 대상 노드 30 passed, 사본 import 확인, 행동 실험은 하나씩, 진단 사본으로 첫 실패 뒤 결과 단언까지 잼): **34개 중 33개 빨강, 실험 22 녹색** — 교체의 종류 비교가 끝점 `_file_part(same_kind=)`(app/endpoints/my_attachments.py:166-167)와 service `checked(expect_kind=)`(service/files/my_attachment_edit.py:112) 두 곳이라 끝점이 먼저 422 를 내서 service 비교를 지키는 시험이 없었다 → 리뷰 반영 `7af990a` 가 `test_attachment_replace_kind_changed_service` 를 더해 메웠다(expect_kind 를 빼면 그 시험이 빨개짐). 나머지: 1~4 판정 행렬·instructor_files·포털 미리 보기 · 5·6 html_open_501 · 7·8 replace_old_href_404·gc ⓑ · 9 gc ⓐ·T2b · 10 gc_grace(T1 gc 둘 녹색) · 11 blocked {'session'} 23503 + 정적 · 12 B 가 Forbidden 아님 + 정적 ③ · 13 waited False(첨부 21) · 14 21번째 201 · 15 Y 204 · 16 rejects_table · 17 KeyError(_SHAPES) 로 빨강(17-l 은 판정으로) · 18~21 · 23 octet-stream · 24ⓐ 파일 행 2 · 24ⓑ blocked {'session_attachment'} · 25 명단 email · 26·27 가드 · 28 미리 보기 가드 ValueError(28+27 은 녹색 — 계획 조건대로) · 29 my_list_scope · 30 DataError · 31ⓐⓑ origin · 32~34 ⓐⓑ 결과 단언 빨강(대기 단언 녹색). 원본 `git status`·dev 기준선·공유 저장소 무변경(산출물 scratchpad/t6-c/) |
+| verifier 세션 · 날짜 · 판정 · 권한 검사(남의 세션 쓰기 403 · 재배정 뒤 PATCH·교체·지우기 403 · 남의 닫힌 세션 파일 403 · 강사 명단에 이메일 없음 · 강사 응답 외에 `origin` 없음 · 포털 미리 보기 == 수강생 포털 · 강사 주체로 관리자 목록 호출 없음) · 이웃 흐름을 다시 돌렸다면 격리 저장소 경로와 "이 흐름 행만" 지운 정리 줄 | verifier-t6(에이전트 세션, 저장소 무변경) · 2026-10-23 · **PASS — 증명 충족**(HEAD `2637804`): check_task_order OK · `make verify` 384 passed · 증명 블록(외부 정본만 환경 FAIL) · 표 24 노드 32 각각 `1 passed`, 시험 코드를 읽어 단언 대조(24행은 표보다 약한 곳 하나 → 리뷰 반영 `7af990a` 가 보강) · 이웃 흐름 같은 응답 · 재측정 4·32ⓐ·10 빨강 · 평문 0(IP 0, 이메일 example.com 만). 권한·개인정보: 남의 세션 쓰기 403 · 재배정 뒤 PATCH·교체·지우기 403(행 그대로·audit 0) · 남의 닫힌 세션 파일 403 · 명단 `ROSTER_KEYS ==`·이메일 없음 · `origin` 은 `MyAttachmentOut` 에만 · 포털 미리 보기 json == 수강생 포털 |
+| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | 병합 뒤 다음 태스크(T7)의 문서 커밋에서 적는다(T2a~T5 전례). 병합 전 HEAD: ④ T0a~T5 · 44행 중 30행, T6 4행은 아직 대상 밖. 근사 `table-ok` 한 줄만. 주의: push 전 pre-push 가 `CLASSFIT_REQUIRE_EXTERNAL=1` 로 돌므로 외부 정본 기획안을 Finder 에서 내려받아야 한다 |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t6(다른 세션) · 2026-10-23 · 범위 `git diff master...2637804`(78806ec → 2637804, 7커밋 41파일). REVIEW.md 3패스 + CLAUDE.md Rules + 결정 (i)~(xxii)·바뀌는 파일·증명 표 24·위험 표 대조. 시험은 돌리지 않았다(verifier 몫). **Important 0건 · Nit 8건(표시 5)**.
+
+확인한 것: 잠금(결정 xv) — 강사 쓰기 다섯(`add_my_file`·`add_my_link`·`delete_my_attachment`·`patch_my_attachment`·`replace_my_file`)이 첫 쓰기 전에 `lock_course`, 잠근 뒤 `get_session_and_course(fresh=True)`·`get_with_session(fresh=True)` 로 다시 읽고 소유 재판정, `session.get` 없음, 바이트는 잠금 앞, src 잠금 줄 master 43 → 48(늘어난 5줄 모두 T6 `lock_course`), 다른 경로와 고리 없음. 교체(vii) — `swap_file` 같은 행 file_id 교체·origin NULL·옛 행 같은 트랜잭션 삭제(잠근 뒤 다시 읽은 file_id ∧ owner = 그 첨부), link 409, 다른 종류 422. 링크 주소(viii) — 정규화 값이 실제로 다를 때만 origin NULL·audit ["url"]. 파일 판정(iii·iv·ix) — classify → kind_changed → too_large, 머리 8KiB 뒤 그 종류 상한 + 1 까지만, Content-Length 미리 거르기, content_type 표 값, zip 글자 rules 한 곳, files.py 501 은 범위 판정 뒤. 권한·개인정보 — 강사 갈래 `course_scope` ∧ (`session_scope` ∨ `is_open`), `_listed`·`list_stmt` 가드가 기존 호출자를 깨지 않음, `roster_stmt` 는 learner 를 잇지 않음, `MyRosterOut{name, dept, enrolled_at}`, 미리 보기 json == 수강생 포털, 키 집합 ==, 경로 id 모두 `IdPath`, 교차 소유 import 0. 행동 시험 — 도우미가 T5 와 diff 0(장벽 도우미 제외), 일곱 다 `waited` ∧ `blocked == {"course"}`, ⑤~⑦ 결과까지, sleep 은 폴링만. gc — 표본 sha 다름·sha 관계 단언. T1~T5 시험 변경은 `test_db_assign.py` :213·:223 두 줄뿐, skip·xfail 0. 파일 크기 안(끝점 335 · scope 237), 바뀐 41파일 = 계획, 단일 진입 글자 수 같음.
+
+- **Nit 1 · Compliance · `service/files/my_attachment_edit.py:32`** — 다른 모듈의 비공개 `_mine` import(워커 편차). → **반영** `7af990a`: 공개 이름 `require_mine`.
+- **Nit 2 · Compliance · `app/endpoints/my_attachments.py:299` · `service/files/my_attachment_edit.py:111`** — `:replace` link 409 문구가 두 벌. → **반영** `7af990a` 상수 `LINK_REPLACE_REFUSED` · `d9485a2` 끝점이 그 상수를 쓴다(끝점 미리 판정은 유지).
+- **Nit 3 · Bugs · `app/endpoints/my_course_views.py:96-109`** — `except ValueError` 가 명단 service 호출 전체를 감싸 결정 xxii ④ 가드 오류가 "깨진 커서" 422 로 가려질 수 있다. → **반영** `7af990a`: `my_views.my_roster` 가 `keyset_page` 만 감싸 커서 전용 `InvalidCursor(ValueError)` 를 던짐 + `test_instructor_view_admin_lists_refuse_instructor` 에 가드 오류가 InvalidCursor 가 아님을 단언(roster_stmt 까지 감싸는 변이에서 빨강) · `d9485a2` 끝점이 `InvalidCursor` 만 잡는다.
+- **Nit 4 · Bugs · `service/rules/attachment.py:59`** — `.csv` 판정이 빈 바이트도 통과. → **반영** `7af990a`: `bool(head) and …` + 거절 표 `("a.csv", b"", "office")` 행(빼면 빨강).
+- **Nit 5 · Compliance · `tests/contracts/test_api_my_attachments.py:487-504`** — 사본 `:replace` 뒤 역량 원본 href 를 재지 않음. → **반영** `d9485a2`: 교체 전에 원본 key 를 잡고 교체 뒤 X 가 열어 (200, PDF) 단언(swap_file 이 원본 행까지 지우는 변이에서 빨강).
+- (표시 안 한 Nit 6) `LearnerView.id = 0` — T8 이 수강생별 칸을 `subject.id` 로 읽게 되면 미리 보기가 id 0 으로 질의. → **반영** `d9485a2`: plan.md T8 메모 한 줄.
+- (표시 안 한 Nit 7) 계획 밖 공개 이름 `with_file`·`upload_limits`·`checked`·`MIB` → 아래 편차로 기록(그대로).
+- (표시 안 한 Nit 8) 복사한 `Raced.first` 주석 → T5 원본 그대로라 보류.
+
+verifier-t6 의 Nit(증명 표 24행 — `reassign_then_patch_403` 은 owner 파일 행, `replace_403`·`delete_403` 은 제목·sort 를 재지 않음) → **반영** `7af990a`: ⑤ `_owned_files == [(F0, key)]`, ⑥⑦ `(title, sort, file_id)` 시드 값 전체 비교.
+
+리뷰 반영 뒤 리드 재실행: `make verify` exit 0 `385 passed in 49.44s` · 증명 블록 같음(통합+단위 17 · integration 99, 외부 정본만 환경 FAIL) · 표 24 노드 `32 passed`.
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+리드 · worker-a · worker-b · worker-c · verifier · 리뷰 반영 순. 번호는 기록용이다.
+
+**리드**
+1. approve `8ecfeee` 직전 사용자 터미널의 check_task_order 가 `fatal: mmap failed: Resource deadlock avoided` 로 FAIL("base e80387f 가 master 조상이 아니다" 는 객체를 못 읽어 난 거짓 위반)했다. iCloud 가 저장소 파일 238개를 dataless 로 비웠다(.git/objects 153 · src 22 · tests 17 · scripts 6 · alembic 2 · docs 8 등). 사용자 선택("제자리 복구")대로 GitHub 미러 clone 에서 객체 148개, 스크래치 판으로 재구성한 객체 4개(T6 plan 커밋의 `docs` 트리 `2876303`·`docs/plans` 트리 `934eddd`·[`docs/index.md`](../index.md) 블롭 `5cb8ad1` — 루트 트리 `15fe649` 를 바이트 그대로 재생성해 확인 — 와 T5 plan v4 블롭 `e4ff562`)를 해시 확인 뒤 다시 쓰고, 추적 작업 파일 60개를 HEAD 에서 다시 썼다(자리 파일은 `.git/dataless-backup/` 로 옮김). `git fsck --full` 깨진 연결 0 · task order OK · make verify 353 passed. 저장소를 iCloud 밖으로 옮길지는 승인자 판단으로 남는다.
+2. 외부 정본 `기획/BCTONE_기획안_v3.html`(미추적)은 git 에 없어 되살리지 못했다 — 읽으면 빈 내용이라 `CLASSFIT_REQUIRE_EXTERNAL=1 check_docs` ② 가 FAIL 이고, pre-push(`.githooks/pre-push:23`)가 push 를 막는다. 사용자가 Finder 에서 내려받아야 한다.
+3. 작업 순서 2 의 세 가지를 병합 판에서 쟀다(기록 칸 3행). 계획이 인용한 T5 파일 18개는 병합 판에서 줄이 그대로였다.
+4. 이웃 흐름 블록 끝 줄의 `lsof` 가 `pkill` 직후라 서버가 아직 내려가는 중이면 LISTEN 을 찍는다(worker-c·verifier 둘 다) — 블록 끝에 포트가 빌 때까지 기다리는 짧은 루프를 넣었다(이 계획 갱신 커밋).
+5. 증명 블록의 통합+단위 줄을 `16 passed(4 + 2 + 7 + 3)` 에서 `17 passed(5 + 2 + 7 + 3)` 로 고쳤다 — 리뷰 반영 `7af990a` 가 대조 실험 22 공백을 메우는 service 수준 시험 하나를 더했다. 착수 조건·바뀌는 파일 절의 시험 수(새 시험 31 · 통합 13)는 계획 시점 값으로 두며 실제는 32 · 14 다.
+
+**worker-a**(`c133932`·`11147d5`·`75f1fd2`·`7af990a`)
+6. `service/courses/mine.py` 독스트링 한 줄을 5단계가 아니라 4단계 커밋에 넣었다 — 결정 vi 가 "scope 를 넓히는 같은 커밋에서" 를 요구.
+7. `tests/fixtures/my_attachments.py` 에 계획 밖 공개 도우미 `assigned_session(session, section_id, *, instructor_id, is_open=False, title="세션") -> int`(세션을 넣고 `sections.patch_session` 으로 배정).
+8. `crud/attachment_edit.py::with_file(session, row) -> AttachmentRow` — PATCH 결과에 key·size 를 붙이려고 더함.
+9. `service/files/my_attachments.py` 공개 `MIB`·`upload_limits(settings)`·`checked(filename, data, max_bytes, *, expect_kind=None)` — 넣기·교체가 같은 판정 순서(classify → kind_changed → too_large)를 한 곳에서 쓴다(리뷰 Nit 7, 그대로).
+10. `75f1fd2`: `MyHomeCourse` 를 `row: HomeCourseRow` 중첩에서 응답 칸 이름의 납작 칸(id·title·course_type·client_name·status·start_on·end_on·my_sessions·my_ready·code·code_state)으로 — 끝점이 `from_attributes` 로 읽는다(worker-b 서명 가정 대조 중 발견, 단독 커밋, 깨끗한 clone 에서 369 passed).
+11. `7af990a`(리뷰 반영): `require_mine` 공개 · `LINK_REPLACE_REFUSED` · `InvalidCursor` · csv 빈 바이트 · race ⑤⑥⑦ 단언 · **새 통합 `test_attachment_replace_kind_changed_service`**(대조 실험 22 공백 — 통합 13 → 14).
+
+**worker-b**(`d3b9be9`·`2637804`·`d9485a2`)
+12. `:replace` 폼은 `max_fields=1`(파일 하나만 받는 폼, 계획에 값 없음).
+13. 홈 끝점은 `75f1fd2` 뒤 `MyHomeOut.model_validate(view, from_attributes=True)`.
+14. 종류별 상한은 끝점에서 따로 계산하지 않고 service `upload_limits` 를 쓴다.
+15. 스크래치에서 돌린 ruff 가 classfit 을 1st-party 로 못 봐 import 순서(I001) 두 곳을 놓쳤고, 작업 트리에서 자기 두 파일만 고쳐 커밋 전에 바로잡았다.
+16. 문서: Design 5절 6 T 칸에 T6, 3·6·9·11·20 근거 칸에 T6 결정 · spec 2절 #7 의 "session_attachment 는 세션 is_open 일 때만" 을 "수강생에게 … 일 때만" 으로 좁힘(강사 갈래로 거짓이 되므로) · #7·#8·#10 시험 이름·상태 칸.
+
+**worker-c**(산출물 scratchpad/t6-c/)
+17. 대조 실험 22 가 녹색이었다(위 리드 5 · worker-a 11 로 메움).
+18. 실험 17: 계획대로 `EXTENSIONS` 에만 `.svg` 를 넣으면 판정 단언이 아니라 `KeyError`(`_SHAPES`)로 빨개진다 — `_SHAPES` 도 함께 넣은 보조 실험 17-l 에서 판정으로 빨개짐.
+19. 실험 23: service 가 업로드 파트 content_type 을 받지 않아 변이를 세 곳(인자 추가 + 끝점에서 넘기기)에 넣었다.
+20. 실험 28·30: 계획의 "500" 대신 앱 처리기가 로그를 남긴 뒤 예외(ValueError·DataError)가 시험까지 올라와 빨개졌다.
+21. 실험 11·13·24ⓑ 의 정적 시험은 계획이 말한 ① 자체가 아니라 그 앞의 `_first(calls, "lock_course")` 전제에서 빨개진다. 실험 13 은 `reassign_then_write_403` 도, 25 는 `refuse_instructor` 도 덧붙여 빨개졌다.
+22. 첫 일괄 실행은 bash 3.2 의 `set -u` + 빈 배열로 대부분 pytest 를 돌리지 못해 다시 돌렸다(첫 판 로그는 `run1-invalid/`).
+
+**verifier**
+23. 증명 표 24행은 세 시험이 표보다 약했다(⑤ owner 파일 행 · ⑥⑦ 제목·sort) — 리뷰 반영 `7af990a` 가 보강.
+24. 교체가 커밋된 뒤 옛 바이트가 디스크에 남는지를 직접 재는 단언은 없다(swap_file 은 행만 지우고 바이트는 gc 몫, 표 기대에 없는 항목).
 
 
 
