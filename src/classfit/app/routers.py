@@ -18,6 +18,8 @@ from classfit.app.endpoints import (
     instructor_documents,
     instructors,
     invite_codes,
+    my_attachments,
+    my_course_views,
     my_courses,
     own_courses,
     pool,
@@ -52,4 +54,6 @@ ROUTERS = (
     advanced_courses.router,
     assign.router,
     my_courses.router,
+    my_attachments.router,
+    my_course_views.router,
 )
