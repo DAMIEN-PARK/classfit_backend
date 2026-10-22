@@ -11,7 +11,7 @@ URL: ""
 # Plan: T5 course-assign (from plan.md#T5, 2026-10-22)
 
 - 근거: intent [`docs/process/intents/2026-10-21-phase1-backend.md`](../process/intents/2026-10-21-phase1-backend.md)(1차에 하는 것 :42 · 빼는 것 "시안 전용 기능 5종" :64 · 일정·배정 겹침 알림 제외 :68 · E-11 동시성 5개 :34 · E-12 golden :35 · E-14 :37) · spec 절 [`docs/process/2026-10-21-phase1-backend-design.md`](../process/2026-10-21-phase1-backend-design.md) §2 강사 갈래(:58) · §4 0007 행(:88) · owner_kind 등록 순서(:95) · 다형 참조·소유자 삭제(:96) · §5 규칙 3·5·6·9·11·13·14·17·18·19(:107·:109·:110·:113·:115·:117·:118·:121·:122·:123) · 부록 A T5 3행(:166-168) · 읽는 모양(:133-136) · 태스크 [`docs/process/plan.md`](../process/plan.md) 3절 T5 행(:54) · T6 행 메모(:55). 그 밖에 [`docs/process/spec.md`](../process/spec.md) 2절 #8(:54)·#10(:56) · 3절 A2-4(:69)·A3-1(:77)·DEC-005(:87)·DEC-015(:97) · [`docs/process/adr/ADR-003-external-ports.md`](../process/adr/ADR-003-external-ports.md)(파일 내용 주소·outbox) · [`docs/requirements/2026-10-21-요구정의서.md`](../requirements/2026-10-21-요구정의서.md) 역할(:81·:83) · 권한 매트릭스(:91·:97-99) · 서버 검사(:111) · 개설 방식(:134) · COM-002(:145) · CAT-007(:173) · CRS-002(:182) · CRS-006~010(:186-190) · NTF-001(:280) · AUD-001(:283) · 데이터(:375·:378·:392) · UAT-003(:421) · UAT-005(:423) · DEC-005(:448) · r3 §3 A2 "T5 가 T2a 의 얇은 표를 ALTER 로 넓힌다"(115) · §5.2 T5 행(166) · §6 E-11·E-12·E-14(185·186·188) · 부록 A1 A3 시작점·A3 배정·I3-1(217·224) · A2-4(241) · A3-1(254) · A4 기본 강의안 자동 첨부(270) · B T5 끝점(305)·시험 세부(318) · C 0007(334)·owner_kind(340) · D 세고 넣는 경쟁(346)·시험(353)·폭발 반경(354) · [`docs/plans/T4-course-pool.md`](T4-course-pool.md)(master `461e7bd` 판 — 결정 i·ix·x·xi·xiii·xvi :30 · 표·crud :56-67 · 끝점 :85-91 · 픽스처 :109 · expected_paths :110 · T5 행 메모 :115 · 리뷰 Nit 4 `lock_capability` :279 · 계획과 다르게 한 것 :285-319) · 기획안 v3 원칙 3·13 · A3 개설·배정 · I3-1 · I4 · 7절 Session·Attachment · 8-5 알림 · `시안/관리자.html`·`시안/강사.html`·`시안/학습자.html`(외부, 미추적).
-- 승인: 
+- 승인: `7945ce3 approve: T5`(2026-10-22, 승인자 `DAMIEN-PARK`, 트레일러만, 한 번). 결정 (i)~(xxiii) 는 기본값 그대로. 승인 전 codex 외부 리뷰 4회(`0dbad3c` BLOCK 8 → `0de2219` BLOCK 6 → `974d214` OK-WITH-FIXES 2 → `e77d234` OK)를 거쳤고, approve 전에는 plan 커밋이 하나여야 해서 그때마다 plan 커밋을 고쳐 썼다(amend). 순서는 plan `e77d234` → 승인 `7945ce3` → 구현 `e8f61b9`·`87d501c`·`19e2481` → 문서 `3f61fbb` → 리뷰 반영 `6ca028b`·`e848499` → 계획 갱신이다. 가지는 master `461e7bd` 에서 땄고 sync 는 없다.
 - 승인 방법: 승인자 `DAMIEN-PARK` 이 이 가지에 `git commit --allow-empty -m "approve: T5" -m "Approved-by: DAMIEN-PARK"` 를 더한다. 그 커밋 전에는 코드 변경이 없고, 에이전트는 위 줄과 `Approved-by` 를 쓰지 않는다.
 - **T4 는 병합됐다** — master `461e7bd merge: T4 course-pool`(2026-10-22, `git log --oneline -4 master`). 병합 트리는 T4 가지 머리 `7b117d8`(구현 `5684fbf`·`7766e66`·`6305a90`·`4b350d2` → 문서 `87c37d3` → 리뷰 반영 `156c781`·`74a7546` → 계획 갱신)의 트리와 같다(`git rev-parse master^{tree} 7b117d8^{tree}` 둘 다 `458f1e5f…`). 병합 본문의 `make verify` 는 exit 0 이고 origin push 는 아직이다(사용자 몫). **가지 `T5-course-assign` 은 리드가 `461e7bd` 에서 땄다**(커밋 0, `git status --short --branch` → `## T5-course-assign`, HEAD = `461e7bd` — 이 계획 파일이 첫 커밋이 된다. plan.md 3절 T5 행에 가지 이름이 없어 slug 는 `course-assign` 으로 정했다). 병합 뒤 분기라 `sync_task.sh` 는 필요 없다(`check_task_order.sh` 는 master..가지가 `plan:` 으로 시작해야 한다).
 - **이 계획의 코드 줄은 둘로 나뉜다.** T1~T3 부품은 master `4b1fb3b` 트리에서, T4 가 만들었거나 고친 파일(`models/{pool,curriculum,__init__}.py`·`crud/{pool,capability,curriculum,pool_file,scope}.py`·`service/pool/**`·`service/files/pool_files.py`·`tests/fixtures/pool.py`·`pyproject.toml`·`tests/contracts/expected_paths.txt`·`CLAUDE.md`·Design·spec·plan.md)은 병합된 master `461e7bd` 에서 `git show 461e7bd:<경로> | cat -n`·`grep -n` 으로 다시 쟀다(리뷰 반영 `156c781`·`74a7546` 포함 — "T1~T3 부품" 칸 · "T4 부품" 칸). 병합 전 가지 머리 `7b117d8` 에서 잰 값과 한 줄도 다르지 않았다(두 트리가 같다). 작업 트리 파일은 읽지 않았다. 작업 순서 1 의 대조 스니펫은 가지 HEAD(= `461e7bd`)에서 이미 기대 출력을 냈다(결정 xxii 충족).
@@ -227,7 +227,7 @@ test "$(.venv/bin/pytest tests -q --co -k 'no_personal_keys' | grep -c '::test_n
 test "$(.venv/bin/pytest tests -q --co -k golden | grep -c '::test_golden_')" -eq 3 && .venv/bin/pytest tests -q -k golden   # E-12 T5 몫 → "3 passed"(T2a 2 + slot_count 1)
 bash scripts/golden/check.sh                        # → "golden: OK"
 .venv/bin/pytest tests/contracts/test_api_assign.py tests/contracts/test_api_open_course_start.py tests/contracts/test_api_default_material.py tests/contracts/test_api_my_courses.py -q   # → "25 passed"
-.venv/bin/pytest tests/integration/test_db_assign.py tests/integration/test_db_assign_race.py tests/unit/test_assign_rules.py tests/unit/test_schedule_rules.py -q   # → "21 passed"(8 + 8 + 2 + 3)
+.venv/bin/pytest tests/integration/test_db_assign.py tests/integration/test_db_assign_race.py tests/unit/test_assign_rules.py tests/unit/test_schedule_rules.py -q   # → "22 passed"(9 + 8 + 2 + 3 — 리뷰 반영 `e848499` 가 정적 시험 `test_assign_instructor_set_only_via_set_instructor` 를 더했다. 처음 계획은 21)
 .venv/bin/pytest tests/integration/test_db_assign_race.py -q            # 행동 동시성 여덟 → "8 passed"(교착·`lock_timeout`·23503·500 없음, 대기 관계 단언 포함)
 .venv/bin/pytest tests/integration/test_db_concurrency.py -q            # E-11 T2b 동시성은 손대지 않음 → "4 passed"
 git grep -nP 'def test_concurrent_' -- tests/integration/test_db_assign_race.py || echo "test_concurrent_ 없음"   # 새 race 파일이 E-11 접두를 쓰지 않음 → "test_concurrent_ 없음" 한 줄
@@ -331,24 +331,79 @@ rm -f "var.nosync/files/${SHA:0:2}/$SHA"; rm -rf "$tmp"; pkill -f 'uvicorn class
 
 | 기록 칸 | 값 |
 |---|---|
-| 착수 조건 결정 (i)~(xxiii) 변경 여부 · 선택 항목 선택 (approve 커밋 해시) | |
-| T4 최종 이름 대조 세 줄 출력 · 분기 시점 master 해시(`merge: T4`) · `check_task_order` 출력 | |
-| `make verify` 끝 20줄 | |
-| `alembic heads` · dev `alembic check` | |
-| E-13(76) · E-14(2) · E-12(3) · golden check · 계약 25 · 통합+단위 21 · race 8 · E-11 T2b 동시성 4 · `test_concurrent_ 없음` · `tests/integration` 전체 · T2a·T2b 회귀 · table-ok · 단일 진입 한 줄 · no-byte-copy | |
-| 증명 표 28항목 출력 | |
-| 이웃 흐름 응답(exit 0 · 201 · 201 · 배치 stderr · 409 · `$XID` · psql 두 줄 · 422 · 403 · 200 · 목록 · 포털 · 미리 보기 · 204) · 정리 psql · `port-free` | |
-| 대조 실험 31개(빨개진 시험 이름 · 단언, 11 은 ⓐ·ⓑ 두 사본 각각 · 16 은 T2b 개인 키 시험이 녹색으로 남는 것까지 · 행동 시험 실험은 `_blocked_on` 이 낸 관계 집합과 예외 종류까지) · 정리 뒤 `git status --short` | |
-| verifier 세션 · 날짜 · 판정 · 개인 키 검사(포털에 강사 이메일·전화·id 없음 · 강사 응답에 `href` 없음 · outbox params 에 본문 글자 없음) | |
-| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | |
+| 착수 조건 결정 (i)~(xxiii) 변경 여부 · 선택 항목 선택 (approve 커밋 해시) | 변경 없음((i)~(xxiii) 전부 기본). approve `7945ce3`(한 번) |
+| T4 최종 이름 대조 세 줄 출력 · 분기 시점 master 해시(`merge: T4`) · `check_task_order` 출력 | `t4-names-ok` · `69` · `0006 (head)`(HEAD `7945ce3`, approve 직후 iCloud 충돌 사본 89개를 지운 뒤 — 편차 리드 1) · master `461e7bd merge: T4 course-pool`(sync 없음) · `task order: OK`(2개 → 계획 갱신 포함 9개) |
+| `make verify` 끝 20줄 | HEAD `3f61fbb` exit 0(파이프 없이, 로그 `t5-wrap/verify.log`): `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · `============================= 352 passed in 41.08s =============================` · `OKF_PYTHON=.venv/bin/python bash scripts/okf/guard.sh docs` · `OKF guard OK`. 리뷰 반영 `e848499` 뒤 다시 exit 0 · `353 passed in 39.11s`(정적 시험 하나 추가) · `OKF guard OK`(`verify-after-nits.log`). verifier 도 `3f61fbb` 에서 exit 0 · `352 passed in 38.78s` |
+| `alembic heads` · dev `alembic check` | `0007 (head)` · dev `make migrate` 0006 → 0007 · dev `alembic check` → `No new upgrade operations detected.`(worker-a 4단계, verifier 재확인) · 새 칸 다섯은 server_default 가 없어 기존 행은 NULL(첨부는 보통 첨부) · 행 가드 없음 |
+| E-13(76) · E-14(2) · E-12(3) · golden check · 계약 25 · 통합+단위 21 · race 8 · E-11 T2b 동시성 4 · `test_concurrent_ 없음` · `tests/integration` 전체 · T2a·T2b 회귀 · table-ok · 단일 진입 한 줄 · no-byte-copy | 리드(classfit_c_test, `proof.log`): E-13 `1 passed`(expected_paths 76줄) · E-14 `count=2` → `2 passed` · E-12 `count=3` → `3 passed` · `golden: OK` · 계약 4파일 `25 passed` · 통합+단위 `21 passed`(리뷰 반영 뒤 `22 passed` = 9 + 8 + 2 + 3) · race `8 passed` · E-11 `4 passed` · `test_concurrent_ 없음` · `tests/integration` `84 passed`(리뷰 반영 뒤 85) · T2a·T2b 회귀 `45 passed` · `table-ok` 한 줄 · 단일 진입 `src/classfit/service/courses/open.py` 한 줄 · `no-byte-copy` · check_docs `docs check: OK`(④ T0a~T4 · 43행 중 26행 — 부록 A 새 행으로 42 → 43). 리뷰 반영 뒤 같은 블록 재실행도 전부 같음(`proof-after-nits.log`) |
+| 증명 표 28항목 출력 | 리드(classfit_c_test, `table28.log`): 28행의 고유 노드 38개(9·24행이 `test_default_material_curriculum_files_each_session` 을 같이 씀) 전부 `PASSED` — `38 passed`. 리뷰 반영 `e848499` 뒤 재실행도 `38 passed`. verifier 노드별 각 `1 passed`. worker-a 가 race 8 을 5회 반복해 매번 `8 passed`(`87d501c`·`e848499` 둘 다). worker-b 계약 노드 23개 각각 녹색(`19e2481`, classfit_b_test) |
+| 이웃 흐름 응답(exit 0 · 201 · 201 · 배치 stderr · 409 · `$XID` · psql 두 줄 · 422 · 403 · 200 · 목록 · 포털 · 미리 보기 · 204) · 정리 psql · `port-free` | worker-c(dev 0007, make run 백그라운드, 강사 X·P 는 T3 꼴로 준비, X 만 승인): import exit 0 · cap PUT 201 · cap file 201 · 개설 201 · 섹션 201 · 배치 stderr `[(1, 1), (1, 2)] 0` · P 배정 409 `/problems/conflict` `instructor_status` pending · X 배정 200(`$XID`) · psql 두 줄 capability_file·session_attachment, k1≠k2 · 강사 제목 PATCH 422 `["body","title"]` extra_forbidden · P 의 PATCH 403 `/problems/forbidden` · keywords·is_open 200 · 내 강의 `[(8, 1)]` · 포털 `[('open', 1, True), ('preparing', 0, False)]` · 미리 보기 `['session_assigned']`(본문에 새 제목) · DELETE 204. 정리 psql exit 0, dev 28표가 기준선과 같음(document_type 3 외 0), 바이트 0, `port-free`, uvicorn 500·Traceback 0. verifier 재실행도 같은 응답(XID 7, 내 강의 `[(9, 1)]`) |
+| 대조 실험 31개(빨개진 시험 이름 · 단언, 11 은 ⓐ·ⓑ 두 사본 각각 · 16 은 T2b 개인 키 시험이 녹색으로 남는 것까지 · 행동 시험 실험은 `_blocked_on` 이 낸 관계 집합과 예외 종류까지) · 정리 뒤 `git status --short` | worker-c(임시 clone `3f61fbb`, classfit_b_test, 대조군 대상 노드 `44 passed`, 42회 실행 모두 사본 import 확인, 변이 1회 치환, 행동 실험은 하나씩): 31개(11 은 ⓐ·ⓑ 두 사본, 합 32) **전부 빨강, 녹색 0, "장벽에 닿지 않음" 으로만 빨개진 것 0** — 1 `unapproved_409` → 200 · 2 `row_copy_same_sha_new_key` key 같음 · 3 `only_empty_sessions` materials 4 == 2 · 4 `clone_reattaches_not_copies` 관리자 강의안 남음 · 5 `clone_copies_structure` 정지 강사 남음 · 6 `other_403` → 200 · 7 `title_patch_422` → 200 · 8 `courses_list_scope` [4, 3, 1] == [4, 1] · 9 T2b `no_personal_keys_portal`·`portal_instructor_name` {'name'} · 10 `patch_session_audit_outbox` outbox 0 == 1 · 11ⓐ `lock_call_sites` "assign_rows: lock_course( 호출이 없다" · 11ⓑ 같은 시험 순서 단언 · 12 `place_in_free_slots`·`from_pool_places` · 13 `open_course_start_rejections` → 201 · 14 `outbox_preview_session_assigned` 3 == 0 · 15 `own_course_owner_only` · 16 `portal_instructor_name` {'instructor_id'}(T2b 개인 키 시험은 녹색으로 남음) · 17 race① `{'instructor'} == {'curriculum'}`(40P01) + 정적 · 18 race② gc 가 바이트를 지움(waited False) · 19 race③ `(2, 0) == (1, 1)` · 20 race④ waited False + 정적 · 21 `from_pool_rejections` → 201 · 22 `row_copy_same_sha_new_key` origin None · 23 `audit_outbox` 옛 제목 + `outbox_preview` + 정적 순서 · 24 `lock_call_sites`(T2b 첨부 시험 11 녹색) · 25 race⑤ `{'course_day'} == {'course'}`(40P01) + 정적 · 26 race⑥ waited False + 정적 · 27 race⑦ `{'session'} == {'course'}`(23503) · 28 race⑧ waited False · 29 race⑦ 뒤 절반 `changed []` + 정적 ③ · 30 `section_bulk` 키 집합 · 31 `lock_call_sites` ④ Extra 'rename_section'. 리뷰 반영 `e848499` 뒤 worker-a 가 28(바뀐 ⑧, `assert False is True` waited False)과 새 정적 시험 변이(`pool_sessions.py:77` instructor_id 키워드 · `starts.py:143·187` ** dict)를 다시 재 빨강. verifier 재측정 1·17·31 빨강. 정리 뒤 원본 `git status --short`·HEAD·`git diff --stat` 전후 같음(산출물 `scratchpad/t5-c/`) |
+| verifier 세션 · 날짜 · 판정 · 개인 키 검사(포털에 강사 이메일·전화·id 없음 · 강사 응답에 `href` 없음 · outbox params 에 본문 글자 없음) | verifier-t5(에이전트 세션, 저장소 무변경) · 2026-10-22 · **PASS — 증명 충족**(HEAD `3f61fbb`): check_task_order OK · `make verify` exit 0(`352 passed in 38.78s`, OKF guard OK) · 증명 블록 18줄 전부 exit 0 · 표 28 고유 노드 38 각각 `1 passed`, 시험 코드를 읽어 단언이 표보다 약한 곳 0 · 이웃 흐름 응답이 계획과 같음 · 재측정 1·17·31 빨강 · 평문 검사 0(IP 0, 호스트 example.com 만, `secret` 매치 둘은 코드 인용·시험 변수 이름) · dev `alembic check` 차이 없음. 개인 키: 학습자 포털은 `instructor_name` 한 칸 — 시험 16 이 허용 키 집합 `==` 와 `instructor_id`·`phone`·`email` 재귀 부재를 본다 · 강사 응답에 `href`·이메일·전화 없음(`tests/contracts/test_api_my_courses.py:318`, `schemas/my_course.py:5·66`) · 후보 목록에 이메일·전화 없음 · outbox params 는 `{instructor_id, audit_id}` 둘(`service/courses/assign.py:100`). verifier 발견 넷은 편차 verifier 1~4 |
+| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | 병합 뒤 다음 태스크(T6)의 문서 커밋에서 적는다(T2a~T4 전례). 병합 전 HEAD: ④ T0a~T4 · 43행 중 26행, T5 4행은 아직 대상 밖. 근사 `table-ok` 한 줄만 |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t5(다른 세션) · 2026-10-22 · 범위 `git diff master...3f61fbb`(461e7bd → 3f61fbb, 50파일 +6,679/−57). REVIEW.md 3패스 + CLAUDE.md Rules + 결정 (i)~(xxiii)·바뀌는 파일·증명 표 28·위험 표 대조. 시험은 돌리지 않았다(verifier 몫). 워커 편차 초안 15건 중 잘못된 선택 0. **Important 0건 · Nit 6건(표시 5)**.
+
+확인한 것: 잠금 순서(결정 xvii) — 복제 `load_clone`(잠그지 않고 읽기 → `key_share_refs` curriculum·pool_course id 오름차순 FOR KEY SHARE, `crud/materials.py:51-71` → 강사 id 오름차순 `lock_assignable`, `starts.py:69-79` → `assign_locked` 안 ⑤⑥) · 커리큘럼 시작점(`lock_curriculum` → 소유자 `lock_assignable` → `curriculum_sources`, `starts.py:91-98`) · 풀 배치(`section_in_course` → 404·409 → ② → `lock_course` → `section_in_course` 다시 → 일차 409 → `used_slots`, `pool_sessions.py:46-72`) · 배정·PATCH ③ → ④ → ⑤⑥. T2b 입장·T3 상태 전이·로그인·T4 `lock_capability`·`lock_curriculum`·파일 한 개 삭제와 쌍마다 따져 고리 없음(공유 잠금끼리 충돌 없음, T4 pool_course UPDATE 는 FOR NO KEY UPDATE). course 먼저 규약(결정 xviii) — days.py 넷(:49·77·88·120)·sections.py 여섯·attachments.py 셋이 첫 crud 호출보다 먼저 `lock_course`(PDF 는 `to_thread` 뒤), 잠근 뒤 다시 읽기(`get_session_and_course(fresh=True)`·select, `delete_attachment` 는 `DELETE … RETURNING`, `attachments.py:163-169`), 정적 시험 25함수·네 종류 단언·쓰기 함수 열거 == 열 개(`test_db_assign.py:545-737`). 바이트 유실 방지(결정 x) — capability KEY SHARE → stored_file id 오름차순 FOR SHARE, 못 잡은 원본은 `skipped_missing`(`crud/materials.py:112-157`), 사본은 `insert_stored_file` 새 key·같은 sha, `store_bytes`·`path_for` 없음. PATCH 순서 — `lock_course` → 다시 읽기 → `lock_assignable` → T2a 검사 → `apply_fields` → `assign_locked`(`sections.py:98-127`), 강사 PATCH `extra="forbid"`. 개인정보 — 포털 `instructor_name` 한 칸, 허용 키 집합 `==`·재귀 부재(`test_api_assign.py:33-50·559-595`). 권한 — 강사 갈래 `Course.id IN (배정된 세션의 강의)`(`scope.py:70-76`), 404 → 403, 새 끝점 7개 모두 AdminCaller·InstructorCaller. 0007 — 칸 넷 + `origin`, FK 넷 NO ACTION, 색인, CHECK, server_default 없음, downgrade 역순. 행동 시험 — `_pause_after` 첫 호출만, `_race_paused` cancel 뒤 gather, `_blocked_on` pg_locks tuple + relname, sleep 은 폴링에만. 그 밖 — 계약 25 단언이 표보다 약하지 않음, golden 추가만, T1~T4 시험 무수정, 교차 소유 import 없음, src 상한 안(최대 `starts.py` 225줄), 범위 밖 파일 없음.
+
+- **Nit 1 · Bugs · `service/courses/assign.py:137`** — `assign_rows` 를 운영 코드에서 부르는 곳이 없는데 행동 시험 ②③⑧·통합 셋이 그것으로 돈다. 세션 PATCH 잠금 앞부분(`sections.py:98-111`)은 두 트랜잭션 시험을 받지 않는다. → **반영** `e848499`: ⑧ `test_assign_race_assign_copy_vs_admin_link` 의 A 를 `sections.patch_session(…, SessionPatchIn(instructor_id=x), actor="admin:1")` 로 바꿈(대기 관계 `{'course'}`·사본 id < 링크 id·materials 1 그대로, `raced.first.instructor_id == x` 단언 추가). `assign_rows`·②③·통합 셋은 계획 서명이라 둠. 대조 실험 28 이 바뀐 ⑧ 을 여전히 빨갛게 함(waited False).
+- **Nit 2 · Bugs · `service/courses/materials.py:67-75` · `starts.py:160-167`** — 잠금 ⑥ "원본 stored_file id 오름차순" 은 (강사, 과정) 묶음 안에서만 참이다(묶음 사이 ⑤⑥ 이 엇갈림). 모두 공유 잠금이고 배타 쪽은 한 묶음만 건드려 고리 없음. → **반영** 문장: `crud/materials.py` 독스트링(`e848499`) · Design 5절 6(`6ca028b`). 코드는 그대로.
+- **Nit 3 · Bugs · `service/courses/assign.py:37` ↔ `sections.py:27`** — 상호 import, 함수를 직접 import 하는 꼴로 바꾸면 ImportError(lint 가 못 잡음). → **반영** 두 독스트링에 "모듈 import 꼴·속성 호출 유지" 한 줄씩(`e848499`). 코드는 그대로(정적 ③ 이 잠근 뒤 `section_in_course` 호출을 본다).
+- **Nit 4 · Security · `crud/scope.py:70-76` → `crud/enrollment.py:62` · `crud/attachment.py:104`** — 강사 갈래가 수강생 명단(이름·이메일)·첨부 목록(파일 key)의 첫 WHERE 에도 들어간다. 지금 호출자는 관리자·포털뿐이라 새지 않지만 T6 강사 끝점이 생기면 통과한다. → **반영** `course_scope`·`list_stmt`·`_listed` 독스트링 한 줄씩(`e848499`) · plan.md T6 메모 한 줄(`6ca028b`).
+- **Nit 5 · Compliance · `crud/schedule.py:4`** — "담당 강사는 `set_instructor` 로만" 이 독스트링 규약뿐이다. → **반영** `e848499`: 정적 시험 `test_assign_instructor_set_only_via_set_instructor`(src 의 `insert_session(`·`apply_fields(` 호출에 `instructor_id` 가 키워드·`**` dict·같은 파일 도우미 반환 dict·셋째 인자 dict 어느 꼴로도 없음, 모은 호출 8개 이상, `SessionIn`·`MY_SESSION_FIELDS` 에 그 칸 없음, `patch_session` 의 `pop("instructor_id")` 가 `apply_fields` 앞). 변이 둘(키워드·** dict)이 빨갛게 함.
+- (표시 안 한 Nit 6 · `app/endpoints/my_courses.py:176-188`) 세션 하나를 돌려주려고 강의 보기 전체를 다시 만든다. → **보류**(성능, 강의 하나 범위라 영향 작음. T6 강사 화면 때 함께 본다).
+
+리뷰 반영 뒤 리드 재실행: `make verify` exit 0 `353 passed in 39.11s` · 증명 블록 같음(통합+단위 22) · 표 28 노드 38 `38 passed`.
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+리드 · worker-a · worker-b · worker-c · verifier · 리뷰 반영 순. 번호는 기록용이다.
+
+**리드**
+1. approve `7945ce3` 직후 저장소에 iCloud 충돌 사본(이름 끝 ` 2`) 89개가 있었다(19:52 무렵 생김). `alembic heads` 가 0004~0006 을 두 번씩 잡아 깨졌다. 86개는 HEAD 와 바이트가 같고, 1개(`tests/integration/test_db_concurrency 2.py`)는 `ef39d0c` 판과 같고, `.venv 2`(빈 폴더)·`.git/index 2`(읽으면 EDEADLK, git 이 쓰지 않음) 둘이었다. git 에 있는 내용과 같음을 확인하고 지웠다(T2a 편차 3 전례, pyc 사본 셋 포함). 그 뒤 대조 세 줄·시험 DB 넷 0006·gate OK. 저장소를 iCloud 밖으로 옮길지는 승인자 판단으로 남는다.
+2. 승인 전 codex 외부 리뷰 4회(사용자 지시) — 1차 BLOCK 8(FK 암묵 잠금 교착·복사 바이트 유실·course 잠금 밖 쓰기·섹션 소유 확인·옛 제목·출처 버림·강사 id 누출 증명·둘째 쪽) → v3, 2차 BLOCK 6(patch_day 교착·실험 17 장벽 자리·add_session 경합·배정 대 섹션 삭제·첨부 행동 시험·skipped_missing 칸·재확인) → v4, 3차 OK-WITH-FIXES 2(복제 장벽 글자·장벽 도우미 정리) → v5, 4차(고친 두 곳만) OK. 그때마다 plan 커밋을 고쳐 썼다(`0dbad3c` → `0de2219` → `974d214` → `e77d234`).
+3. 증명 표 노드를 묶어 돌릴 때 zsh 가 변수를 낱말로 쪼개지 않고 bash 의 기본 grep 에 `-P` 가 없어, 노드 목록은 bash 배열 + `grep -E` 로 돌렸다. 표의 `…::` 는 행 9~12 처럼 앞 행과 파일이 바뀌는 곳이 있어 이름으로 정의 파일을 찾았다(고유 38 노드).
+4. 증명 블록의 통합+단위 줄을 `21 passed(8 + 8 + 2 + 3)` 에서 `22 passed(9 + 8 + 2 + 3)` 로 고쳤다 — 리뷰 반영 `e848499` 가 정적 시험 하나를 더했다. 착수 조건·바뀌는 파일 절의 시험 수(새 시험 44 · 통합 16)는 계획 시점 값으로 두며 실제는 45 · 17 이다.
+5. verifier 에게 준 평문 검사 명령 `git grep … master..HEAD` 는 git grep 이 범위를 받지 않아 실패한다(verifier 가 `git diff master..HEAD` 의 더한 줄로 대신 검사). 다음 태스크부터 지시를 고친다.
+
+**worker-a**(`e8f61b9`·`87d501c`·`e848499`)
+6. `crud/schedule.py` 에 계획에 없던 `reload_sessions(session, course_id, session_ids)` 를 더했다 — `assign_rows` 가 잠근 뒤 세션 행을 populate_existing 으로 다시 읽는 자리(그 사이 지워진·다른 강의 세션은 빠진다).
+7. golden `slot_count` 사례는 교시 수(`count`)와 교시 시간표(`times`, 시안 scSlotTimes)를 둘 다 담고 시험도 둘 다 잰다. 사례 9건.
+8. `tests/fixtures/assign.py` 의 `course_with_section(**over)`·`pool_session(**fields)`·`curriculum_with_slots(**over)` 가 계획 서명 외 키워드를 더 받는다. `pool_session` 은 `keywords=[]`·`is_open=False` 를 명시해 넣는다(server_default 칸이 만료돼 async lazy load 가 나지 않게).
+9. 후보 행은 dataclass `CandidateRow(instructor_id, name, org, recommended, assigned_sessions)`(`crud/instructor.py`).
+10. `assign.record` 는 `instructor_id` 대신 `instructor: Instructor | None` 을 받는다(outbox `to` 에 이메일이 필요).
+11. 복제·커리큘럼 시작점은 세션을 강사 없이 넣은 뒤 강사마다 `assign.assign_locked` 를 부른다 — `set_instructor` → `attach_defaults` → `record` 를 그대로 다시 써서 세션 PATCH 와 같은 audit·outbox 꼴이 된다. 커리큘럼 파일 복제는 배정 전에 `copy_sources`.
+12. `course.open` audit detail 은 `{day_count, start, source}`(복제는 원본 강의 id int, 커리큘럼은 id 글자, 빈 강의는 None)에 시작점 ②④ 면 `materials`·`skipped_missing` 을 더한다.
+13. `skipped_missing` 은 (풀 과정, 강사)마다 원본을 한 번 잠가 그 단위로 센다(같은 과정 세션이 둘이어도 사라진 원본 하나 = 1).
+14. worker-b 편의용 service 둘 `assign.candidates`(없는 강의·pool_id 404 포함)·`mine.my_courses`(목록·커서·내 세션 수)를 더했다.
+15. 404 글자: `add_section` 은 "강의가 없습니다"(course_or_404 와 같음), 섹션 함수는 "이 강의의 섹션이 없습니다", 세션 함수는 "세션이 없습니다".
+16. `test_assign_lock_call_sites` 의 쓰기 crud 이름 집합에 T5 의 `set_instructor` 를 넣었다(계획 "T5 가 그 모듈에 쓰기 함수를 더하면 이 집합에도 더한다").
+17. ruff format(py314)이 `except (A, B)` 를 PEP 758 꼴 `except A, B:` 로 바꿨다(`starts.py`, `core/passwords.py` 와 같은 꼴).
+18. 임시 clone 에서 대조 실험 17~20·25~29 를 미리 돌려 행동 시험이 가리는지 봤다(참고, 정식 기록은 worker-c).
+
+**worker-b**(`19e2481`·`3f61fbb`·`6ca028b`)
+19. 풀 과정 id 모양은 새 `PoolRef` 대신 worker-a 의 `schemas/course.TextId` 를 다시 썼다.
+20. 후보·내 강의 목록은 끝점이 crud 를 직접 부르지 않고 service(`assign.candidates`·`mine.my_courses`)를 부른다. 모양 밖 pool_id 는 끝점 `id_or_404` 가 DB 없이 404, 깨진 커서 ValueError 만 422 loc `["query","cursor"]`.
+21. 시험 보강: 풀에서 고르기 순서를 id 역순으로 줘 순서 유지 재기 · 강사 상세 시각을 관리자 일정표와 대조 · 관리자 PDF 바이트를 달리해 sha 로 섞이지 않게. 오류 글자는 단언하지 않고 type·상태·extra 칸만 잰다.
+22. `PATCH /v1/me/sessions/{id}` 응답은 `patch_my_session` 뒤 `mine.course_view` 에서 그 세션을 골라 만든다. 찾지 못하는 분기는 404 가 아니라 `RuntimeError`(서버 불일치 신호)로 둔다(리뷰 Nit 6 보류와 함께 T6 에서 본다).
+23. 문서: Design 5절 9·13·17 의 T 칸에도 T5 와 근거 · spec 2절 8번 행 시험 이름 + 상태 "T2b·T4·T5 일부", 10번 상태 "시험(T2a·T5)" · spec 3절 새 행 ④ 의 "바꾸지 않는다" → "바꾸지 않았다"(같은 커밋에서 0007 행을 고쳐 현재형이 거짓이 되므로) · Design 부록 A 에 `test_open_course_start_` 행(대응표 42 → 43).
+
+**worker-c**(산출물 `scratchpad/t5-c/`)
+24. 실험 2: `MaterialSource` 에 원본 stored_file id 칸이 없어 칸을 더해 변이를 만들었다(3곳). 첫 실패는 key 같음.
+25. 실험 3·9·16·18: 계획이 적은 단언보다 앞선 단언에서 먼저 빨개졌다(3 응답 materials · 9·16 재귀 키 단언 · 18 은 waited 단언보다 B 대기 중 gc 의 `is_file()`). 원인은 같다.
+26. 실험 17·25: 교착에서 PG 가 고른 희생자는 B(시작점·put_days)였고 A 는 커밋했다(계획 글은 A 쪽 대기로 서술).
+27. 실험 21: `add_from_pool` 안에 `section_in_course` 가 두 번(잠금 전·뒤) 있어 둘 다 바꿨다. 실험 20 은 `lock_course` 를 빼면 `slot_min` 이 없어 `get_course` 로, 실험 5·13 은 거절 강사를 `session.get(Instructor)` 로 붙였다.
+28. 실험 25~28 의 정적 시험 메시지는 함수별 순서 단언보다 앞선 ② 루프의 "lock_course( 호출이 없다" 다. 27·28 은 계획이 정적 시험을 적지 않았는데 같이 빨강을 확인했다.
+
+**verifier**
+29. 표 18 행의 쓰기 함수 열거는 `crud_*` 별칭으로 부른 쓰기 이름과 `assign_locked` 만 센다 — `session.execute(update(…))`·`session.delete` 를 직접 쓰거나 crud 함수를 이름으로 들여 쓰는 새 쓰기 함수는 걸리지 않는다(계획 범위와는 맞고 한계).
+30. 행 12 의 422 셋은 상태만 보고 loc 는 보지 않는다(표 기대 "422 셋" 과는 맞다). 이웃 흐름 준비 확인이 `/openapi.json` 을 불러 404 를 받았는데 정본은 `/v1/openapi.json` 이고 결과에 영향 없다.
+31. 병합 뒤 check_docs ④ 의 T5 4행은 병합 전이라 재지 못했다(기록 칸 마지막 행).
+
+**리뷰 반영**(`6ca028b`·`e848499`)
+32. Nit 1·2·3·4·5 반영, Nit 6 보류(리뷰 절). 정적 시험은 지시보다 넓게 잡는다 — `**` 로 넘기는 이름에 그 키를 넣는 대입·첨자 대입·update/setdefault, 같은 파일 도우미의 반환 dict, `apply_fields` 셋째 인자 dict, 그리고 dataflow 가드 셋(`SessionIn`·`MY_SESSION_FIELDS` 에 칸 없음, `patch_session` 의 `pop` 이 `apply_fields` 앞). `crud/attachment.py::_listed` 에는 독스트링이 없어 새로 달았다.
 
 
 
