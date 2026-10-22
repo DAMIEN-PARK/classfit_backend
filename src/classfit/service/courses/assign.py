@@ -15,6 +15,8 @@
 - 배정 후보(candidates, 결정 xx)는 승인 강사만, 추천(그 과정 역량 ∨ 고유 과정 소유자) 먼저. 없는 강의·pool_id 는 404,
   비활성 과정이어도 목록은 준다(이미 있는 세션의 배정).
 - crud 는 모듈 별칭으로 들여 부를 때마다 속성을 찾는다(행동 시험의 장벽 감싸개가 crud 모듈 속성에 먹게, 결정 xviii).
+- assign ↔ sections 상호 import — `from classfit.service.courses import <모듈>` 꼴과 속성 호출(sections.section_in_course)을
+  유지한다(함수를 직접 import 하면 순환 중 ImportError, T5 리뷰 Nit 3).
 """
 
 from __future__ import annotations

@@ -40,8 +40,9 @@ from classfit.models import (
     StoredFile,
 )
 from classfit.models.attachment import ATTACHMENT_ORIGINS
-from classfit.schemas.course import SessionPatchIn
+from classfit.schemas.course import SessionIn, SessionPatchIn
 from classfit.service.courses import assign, sections
+from classfit.service.courses.mine import MY_SESSION_FIELDS
 from classfit.service.courses.remove import remove_course
 from scripts import outbox_preview
 from tests.fixtures.assign import (
@@ -735,6 +736,187 @@ def test_assign_lock_call_sites() -> None:
     assert writers == SCHEDULE_WRITERS
     assert set(helpers) == {"_follow_period"}, helpers
     assert helpers["_follow_period"] <= SCHEDULE_WRITERS, helpers
+
+
+# ── 담당 강사는 set_instructor 로만(crud/schedule.py 독스트링 · T5 리뷰 Nit 5)
+SESSION_SINKS = {
+    "insert_session",
+    "apply_fields",
+}  # 세션 칸을 쓰는 crud.schedule 함수(정의는 crud/schedule.py)
+
+
+def _schedule_names(tree: ast.Module) -> tuple[set[str], set[str]]:
+    """(crud.schedule 모듈을 가리키는 이름, crud.schedule 에서 직접 들인 SESSION_SINKS 함수 이름)."""
+    modules: set[str] = set()
+    funcs: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "classfit.crud":
+            modules |= {a.asname or a.name for a in node.names if a.name == "schedule"}
+        elif (
+            isinstance(node, ast.ImportFrom) and node.module == "classfit.crud.schedule"
+        ):
+            funcs |= {a.asname or a.name for a in node.names if a.name in SESSION_SINKS}
+        elif isinstance(node, ast.Import):
+            modules |= {
+                a.asname
+                for a in node.names
+                if a.name == "classfit.crud.schedule" and a.asname
+            }
+    return modules, funcs
+
+
+def _dict_keys(node: ast.AST) -> set[str]:
+    """dict 리터럴·dict(…) 호출이 넣는 글자 키."""
+    if isinstance(node, ast.Dict):
+        return {
+            k.value
+            for k in node.keys
+            if isinstance(k, ast.Constant) and isinstance(k.value, str)
+        }
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "dict"
+    ):
+        return {kw.arg for kw in node.keywords if kw.arg} | {
+            key for arg in node.args for key in _dict_keys(arg)
+        }
+    return set()
+
+
+def _puts_instructor(scope: ast.AST, name: str) -> bool:
+    """scope 안에서 name 이라는 dict 에 instructor_id 키를 넣는 꼴(대입 · 첨자 대입 · update · setdefault)."""
+    for node in ast.walk(scope):
+        if isinstance(node, ast.Assign | ast.AnnAssign | ast.AugAssign):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for t in targets:
+                if (
+                    isinstance(t, ast.Name)
+                    and t.id == name
+                    and node.value is not None
+                    and "instructor_id" in _dict_keys(node.value)
+                ):
+                    return True
+                if (
+                    isinstance(t, ast.Subscript)
+                    and isinstance(t.value, ast.Name)
+                    and t.value.id == name
+                    and isinstance(t.slice, ast.Constant)
+                    and t.slice.value == "instructor_id"
+                ):
+                    return True
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == name
+            and node.func.attr in {"update", "setdefault", "__setitem__"}
+        ):
+            keys = {kw.arg for kw in node.keywords if kw.arg}
+            for arg in node.args:
+                keys |= _dict_keys(arg)
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    keys.add(arg.value)
+            if "instructor_id" in keys:
+                return True
+    return False
+
+
+def _returns_instructor(tree: ast.Module, function: str) -> bool:
+    """같은 모듈 함수 function 이 instructor_id 키가 든 dict 를 돌려주는가(**_place(…) 꼴)."""
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+            and node.name == function
+        ):
+            for ret in ast.walk(node):
+                if (
+                    isinstance(ret, ast.Return)
+                    and ret.value is not None
+                    and "instructor_id" in _dict_keys(ret.value)
+                ):
+                    return True
+    return False
+
+
+def test_assign_instructor_set_only_via_set_instructor() -> None:
+    """src 의 insert_session(·apply_fields( 호출(crud.schedule 것)이 instructor_id 를 넘기지 않는다 — 키워드로도,
+    ** 로 넘기는 dict·같은 파일 도우미의 반환 dict 에 그 키를 넣어서도. 담당 강사는 set_instructor 하나로만 바뀌어
+    배정 audit·outbox·기본 강의안을 건너뛰지 못한다. 정의 쪽 crud/schedule.py 는 뺀다."""
+    found: list[str] = []
+    bad: list[str] = []
+    for path in sorted(SRC.rglob("*.py")):
+        rel = path.relative_to(SRC).as_posix()
+        if rel == "crud/schedule.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        modules, funcs = _schedule_names(tree)
+        scopes = [
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+        ]
+        for scope in scopes:
+            for node in ast.walk(scope):
+                if not isinstance(node, ast.Call):
+                    continue
+                f = node.func
+                sink = (
+                    isinstance(f, ast.Attribute)
+                    and isinstance(f.value, ast.Name)
+                    and f.value.id in modules
+                    and f.attr in SESSION_SINKS
+                ) or (isinstance(f, ast.Name) and f.id in funcs)
+                if not sink:
+                    continue
+                where = f"{rel}:{node.lineno}"
+                found.append(where)
+                for kw in node.keywords:
+                    if kw.arg == "instructor_id":
+                        bad.append(f"{where} 키워드")
+                    elif kw.arg is None and (
+                        "instructor_id" in _dict_keys(kw.value)
+                        or (
+                            isinstance(kw.value, ast.Name)
+                            and _puts_instructor(scope, kw.value.id)
+                        )
+                        or (
+                            isinstance(kw.value, ast.Call)
+                            and isinstance(kw.value.func, ast.Name)
+                            and _returns_instructor(tree, kw.value.func.id)
+                        )
+                    ):
+                        bad.append(f"{where} ** dict")
+                for arg in node.args[
+                    2:
+                ]:  # apply_fields(session, row, fields) 의 fields
+                    if "instructor_id" in _dict_keys(arg) or (
+                        isinstance(arg, ast.Name) and _puts_instructor(scope, arg.id)
+                    ):
+                        bad.append(f"{where} 칸 dict")
+    assert len(found) >= 8, (
+        found
+    )  # 지금 sections 3 · days 1 · mine 1 · pool_sessions 1 · starts 2
+    assert bad == [], bad
+
+    # 본문 모델이 그 키를 실어 오는 꼴: SessionIn·강사 PATCH 칸에는 없고, 관리자 SessionPatchIn 에는 있어
+    # sections.patch_session 이 apply_fields 앞에서 pop 한다(그 뒤 assign_locked 가 기록한다)
+    assert "instructor_id" not in SessionIn.model_fields
+    assert "instructor_id" not in MY_SESSION_FIELDS
+    assert "instructor_id" in SessionPatchIn.model_fields
+    patch = _function("service/courses/sections.py", "patch_session")
+    pops = [
+        n.lineno
+        for n in ast.walk(patch)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "pop"
+        and n.args
+        and isinstance(n.args[0], ast.Constant)
+        and n.args[0].value == "instructor_id"
+    ]
+    applies = [line for _, name, line, _ in _calls(patch) if name == "apply_fields"]
+    assert pops and applies and min(pops) < min(applies), (pops, applies)
 
 
 async def test_assign_outbox_preview_session_assigned(

@@ -95,6 +95,8 @@ async def counts_by_session(
 
 
 def _listed(subject: Subject) -> Select[Any]:
+    """첨부 목록의 바탕(첫 WHERE course_scope). 강사 주체로 부르지 않는다 — 첨부 key 가 course_scope 강사 갈래 범위를
+    그대로 통과한다(T6 에서 강사 화면이 필요하면 따로 정한다, T5 리뷰 Nit 4)."""
     return (
         select(SessionAttachment, StoredFile.key, StoredFile.size)
         .join(CourseSession, CourseSession.id == SessionAttachment.session_id)

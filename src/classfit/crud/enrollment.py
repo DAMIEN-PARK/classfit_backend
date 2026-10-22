@@ -55,7 +55,11 @@ async def has_enrollments(session: AsyncSession, course_id: int) -> bool:
 
 
 def list_stmt(subject: Subject, course_id: int) -> Select[tuple[Enrollment]]:
-    """그 강의의 명단(crud.page.keyset_page 에 넘긴다). 행마다 row.learner.email 을 읽을 수 있다."""
+    """그 강의의 명단(crud.page.keyset_page 에 넘긴다). 행마다 row.learner.email 을 읽을 수 있다.
+
+    강사 주체로 부르지 않는다 — 명단 PII(이름·이메일)가 course_scope 강사 갈래 범위를 그대로 통과한다
+    (T6 에서 강사 화면이 필요하면 따로 정한다, T5 리뷰 Nit 4).
+    """
     return (
         select(Enrollment)
         .join(Course, Course.id == Enrollment.course_id)

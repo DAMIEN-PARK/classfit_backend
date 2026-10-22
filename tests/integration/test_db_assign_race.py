@@ -48,7 +48,13 @@ from classfit.models import (
     SessionAttachment,
     StoredFile,
 )
-from classfit.schemas.course import CourseOpenIn, DayPatchIn, DaysPutIn, SessionIn
+from classfit.schemas.course import (
+    CourseOpenIn,
+    DayPatchIn,
+    DaysPutIn,
+    SessionIn,
+    SessionPatchIn,
+)
 from classfit.service.courses import assign, days, pool_sessions, sections
 from classfit.service.courses.open import open_course
 from classfit.service.files.attachments import add_link_attachment
@@ -699,29 +705,25 @@ async def test_assign_race_section_assign_vs_remove_section(
 async def test_assign_race_assign_copy_vs_admin_link(
     factory: Factory, committing: AsyncEngine, tmp_path: Path
 ) -> None:
-    """⑧ 배정(A)이 "첨부 0개" 를 보고 사본을 붙인 뒤 커밋 전인 사이 관리자 링크(B) → B 는 강의 행에서 기다렸다 뒤에 붙는다
-    (직렬 순서 "배정 → 링크" 와 같다)."""
+    """⑧ 세션 PATCH 배정(A, 운영 문 sections.patch_session)이 "첨부 0개" 를 보고 사본을 붙인 뒤 커밋 전인 사이 관리자 링크(B)
+    → B 는 강의 행에서 기다렸다 뒤에 붙는다(직렬 순서 "배정 → 링크" 와 같다). PATCH 잠금 앞부분(강의 잠금 → 세션 다시
+    읽기 → 강사 잠금)을 두 트랜잭션으로 잰다(T5 리뷰 Nit 1)."""
 
-    async def seed(s: AsyncSession) -> tuple[int, int, int]:
+    async def seed(s: AsyncSession) -> tuple[int, int]:
         x = await _approved(s, "race8-x@example.com")
         pool = await make_pool_course(s, source="ax")
         await capability_files(
             s, tmp_path, instructor_id=x, pool_id=pool.id, kinds=("pdf",)
         )
-        course, section = await course_with_section(s)
+        _, section = await course_with_section(s)
         row = await pool_session(s, section_id=section.id, pool_id=pool.id)
-        return x, course.id, row.id
+        return x, row.id
 
-    x, course_id, sid = await _seed(factory, seed)
+    x, sid = await _seed(factory, seed)
 
-    async def copy(s: AsyncSession) -> assign.AssignResult:
-        return await assign.assign_rows(
-            s,
-            course_id=course_id,
-            rows=[await _row(s, sid)],
-            instructor_id=x,
-            actor="admin:1",
-        )
+    async def copy(s: AsyncSession) -> CourseSession:
+        body = SessionPatchIn(instructor_id=x)
+        return await sections.patch_session(s, sid, body, actor="admin:1")
 
     async def link(s: AsyncSession) -> SessionAttachment:
         return await add_link_attachment(
@@ -737,6 +739,7 @@ async def test_assign_race_assign_copy_vs_admin_link(
     assert raced.waited is True
     assert raced.blocked == {"course"}
     _ok(raced)
+    assert raced.first.instructor_id == x
     async with factory() as s:
         rows = (
             await s.execute(

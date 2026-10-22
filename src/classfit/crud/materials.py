@@ -7,6 +7,9 @@
 - 원본은 복사가 커밋될 때까지 잠근다(codex 1차 #2): ⓐ 역량이면 capability 행 FOR KEY SHARE(역량 삭제·역량 파일
   올리기의 lock_capability FOR UPDATE 와 줄 선다) ⓑ 원본 stored_file 행을 id 오름차순 FOR SHARE(삭제와 충돌).
   잠그려는 순간 이미 지워진 행은 PG 가 돌려주지 않는다 — 고른 id 와 잠근 id 의 차이를 skipped_missing 으로 센다.
+- 잠금 ⑤⑥ 의 순서는 (강사, 과정) 묶음마다 capability → 원본 stored_file id 오름차순이다(pool_sources 한 번이 한 묶음).
+  일괄 배정·복제처럼 묶음이 여럿이면 묶음 사이 순서는 섞일 수 있으나, 여기 잠금은 모두 공유 잠금이고 배타 쪽(역량 삭제
+  lock_capability · 풀 파일 한 개 삭제)은 한 묶음만 건드려 고리가 생기지 않는다(T5 리뷰 Nit 2).
 - 세션 행을 넣는 경로는 FK 검사가 잡을 참조 행(curriculum → pool_course)을 강사보다 먼저 id 순으로 잡는다
   (key_share_refs, 결정 xvii ①②). 잠금 꼴: FOR KEY SHARE = with_for_update(read=True, key_share=True),
   FOR SHARE = with_for_update(read=True).

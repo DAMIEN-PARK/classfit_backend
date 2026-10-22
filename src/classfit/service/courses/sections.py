@@ -12,6 +12,8 @@
 - 세션 PATCH 의 instructor_id(T5 결정 vii): 잠금 안에서 PATCH 전체를 검증·적용한 뒤 assign.assign_locked 가 배정·
   기본 강의안·audit·outbox 를 쓴다(그래서 기록의 세션 제목은 이번 PATCH 가 준 새 제목이다). apply_fields 로
   instructor_id 를 직접 쓰지 않는다.
+- sections ↔ assign 상호 import — `from classfit.service.courses import <모듈>` 꼴과 속성 호출(assign.assign_locked)을
+  유지한다(함수를 직접 import 하면 순환 중 ImportError, T5 리뷰 Nit 3).
 """
 
 from __future__ import annotations

@@ -62,7 +62,11 @@ OwnerCheck = Callable[[AsyncSession, Subject, int], Awaitable[bool]]
 
 def course_scope(subject: Subject) -> ColumnElement[bool]:
     """강의 목록의 첫 WHERE(Design 5절 3). 관리자는 전부, 수강생은 자기 강의 하나, 강사는 세션 하나라도 배정된 강의,
-    그 밖은 기본 거절."""
+    그 밖은 기본 거절.
+
+    수강생 명단(crud.enrollment.list_stmt)·첨부 목록(crud.attachment._listed)은 강사 주체로 부르지 않는다 — 명단 PII
+    (이름·이메일)·첨부 key 가 강사 갈래 범위를 그대로 통과한다(T6 에서 강사 화면이 필요하면 따로 정한다, T5 리뷰 Nit 4).
+    """
     if subject.type == "admin":
         return true()
     if subject.type == "learner" and subject.course_id is not None:
