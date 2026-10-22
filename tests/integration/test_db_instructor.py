@@ -1,11 +1,15 @@
 """강사 표(0005, Design 부록 A T3): 이메일 유일(lower) · 반려 ⇔ 사유 CHECK · 태그 유일 · 서류 종류당 1 · 서류 시드 ·
-인증 요청 이메일당 열린 1행 · 발송 시각 issued_at. 라이브 PG.
+인증 요청 이메일당 열린 1행 · 발송 시각 issued_at · 강사 단일 진입 · 상태 판정 잠금 자리. 라이브 PG.
 
 alembic check 는 CHECK·시드를 비교하지 않으므로 여기서 잰다. 행은 crud·service 로 직접 만든다(HTTP 픽스처 없음).
+단일 진입·잠금 자리 시험은 src 를 읽는다(정의 줄 제외 · ast). 잠금이 실제로 줄 세우는지는 재지 않는다(T3 결정 xix 기본).
 """
 
 from __future__ import annotations
 
+import ast
+import re
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -27,8 +31,10 @@ from classfit.models import (
 )
 from classfit.service.auth.email_code import issue_email_code
 
+SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
 UNIQUE_VIOLATION = "23505"
 CHECK_VIOLATION = "23514"
+_DEFINITION = re.compile(r"^\s*(async\s+def|def|class)\s")
 
 
 def _fields(email: str, **over: Any) -> dict[str, Any]:
@@ -203,3 +209,52 @@ async def test_instructor_email_code_issue_sets_issued_at(
     assert past is not None and renewed is not None
     assert renewed > past
     assert renewed == filled
+
+
+def _callers(pattern: str) -> list[str]:
+    """src 에서 pattern 이 정의 줄 밖에 나오는 파일(classfit 기준 경로)."""
+    rx = re.compile(pattern)
+    found = []
+    for path in sorted(SRC.rglob("*.py")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if any(rx.search(line) for line in lines if not _DEFINITION.match(line)):
+            found.append(path.relative_to(SRC).as_posix())
+    return found
+
+
+def _calls_in(relpath: str, function: str) -> list[str]:
+    """그 파일의 그 함수 본문에서 부르는 이름(f(…) 의 f, x.f(…) 의 f)."""
+    tree = ast.parse((SRC / relpath).read_text(encoding="utf-8"))
+    (body,) = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name == function
+    ]
+    names = []
+    for node in ast.walk(body):
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Attribute):
+                names.append(func.attr)
+            elif isinstance(func, ast.Name):
+                names.append(func.id)
+    return names
+
+
+def test_instructor_created_only_in_signup() -> None:
+    assert _callers(r"\binsert_instructor\(") == ["service/instructors/signup.py"]
+    assert _callers(r"\bInstructor\(") == ["crud/instructor.py"]
+
+
+def test_instructor_status_lock_call_sites() -> None:
+    sites = {
+        ("service/instructors/status.py", "transition"),
+        ("service/instructors/profile.py", "reapply"),
+        ("service/auth/login.py", "instructor_login"),
+    }
+    for relpath, function in sorted(sites):
+        calls = _calls_in(relpath, function)
+        assert calls.count("lock_instructor") >= 1, (relpath, function, calls)
+    lock = _calls_in("crud/instructor.py", "lock_instructor")
+    assert "with_for_update" in lock, lock

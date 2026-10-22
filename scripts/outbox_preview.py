@@ -2,6 +2,9 @@
 
 - 1차에는 메일을 보내지 않는다(ADR-003 결정 5). 본문은 이 명령으로 본다.
 - kind 마다 본문을 만든다. `email_code` 는 issue_email_code() 를 부른다(인증 코드를 만드는 곳은 그 함수 하나).
+- `instructor_approved`·`instructor_rejected`(T3)는 params {instructor_id, audit_id} 로 강사 이름과 반려 사유를 읽는다.
+  사유는 강사 행이 아니라 그 audit 행의 detail.reason(불변 스냅샷)이다 — 재신청이 행의 사유를 비워도 본문은 같다.
+  사유 칸이 비면 빈 글자로 찍는다. 강사·audit 행이 없거나 audit 이 그 강사의 것이 아니면 3 이다.
 - 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 코드 자리는 `******` 로 가리고 "무효 코드(미리 보기)" 라고 찍는다.
   실제 숫자는 `--apply` 때만 stdout 에 나온다.
 - `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다.
@@ -21,9 +24,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from classfit.core.config import get_settings
-from classfit.core.errors import DomainError
+from classfit.core.errors import DomainError, NotFound
 from classfit.crud.outbox import mark_sent, unsent
 from classfit.database.session import make_engine, make_session_factory
+from classfit.models import AuditLog, Instructor
 from classfit.service.auth.email_code import issue_email_code
 
 PREVIEW_CODE = "무효 코드(미리 보기)"
@@ -37,9 +41,41 @@ async def _email_code(
     return f"인증 코드: {code if reveal else MASK}"
 
 
+async def _instructor(session: AsyncSession, params: dict[str, Any]) -> Instructor:
+    row = await session.get(Instructor, int(params["instructor_id"]))
+    if row is None:
+        raise NotFound("강사가 없습니다")
+    return row
+
+
+async def _instructor_approved(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
+    row = await _instructor(session, params)
+    return f"{row.name} 강사님, 가입이 승인되었습니다. 로그인해 프로필과 서류를 확인하세요."
+
+
+async def _instructor_rejected(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
+    row = await _instructor(session, params)
+    audit = await session.get(AuditLog, int(params["audit_id"]))
+    if audit is None:
+        raise NotFound("audit 행이 없습니다")
+    if (audit.target_type, audit.target_id) != ("instructor", str(row.id)):
+        raise ValueError("audit 행이 그 강사의 것이 아니다")
+    reason = audit.detail.get("reason") or ""
+    return (
+        f"{row.name} 강사님, 가입 신청이 반려되었습니다. 사유: {reason}\n"
+        "프로필을 고친 뒤 다시 신청할 수 있습니다."
+    )
+
+
 # (session, params, reveal) → 본문. reveal 은 --apply 일 때만 참이다(미리 보기의 코드는 무효라 가린다)
 RENDERERS: dict[str, Callable[[AsyncSession, dict[str, Any], bool], Awaitable[str]]] = {
     "email_code": _email_code,
+    "instructor_approved": _instructor_approved,
+    "instructor_rejected": _instructor_rejected,
 }
 CODE_KINDS = frozenset({"email_code"})
 
