@@ -11,7 +11,7 @@ URL: ""
 # Plan: T2b enter-portal (from plan.md#T2b, 2026-10-22)
 
 - 근거: intent [`docs/process/intents/2026-10-21-phase1-backend.md`](../process/intents/2026-10-21-phase1-backend.md) · spec 절 [`docs/process/2026-10-21-phase1-backend-design.md`](../process/2026-10-21-phase1-backend-design.md) §1 수명(수강생 세션 1일 · 초대코드 만료) · §2 수강생 갈래 · §4 0004 행 · §5 규칙 3·6·9·10·11·13·14·18·19 · 부록 A T2b 7행 · 태스크 [`docs/process/plan.md`](../process/plan.md) 3절 T2b 행. 그 밖에 [`docs/process/adr/ADR-002-learner-session.md`](../process/adr/ADR-002-learner-session.md)(결정 1~5) · [`docs/process/adr/ADR-003-external-ports.md`](../process/adr/ADR-003-external-ports.md) · r3 §1(H-3 python-multipart) · §5.2 T2b 행 · §6 E-8·E-10·E-11·E-13·E-14 · 부록 A2 3·4행 · A4 초대코드 검증·파일 접근·준비 중 카드 행 · A5 P3 행 · B T2b · C(0004 · owner_kind 등록 순서 · 소유자 삭제) · D(동시성 픽스처 · 폭발 반경) · F 학습자 사칭·이름 덮어쓰기·무차별 대입·경쟁 행 · 기획안 v3 원칙 5 · 5-4 · P3 · I4 · L1 · 7절(외부, 미추적).
-- 승인: 
+- 승인: `f636ce9 approve: T2b`(2026-10-22, 승인자 `DAMIEN-PARK`, 트레일러만). 결정 (i)~(xiv) 는 기본값 그대로((xiii) 기본 = 로그인 잠금 시험 포함 4 passed · (xiv) 기본 = 입장 무차별 대입 기록 없음). 이 커밋이 python-multipart 추가 승인을 겸했다. 순서는 plan `f047294` → 승인 `f636ce9` → sync `f3fcabc` → 구현 `dbb8706`·`2a90c24`·`7b01baa`·`ddee125`·`3dcc1cf` → 문서 `0118897` → 계획 갱신이다.
 - 승인 방법: 승인자 `DAMIEN-PARK` 이 이 가지에 `git commit --allow-empty -m "approve: T2b" -m "Approved-by: DAMIEN-PARK"` 를 더한다. 그 커밋 전에는 코드 변경이 없고, 에이전트는 위 줄과 `Approved-by` 를 쓰지 않는다.
 - 가지 `T2b-enter-portal` 은 T2a 머리에서 딴다. 작성 시점(2026-10-22) T2a 가지 머리는 `a762cb4 T2a: 계획 갱신 — 승인 칸·워커 소유·기록 칸·리뷰 절·계획과 다르게 한 것`(구현 5커밋 `1fc87af`~`ed47643` · 리뷰 반영 `151e1ee` · 계획 갱신), master 는 `74f0441 merge: T1 common-base` 다.
 - **이 계획은 T2a 가지 `a762cb4`(코드는 리뷰 반영 `151e1ee`) 기준이다. 커밋이 더 붙으면 plan 커밋 전에 리드가 작업 순서 1 의 대조 명령으로 다시 맞춘다.** 전제한 T2a 이름은 클래스 `Course`·`CourseDay`·`Section`·`CourseSession`·`InviteCode` · `open_course`·`issue_invite_code`·`reissue_invite_code`·`pause_invite_code`·`resume_invite_code`·`update_invite_code`·`schedule_of`·`remove_section`·`remove_session` · `course_status_at`·`code_state_at`·`INVITE_ALPHABET` · `course_scope` · `get_course`·`delete_course`·`get_live_code`·`update_code`·`get_session_and_course`·`list_sections`·`list_sessions` · 픽스처 `open_test_course`·`admin_headers`·`learner_headers` · 끝점 경로다.
@@ -41,7 +41,12 @@ URL: ""
 
 ## 바뀌는 파일
 
-레인 A, 워커 하나다. 나누면 이 머리에 소유 파일을 적고, 다른 워커 산출물에 기대는 시험·기대 파일(expected_paths · 계약 ②)은 그 산출물 커밋 뒤에 커밋한다(T1 리뷰 Important 1). 경로는 `src/classfit/` 아래 종류 우선 폴더다.
+**실행 소유(2026-10-22)**: 계획은 "레인 A, 워커 하나" 였으나 T1·T2a 전례와 사용자 지시("승인을 몰아서 빠르게")대로 워커 2명(opus)으로 나눴다. 리드가 작업 순서 2(sync `f3fcabc`)·4(의존성 `dbb8706`)·10(검증)을 맡았다.
+- **worker-a**(5 → 8 → 9): `core/config.py` · `alembic/versions/0004_enter_portal.py` · `models/{learner,attachment,__init__}.py` · `crud/{learner,enrollment,attachment,course,auth,invite_code,scope}.py` · `tests/integration/test_db_enroll.py` → `2a90c24 T2b: 0004 마이그레이션·모델·crud` / `tests/integration/test_db_concurrency.py`(+ test_db_enroll 좁힘) → `ddee125 T2b: 동시성 시험 — 정원·재발급·옛 코드·로그인 잠금`(B 6단계 뒤) / `docs/process/{plan,spec}.md` · Design · intent · `CLAUDE.md` · plans/T0b·T2a 기록 칸 → `0118897 T2b: 문서 — plan·spec·Design·intent·CLAUDE.md`(B 7단계 뒤). 시험 DB `classfit_test`, dev `classfit_dev`.
+- **worker-b**(6 → 7): `service/rules/{invite,portal}.py` · `service/enroll/**` · `service/courses/{portal,remove,codes,sections}.py` · `service/files/attachments.py` · `pyproject.toml` 계약 ② · `tests/unit/test_enter_rules.py` → `7b01baa T2b: service — 입장·포털·첨부·잠금, 계약 ② enroll`(A 5단계 뒤) / `schemas/{enter,portal,attachment,enrollment}.py` · `app/deps.py` · `app/endpoints/{enter,portal,attachments,enrollments,courses}.py` · `app/routers.py` · `tests/contracts/expected_paths.txt` · `tests/fixtures/enter.py` · `tests/contracts/test_api_{enter,portal,attachments,enrollments}.py` → `3dcc1cf T2b: 끝점·계약 시험`. 시험 DB `classfit_c_test`(이 태스크에서 새로 만듦).
+- **worker-c**(이웃 흐름 · 대조 실험 9, 저장소 무변경) · **verifier-t2b** · **reviewer-t2b**(다른 세션). 다른 워커 산출물에 기대는 커밋은 그 산출물 커밋 뒤에 했다(5 → 6 → 7, 6 → 8, 7 → 9).
+
+원문: 레인 A, 워커 하나다. 나누면 이 머리에 소유 파일을 적고, 다른 워커 산출물에 기대는 시험·기대 파일(expected_paths · 계약 ②)은 그 산출물 커밋 뒤에 커밋한다(T1 리뷰 Important 1). 경로는 `src/classfit/` 아래 종류 우선 폴더다.
 
 **의존성 · 설정**
 - `requirements.in` (modify): `python-multipart` 한 줄. `requirements.txt` (modify): `make lock` 산출물, 늘어난 행은 python-multipart 하나여야 한다. `requirements-dev.txt` 는 변경 0 기대.
@@ -248,25 +253,69 @@ SHA=$(shasum -a 256 "$tmp/a.pdf" | cut -d' ' -f1); rm -f "var.nosync/files/${SHA
 
 | 기록 칸 | 값 |
 |---|---|
-| 착수 조건 결정 (i)~(xiv) 변경 여부 · (xiii)·(xiv) 선택 (approve 커밋 해시 · python-multipart 승인 겸함) | |
-| T2a 최종 이름 대조 세 줄 출력 · sync 커밋 해시 · `check_task_order` 출력 | |
-| `requirements.txt` diff 행 · python-multipart 판 | |
-| `make verify` 끝 20줄 | |
-| `alembic heads` · dev `alembic check` | |
-| E-10 수집 수 · E-11 · E-13 · E-14 출력 | |
-| 증명 표 22항목 출력 | |
-| 이웃 흐름 응답(200 · 201 · stderr 줄 · 200 · open · 200 · 403 · 422 · 409 · 204 · 404) · `port-free` | |
-| 대조 실험 9개(빨개진 시험 이름 · 단언) · 정리 뒤 `git status --short` | |
-| verifier 세션 · 날짜 · 판정 | |
-| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | |
+| 착수 조건 결정 (i)~(xiv) 변경 여부 · (xiii)·(xiv) 선택 (approve 커밋 해시 · python-multipart 승인 겸함) | 변경 없음. (xiii) 기본(로그인 잠금 시험 포함, E-11 4 passed) · (xiv) 기본. approve `f636ce9`(python-multipart 승인 겸함). r3 §6 E-11 기대값은 리드가 "5 passed"(T2b 시점 4 · T8 뒤 5)로 고침(gitignore) |
+| T2a 최종 이름 대조 세 줄 출력 · sync 커밋 해시 · `check_task_order` 출력 | `t2a-names-ok` · `22` · `1`(f047294·f3fcabc 시점, a762cb4 와 같음) · sync `f3fcabc`(master c46660e → 가지) · `task order: OK`(master..가지 3개 → 계획 갱신 포함 11개) |
+| `requirements.txt` diff 행 · python-multipart 판 | `+python-multipart==0.0.32` 한 줄(`make lock`), `requirements-dev.txt` 변경 0, `import python_multipart` → `0.0.32`. 커밋 `dbb8706` |
+| `make verify` 끝 20줄 | HEAD `0118897` exit 0(파이프 없이, 로그 파일): `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · 시험 파일 목록 끝 `tests/unit/test_status_rules.py ..... [100%]` · `============================= 178 passed in 7.19s ==============================` · `OKF_PYTHON=.venv/bin/python bash scripts/okf/guard.sh docs` · `OKF guard OK`. T2a 121 → 178 passed(failed·error·skipped 0). 리뷰 반영 `5a1a3ed` 뒤 재실행 exit 0 `179 passed in 7.45s`(로그 t2b-wrap/verify-after-nits.log) |
+| `alembic heads` · dev `alembic check` | `0004 (head)` · dev `make migrate` → `Running upgrade 0003 -> 0004`(learner 세션 행 0, 정리 불필요) · dev `alembic check` → `No new upgrade operations detected.` · 0004 가드 실측(classfit_test: 0003 + 수강생 세션 1행 → "0004 중단 - learner 표가 없던 때의 수강생 auth_session 행 1 개", 지운 뒤 통과, downgrade 0003 왕복 통과) |
+| E-10 수집 수 · E-11 · E-13 · E-14 출력 | E-10 `count=13` → `18 passed` · E-11 `4 passed`(worker-a 세 번 연달아 1.48s·1.20s·1.23s, 리드 1.23s) · E-13 `1 passed`(expected_paths 30줄) · E-14 `count=1` → `1 passed, 177 deselected` |
+| 증명 표 22항목 출력 | 1~18·20~22 각 `1 passed`, 19 `3 passed, 4 deselected`(리드, classfit_c_test; worker-b 도 1~13·18~22 노드별 exit 0) |
+| 이웃 흐름 응답(200 · 201 · stderr 줄 · 200 · open · 200 · 403 · 422 · 409 · 204 · 404) · `port-free` | worker-c(dev, make run 백그라운드, create_admin 은 expect): 로그인 200 · 강의 201 · 섹션·세션 201 · PATCH 200 · 첨부 201 · **입장 201 stderr `False 김가명`**(expires_at 24h 뒤) · 소문자 코드 재입장 200(name 김가명 유지) · 포털 stderr `open` + href 200(바이트 동일) · 다른 강의 포털 403 `/problems/forbidden` · 혼동 문자 422 `/problems/invite-code-confusable` · 강의 DELETE 409 `/problems/conflict` · 첨부 DELETE 204 · 옛 href 404 · 정리 psql exit 0 · `port-free`. uvicorn 500·Traceback 0, 정리 뒤 dev 행 전부 0 |
+| 대조 실험 9개(빨개진 시험 이름 · 단언) · 정리 뒤 `git status --short` | 9/9 빨강(임시 clone, classfit_b_test, 대조군 9 passed): 1 `test_concurrent_enroll_capacity` `('created', False) == ('full', True)` · 2 `test_concurrent_reissue_one_live` B 23505 → Conflict 409 · 3 `test_cross_course_portal_403` `200 == 403` · 4 `test_enrollment_name_isolated` A 명단 `'이가명' != '김가명'` · 5 `test_portal_locked_attachments_403` href `200 == 403` · 6 `test_admin_attachment_delete_removes_file_row` StoredFile `1 == 0` · 7 `test_concurrent_login_failures_serialized` `('failed', False) == ('locked', True)` · 8 `test_concurrent_reissue_then_enter_old_code_404` `('created', True) == ('not_found', True)` · 9 `test_courses_delete_clears_course_sessions` `ForeignKeyViolation fk_auth_session_course_id_course`(23503, 계약 client 는 raise_app_exceptions 라 예외로 드러남). 정리 뒤 `git status --short` 실험 전과 같음(미추적 4개) |
+| verifier 세션 · 날짜 · 판정 | verifier-t2b(에이전트 세션, 저장소 무변경) · 2026-10-22 · **PASS — 증명 충족**: check_task_order OK(9개) · `make verify` exit 0(`178 passed in 8.03s`, OKF guard OK) · 증명 블록(E-8·E-10 13→18·E-11 4 passed ×6·E-13 30줄·E-14·requirements 한 줄·table-ok·check_docs ④ 13행) · 표 22 노드별 passed + 시험 본문 단언 대조(전부 표와 같거나 강함; 16 은 service outcome `not_found` 단언, HTTP 404 는 7·10 이 덮음) · 이웃 흐름 재실행(201·200·201·`False 김가명`·`open`·200·403·422·409·204·404·`port-free`; 소문자 재입장 200 reentered=True 는 래퍼 인용 문제를 고친 2차 실행으로 확인) · 대조 실험 1·5·9 재측정 전부 빨강 · 평문 0(IP 리터럴은 192.0.2.10 뿐). 발견: 기록·리뷰·편차 칸 비어 있음(이 커밋으로 채움) · ④ 는 병합 뒤 재실행 |
+| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | 병합 뒤 다음 태스크의 문서 커밋에서 적는다(T2a 전례). 병합 전 HEAD 0118897: `④ 병합된 T: T0a T0b T1 T2a · 대응표 42행 중 대상 13행 · docs check: OK`, T2b 7행은 아직 대상 밖. 근사 `table-ok` 한 줄만 |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t2b(다른 세션) · 2026-10-22 · 범위 `git diff master...HEAD`(c46660e → 0118897, 57파일, 커밋 f047294 … 0118897). 패스 Bugs → Security → Compliance. **Important 0건 · Nit 5건**(개수만 적은 nit 2건은 아래 보류). 시험 실행은 verifier 몫이라 돌리지 않았다.
+
+확인한 것(근거): 결정 (ii) 판정 순서 그대로(`service/rules/invite.py:17-26` → `crud/invite_code.py:24-31` → `crud/course.py:31-44` → `service/enroll/enter.py:159-168` → 재입장 :172-182 → 상태 → 정원 :106-110 → 이름 → 새 등록만 learner·enrollment :192-196) · (v) 네 문 맨 앞 `_lock`(`service/courses/codes.py:108-113, 118, 131, 146, 160`) · `remove_course` 순서(`service/courses/remove.py:22-29`) · 섹션·세션 삭제 앞 첨부 정리(`sections.py:49-52, 90-93`) · 교착 순서를 뒤집는 쓰기 경로 없음 · (viii) 인증 뒤 본문 읽기와 404 → 411/413 → form → 422 → 501 → 413 → `%PDF-` 422 → 201(`app/endpoints/attachments.py:195-243`), content_type 고정(`service/files/attachments.py:28, 84`), http·https 만(`schemas/attachment.py:40-49`), audit 2종(`service/files/attachments.py:88-95, 136-143`) · (ix)·(x) 첨부 행 → stored_file → `set_file_id`(`service/files/attachments.py:76-87`), 지우기 순서(`crud/attachment.py:117-134`), learner 갈래·`OWNER_KINDS["session_attachment"]`(`crud/scope.py:40-69`), 목록 첫 WHERE(`crud/attachment.py:75-83`, `crud/enrollment.py:57-65`) · (vi)·(vii) `LearnerCaller`(`app/deps.py:77-83`), 포털 course_id 대조 403(`app/endpoints/portal.py:80-82`), 잠긴 카드 제외(`:33-45`, `service/courses/portal.py:95`), 개인 칸 없음 · 0004 가드·역순·식 색인 글자 일치(`alembic/versions/0004_enter_portal.py:52-64, 130-137`, `models/learner.py:38`) · 동시성 시험 순서 고정·`waited is True`·TRUNCATE(`tests/integration/test_db_concurrency.py:44-57, 65-116`) · Compliance: 바뀐 파일이 계획과 일치(추가분은 편차 목록), T1·T2a 시험·conftest·fixtures/courses 변경 0, skip·완화 없음, `table-ok`, E-10 접두 13·다른 파일 0, 시험 수 18·7·10·4·4, expected_paths 30, requirements 증가 1행, 계약 ②, 증명 표 1~22 기대 = 단언, (xiv) 기본.
+
+- **Nit 1 · Bugs · `src/classfit/schemas/attachment.py:52-57, 72-74`** — `description` 은 `_blank_is_none` 이 NUL 만 거르고 제어 문자는 통과시킨다. `title`(:60-64)·입장 스키마 세 칸(`schemas/enter.py:43-50`)과 정책이 갈린다. → **반영** `5a1a3ed`: `no_control_chars` 뒤 strip-or-None, 시험 추가.
+- **Nit 2 · Bugs · `service/files/attachments.py:59-96` · `service/courses/sections.py:49-52, 90-93` · `service/courses/remove.py:22-29`** — 첨부 넣기는 강의 행을 잠그지 않는다. 관리자 둘이 같은 세션에 넣기와 세션·섹션·강의 삭제를 동시에 하면 삭제 쪽이 미커밋 첨부를 못 보고 23503 → 500(손상·유출 없음, 재시도 204). 계획 위험 표가 경합 범위를 입장·코드 관리·강의 삭제로 한정해 위반은 아님. → **문서**: 편차 23 + plan.md T6 행 메모("첨부 쓰기 경로는 course 잠금 밖, T6 이 넣기·지우기도 `lock_course` 로 들일지 정한다").
+- **Nit 3 · Compliance · `docs/plans/T0b-sdlc-okf.md:199` · `docs/plans/T2a-open-course.md:228`** — 이전 계획의 기록 칸(CI · 병합 뒤 ④)을 이 가지가 채웠고 계획 "바뀌는 파일" 에 없다. 사실 기록이라 되돌릴 일은 아님. → **문서**: 편차 12 에 명시.
+- **Nit 4 · 스타일 · `src/classfit/service/courses/codes.py:139-150`** — `resume_invite_code` 가 `course` 객체를 받지만 `_lock(session, course.id)` 로 다시 읽어 id 로만 쓴다. → **반영** `5a1a3ed`: `course_id` 로 서명 통일, 끝점이 `course.id` 를 넘김.
+- **Nit 5 · Compliance · `src/classfit/schemas/enter.py:53`** — `Code` 가 `max_length=64` 라 65자 초과가 `/problems/invite-code-malformed` 가 아니라 일반 422. 결정 (i) 은 길이 오류를 malformed 로 둔다. → **반영** `5a1a3ed`: `parse_invite_input` 이 길이 초과를 malformed 로, Field 상한은 더 크게. 시험 보강.
+- **보류(개수만 적은 nit 2, 승인자 판단)**: 413 안내문이 PDF 상한이 아니라 본문 상한(51MiB)을 찍음(`app/endpoints/attachments.py:105`) · lookup 의 `_failure(request, "ok")` 방어 분기가 KeyError 경로를 품음(`app/endpoints/enter.py:90-96`).
+
+의견: 코드는 결정 (i)~(xiv)·위험 표 완화·CLAUDE.md Rules 와 맞고 시험 약화 없음. 기록 칸·`make verify` 출력·verifier 판정이 채워지면 병합 가능(결정은 승인자).
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+리드 · worker-a · worker-b · 리뷰 반영 순. 번호는 기록용이다.
+
+**리드**
+1. 워커 2명 분할(계획 "레인 A, 워커 하나"). 리드가 작업 순서 2·4·10 을 맡았다(위 실행 소유).
+2. worker-b 전용 시험 DB `classfit_c_test` 를 새로 만들었다. 세 DB 를 동시에 썼다(a `classfit_test` · b `classfit_c_test` · 리드·verifier·대조 실험 `classfit_b_test`).
+3. r3 §6 E-11 기대값을 "5 passed"(T2b 시점 4 · T8 뒤 5)로 고쳤다(gitignore 파일, 결정 xiii 기본).
+4. 사용자의 T2b approve 커밋이 처음엔 이 저장소에 없었다("커밋완료" 뒤 확인: 가지 머리 f047294, 모든 ref 에 없음). 재실행 요청 뒤 `f636ce9` 로 들어왔다. 코드 변경은 그 뒤에만 시작했다.
+5. 증명 표 22 는 리드가 `classfit_c_test` 에서 돌렸다(계획은 DB 를 정하지 않음). `make verify` 는 `.env` 기본이다.
+6. 증명 표 16 의 기대 "404 `/problems/invite-code-not-found`" 는 동시성 시험에서 service outcome `not_found` 로 단언한다(워커 11). 404 type 매핑은 표 7·10 의 끝점 시험이 잰다(verifier 확인).
+
+**worker-a**
+6. `tests/integration/test_db_enroll.py` 에 계획 5건 외 crud 도우미 시험 6건을 더했다(`test_learner_get_or_create_reuses_row` · `test_session_attachment_owner_check_scope` · `test_session_attachment_lists_scope` · `test_session_attachment_delete_under_scopes` · `test_course_sessions_delete_only_that_course` · `test_enrollment_list_scope_and_email`, 예약 접두 없음) → 11 passed.
+7. `test_enrollment_created_only_in_enter` 는 5단계(2a90c24)엔 "호출 ⊆ {enter.py}" 로 두고 8단계(ddee125)에서 계획 문구대로 `== ["service/enroll/enter.py"]` 로 좁혔다(B 의 enter.py 가 없던 시점의 녹색 유지).
+8. 관리자 명단 이메일은 `Enrollment.learner` 관계(lazy="raise") + `list_stmt` 의 joinedload 로 읽는다(계획 미정).
+9. 첨부 삭제는 stored_file 행을 file_id 가 아니라 소유 키(owner_kind·owner_id)로 지운다. `get_attachment` · 형 별칭 `AttachmentRow` 를 더했다.
+10. 계획에 이름이 없던 색인은 `ix_session_attachment_session_id_sort_id`.
+11. 동시성 시험은 서비스 단(enter_course · reissue_invite_code · admin_login)을 부른다(끝점 미의존). 그래서 증명 16 은 HTTP 404 가 아니라 outcome `not_found` 를 단언하고 404 매핑은 계약 시험 몫이다. 네 시험 모두 "B 가 잠금을 기다렸다"(waited True)를 함께 단언한다. B 쪽 안전판 `SET LOCAL lock_timeout = '10s'`.
+12. 문서(리드 승인 4건): plan.md T2a 행을 "완료. master `c46660e`" 로 · T2b 행 증명 요약을 "동시성 4" 로 · T5·T8 메모를 착수 조건 칸에 "없음. 메모: …" 로 · Design 5절 6·11·18 과 부록 A T2b 행 근거 칸에 결정 번호. 추가로 미뤄 둔 기록 둘: T0b 계획 기록 칸 CI 줄(run 39708822144) · T2a 계획 기록 칸 "병합 뒤 check_docs ④"(42행 중 13행). T1·T2a 계획엔 CI 칸이 없어 만들지 않았다.
+
+**worker-b**
+13. replaced 코드는 재입장 판정보다 앞에서 not_found 다(결정 i · 증명 10·16 의 해석, 리드 확인).
+14. 수강생 첨부 목록의 "잠김" 은 `card_state`(is_open ∧ 첨부 ≥ 1)로 잰다. 세션 행은 `get_session_and_course` 로 먼저 찾아 없으면 404, 있는데 잠겼거나 남의 강의(scope 로 첨부 0행)면 403 — 범위 판정을 service 에 복제하지 않았다.
+15. `build_portal` 은 today 를 받지 않는다. 강의 status·notice 는 끝점이 `course_status_of`(같은 courses 구성요소)와 `Today` 로 계산한다.
+16. `service/files/attachments.py` 는 크기·모양 거절을 `PdfRejected` 예외로 내고 끝점이 413·422 로 바꾼다. `app/errors.py` 는 바꾸지 않았다.
+17. 수강생 첨부 목록 응답은 Design 5절 2 의 `Page{items, next_cursor, has_more}` 다(계획에 모양 없음). 한 쪽에 다 주어 has_more 는 늘 거짓.
+18. `tests/fixtures/enter.py` 에 계획의 `enter_learner`·`add_pdf` 외에 `add_section`·`add_session`·`json_keys`·`PERSONAL_KEYS`·`bearer` 를 더했다.
+19. `EnterIn` 의 name·dept 는 빈 문자열을 안 준 것으로 본다. 재입장 때 빈 이름을 보내도 422 가 아니고, 새 등록에 이름이 없을 때만 service 가 422(`body.name`)를 낸다.
+20. 첨부 POST 는 kind=pdf 에 url 을 주면 422 다(DB `target` CHECK 와 일치).
+21. 6단계 중 sections.py·codes.py 수정본을 스크래치에 보관해 A 의 관문 실행을 흔들지 않았다(A 커밋 뒤 복귀). `service/{rules,courses,files}/__init__.py` 독스트링을 구성요소 목록으로 고쳤다.
+22. 보고만: `ruff format --check` 로 보면 기존 `app/errors.py`·`app/middleware.py` 가 포맷 밖이다(`make lint` 는 check 만 돌려 통과). 손대지 않았다 → 승인자 판단(도구·규약 묶음).
+
+**리뷰 반영**
+23. (리뷰 Nit 2) 첨부 넣기·지우기(`service/files/attachments.py`)는 course 행을 잠그지 않는다. 경합 범위는 계획대로 입장·코드 관리·강의 삭제이고, 관리자 둘의 넣기 vs 삭제 경합은 23503 → 500(재시도 204)으로 드러난다. T6 이 첨부 쓰기 경로를 `lock_course` 로 들일지 정한다(plan.md T6 행 메모).
+24. (리뷰 Nit 1·4·5) `5a1a3ed` 로 반영: description 제어 문자 422 · `resume_invite_code(course_id)` 서명 통일 · 65자 초과 코드 malformed. 시험 수 178 → 179(`test_admin_attachment_description_control_char_422` 추가, `test_enter_malformed_code_422` 에 65자·256자, 단위 시험 긴 입력 1줄). 이로써 첨부 description 은 한 줄 글자가 됐다(줄바꿈도 제어 문자라 422; T2a 세션 description 은 LongText 로 여러 줄). 여러 줄이 필요하면 T6 에서 다시 정한다 → 승인자 판단. 반영 뒤 리드 `make verify` exit 0 `179 passed in 7.45s` · OKF guard OK.
 
 
 
