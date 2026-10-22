@@ -1,5 +1,5 @@
-"""강사 첨부의 crud 판정·범위(T6 결정 vi·xv·xxi·xxii): 파일 열람 판정표 · 강사 첨부 목록 범위 · 관리자 목록의 강사 거절 ·
-잠금 호출 자리. 라이브 PG.
+"""강사 첨부의 crud 판정·범위(T6 결정 vi·vii·xv·xxi·xxii): 파일 열람 판정표 · 강사 첨부 목록 범위 · 관리자 목록의 강사
+거절 · 교체 종류 비교(service) · 잠금 호출 자리. 라이브 PG.
 
 행은 crud·service 로 직접 만든다(HTTP 없음). 배정은 운영 경로 sections.patch_session 이다(tests/fixtures/my_attachments.py).
 시험 안에서 행 id·시퀀스 번호를 단언하지 않는다(T4 대조 실험 13).
@@ -17,6 +17,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,15 +33,19 @@ from classfit.crud.learner import get_or_create_learner
 from classfit.crud.page import keyset_page
 from classfit.crud.scope import OWNER_KINDS
 from classfit.crud.stored_file import insert_stored_file
-from classfit.models import SessionAttachment
+from classfit.models import AuditLog, SessionAttachment, StoredFile
 from classfit.schemas.course import SessionPatchIn
 from classfit.service.auth.sessions import Principal
-from classfit.service.courses import sections
+from classfit.service.courses import my_views, sections
+from classfit.service.files import my_attachment_edit, my_attachments
+from classfit.service.files.store import path_for
+from classfit.service.rules.attachment import UPLOAD_KINDS, FileRejected
 from tests.fixtures.assign import course_with_section
 from tests.fixtures.instructors import make_instructor
-from tests.fixtures.my_attachments import assigned_session
+from tests.fixtures.my_attachments import SAMPLES, assigned_session
 
 ADMIN = Principal("admin", 1)
+MAX = {kind: 1024 * 1024 for kind in UPLOAD_KINDS}
 SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
 # 강사 첨부 쓰기 다섯(T6 결정 xv). 두 파일의 공개 async def 중 쓰기를 부르는 것은 이 다섯뿐이어야 한다
 WRITERS = {
@@ -196,7 +201,7 @@ async def test_attachment_my_list_scope(db_session: AsyncSession) -> None:
 
 
 async def test_instructor_view_admin_lists_refuse_instructor(
-    db_session: AsyncSession,
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     x = await _approved(db_session, "refuse-x@example.com")
     y = await _approved(db_session, "refuse-y@example.com")
@@ -241,6 +246,24 @@ async def test_instructor_view_admin_lists_refuse_instructor(
     )
     assert stranger == []
 
+    # service 명단: 깨진 커서만 InvalidCursor 다. 가드 ValueError 는 커서 오류로 바뀌지 않고 그대로 올라간다
+    names, _, _ = await my_views.my_roster(
+        db_session, mine, course_id=course.id, cursor=None, limit=10
+    )
+    assert sorted(r.name for r in names) == ["가명1", "가명2"]
+    with pytest.raises(my_views.InvalidCursor):
+        await my_views.my_roster(
+            db_session, mine, course_id=course.id, cursor="broken!!", limit=10
+        )
+    assert issubclass(my_views.InvalidCursor, ValueError)
+    with monkeypatch.context() as patched:
+        patched.setattr(crud_enrollment, "roster_stmt", crud_enrollment.list_stmt)
+        with pytest.raises(ValueError, match="강사 주체로 부르지 않는다") as guard:
+            await my_views.my_roster(
+                db_session, mine, course_id=course.id, cursor="broken!!", limit=10
+            )
+        assert not isinstance(guard.value, my_views.InvalidCursor)
+
     # 관리자·수강생 주체는 그대로다
     learner = Principal("learner", 1, course.id)
     for subject in (ADMIN, learner):
@@ -254,6 +277,59 @@ async def test_instructor_view_admin_lists_refuse_instructor(
         db_session, crud_enrollment.list_stmt(ADMIN, course.id), None, 10
     )
     assert {r.learner.email for r in page} == {email for email, _, _ in people}
+
+
+async def test_attachment_replace_kind_changed_service(
+    db_session: AsyncSession, tmp_path: Path
+) -> None:
+    """교체의 종류 비교를 service 에서 직접 잰다(끝점의 미리 판정과 따로, 대조 실험 22). 바이트를 쓰기 전에 거절한다."""
+    x = await _approved(db_session, "kind-x@example.com")
+    _, section = await course_with_section(db_session)
+    sid = await assigned_session(db_session, section.id, instructor_id=x)
+    actor = f"instructor:{x}"
+    row, stored = await my_attachments.add_my_file(
+        db_session,
+        root=tmp_path,
+        max_bytes=MAX,
+        instructor_id=x,
+        session_id=sid,
+        title="강의안",
+        description=None,
+        filename="a.pdf",
+        data=SAMPLES[".pdf"],
+        actor=actor,
+    )
+    pid, f0, k0 = row.id, stored.id, stored.key
+    png = SAMPLES[".png"]
+    with pytest.raises(FileRejected) as caught:
+        await my_attachment_edit.replace_my_file(
+            db_session,
+            root=tmp_path,
+            max_bytes=MAX,
+            instructor_id=x,
+            attachment_id=pid,
+            filename="b.png",
+            data=png,
+            actor=actor,
+        )
+    assert (caught.value.reason, caught.value.kind) == ("kind_changed", "image")
+    found = await crud_attachment_edit.get_with_session(db_session, pid, fresh=True)
+    assert found is not None
+    assert (found[0].kind, found[0].file_id, found[0].title) == ("pdf", f0, "강의안")
+    owned = await db_session.scalars(
+        select(StoredFile.key).where(
+            StoredFile.owner_kind == crud_attachment.OWNER_KIND,
+            StoredFile.owner_id == pid,
+        )
+    )
+    assert owned.all() == [k0]
+    updates = await db_session.scalar(
+        select(func.count())
+        .select_from(AuditLog)
+        .where(AuditLog.action == "session_attachment.update")
+    )
+    assert updates == 0
+    assert not path_for(tmp_path, hashlib.sha256(png).hexdigest()).exists()
 
 
 @dataclass(frozen=True)

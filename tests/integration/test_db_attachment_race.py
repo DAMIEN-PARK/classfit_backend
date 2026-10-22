@@ -426,8 +426,8 @@ async def _seed_pdf(
 async def test_attachment_race_reassign_then_patch_403(
     factory: Factory, committing: AsyncEngine, tmp_path: Path
 ) -> None:
-    """⑤ 재배정(A) 대 X 의 PATCH(B) → B 는 강의 행에서 기다렸다 잠근 뒤 다시 읽어 403. 제목·자리·audit 그대로."""
-    x, y, sid, pid, _, _ = await _seed_pdf(factory, tmp_path, "arace5")
+    """⑤ 재배정(A) 대 X 의 PATCH(B) → B 는 강의 행에서 기다렸다 잠근 뒤 다시 읽어 403. 제목·자리·파일 행·audit 그대로."""
+    x, y, sid, pid, f0, k0 = await _seed_pdf(factory, tmp_path, "arace5")
     before = await _attachment(factory, pid)
     assert before is not None and before[:2] == ("원래 제목", 1)
 
@@ -446,22 +446,24 @@ async def test_attachment_race_reassign_then_patch_403(
     assert not isinstance(raced.first, BaseException), repr(raced.first)
     assert isinstance(raced.second, Forbidden), repr(raced.second)
     assert await _attachment(factory, pid) == before
+    assert await _owned_files(factory, pid) == [(f0, k0)]
     assert await _audits(factory, "session_attachment.update", _actor(x)) == 0
 
 
 async def test_attachment_race_reassign_then_replace_403(
     factory: Factory, committing: AsyncEngine, tmp_path: Path
 ) -> None:
-    """⑥ 재배정(A) 대 X 의 교체(B) → B 는 바이트를 쓰고 기다렸다 403. file_id 는 F0, 새 파일 행 0, audit 0."""
+    """⑥ 재배정(A) 대 X 의 교체(B) → B 는 바이트를 쓰고 기다렸다 403. 제목·자리·file_id(F0) 그대로, 새 파일 행 0, audit 0."""
     x, y, sid, pid, f0, k0 = await _seed_pdf(factory, tmp_path, "arace6")
+    before = await _attachment(factory, pid)
+    assert before == ("원래 제목", 1, f0)
     replace = _replace(tmp_path, x, pid, PDF + b"%arace6-new\n")
     raced = await _race(factory, committing, _reassign(sid, y), replace)
     assert raced.waited is True
     assert raced.blocked == {"course"}
     assert not isinstance(raced.first, BaseException), repr(raced.first)
     assert isinstance(raced.second, Forbidden), repr(raced.second)
-    found = await _attachment(factory, pid)
-    assert found is not None and found[2] == f0
+    assert await _attachment(factory, pid) == before
     assert await _owned_files(factory, pid) == [(f0, k0)]
     assert await _audits(factory, "session_attachment.update", _actor(x)) == 0
 
@@ -469,8 +471,10 @@ async def test_attachment_race_reassign_then_replace_403(
 async def test_attachment_race_reassign_then_delete_403(
     factory: Factory, committing: AsyncEngine, tmp_path: Path
 ) -> None:
-    """⑦ 재배정(A) 대 X 의 지우기(B) → B 는 강의 행에서 기다렸다 403. P·F0 행 그대로, audit 0."""
+    """⑦ 재배정(A) 대 X 의 지우기(B) → B 는 강의 행에서 기다렸다 403. P(제목·자리·file_id)·F0 행 그대로, audit 0."""
     x, y, sid, pid, f0, k0 = await _seed_pdf(factory, tmp_path, "arace7")
+    before = await _attachment(factory, pid)
+    assert before == ("원래 제목", 1, f0)
 
     async def delete(s: AsyncSession) -> None:
         await my_attachments.delete_my_attachment(
@@ -482,7 +486,6 @@ async def test_attachment_race_reassign_then_delete_403(
     assert raced.blocked == {"course"}
     assert not isinstance(raced.first, BaseException), repr(raced.first)
     assert isinstance(raced.second, Forbidden), repr(raced.second)
-    found = await _attachment(factory, pid)
-    assert found is not None and found[2] == f0
+    assert await _attachment(factory, pid) == before
     assert await _owned_files(factory, pid) == [(f0, k0)]
     assert await _audits(factory, "session_attachment.delete", _actor(x)) == 0

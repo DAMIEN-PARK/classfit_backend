@@ -52,7 +52,8 @@ def upload_limits(settings: Settings) -> dict[str, int]:
     }
 
 
-def _mine(row: CourseSession, instructor_id: int) -> None:
+def require_mine(row: CourseSession, instructor_id: int) -> None:
+    """그 세션의 담당이 instructor_id 가 아니면 Forbidden. 쓰기는 잠그기 전·잠근 뒤 두 번 부른다(my_attachment_edit 도)."""
     if row.instructor_id != instructor_id:
         raise Forbidden("본인 세션의 첨부만 고칠 수 있습니다")
 
@@ -88,7 +89,7 @@ async def writable_session(
     found = await crud_schedule.get_session_and_course(session, session_id)
     if found is None:
         raise NotFound(_NO_SESSION)
-    _mine(found[0], instructor_id)
+    require_mine(found[0], instructor_id)
     if (
         adding
         and await crud_attachment_edit.count_for_session(session, session_id)
@@ -105,7 +106,7 @@ async def writable_attachment(
     found = await crud_attachment_edit.get_with_session(session, attachment_id)
     if found is None:
         raise NotFound(_NO_ATTACHMENT)
-    _mine(found[1], instructor_id)
+    require_mine(found[1], instructor_id)
     return found
 
 
@@ -133,7 +134,7 @@ async def add_my_file(
     found = await crud_schedule.get_session_and_course(session, session_id, fresh=True)
     if found is None:
         raise NotFound(_NO_SESSION)
-    _mine(found[0], instructor_id)
+    require_mine(found[0], instructor_id)
     if (
         await crud_attachment_edit.count_for_session(session, session_id)
         >= ATTACHMENTS_MAX
@@ -181,7 +182,7 @@ async def add_my_link(
     found = await crud_schedule.get_session_and_course(session, session_id, fresh=True)
     if found is None:
         raise NotFound(_NO_SESSION)
-    _mine(found[0], instructor_id)
+    require_mine(found[0], instructor_id)
     if (
         await crud_attachment_edit.count_for_session(session, session_id)
         >= ATTACHMENTS_MAX
@@ -213,7 +214,7 @@ async def delete_my_attachment(
     found = await crud_attachment_edit.get_with_session(session, attachment_id)
     if found is None:
         raise NotFound(_NO_ATTACHMENT)
-    _mine(found[1], instructor_id)
+    require_mine(found[1], instructor_id)
     if await crud_course.lock_course(session, found[2]) is None:
         raise NotFound(_NO_ATTACHMENT)
     found = await crud_attachment_edit.get_with_session(
@@ -222,7 +223,7 @@ async def delete_my_attachment(
     if found is None:
         raise NotFound(_NO_ATTACHMENT)
     row, owner, _ = found
-    _mine(owner, instructor_id)
+    require_mine(owner, instructor_id)
     session_id, kind = row.session_id, row.kind
     if not await crud_attachment.delete_attachment(session, attachment_id):
         raise NotFound(_NO_ATTACHMENT)

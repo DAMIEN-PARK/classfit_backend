@@ -29,11 +29,13 @@ from classfit.crud import attachment_edit as crud_attachment_edit
 from classfit.crud import course as crud_course
 from classfit.crud import stored_file as crud_stored_file
 from classfit.service.files.attachments import OWNER_KIND, audit_attachment
-from classfit.service.files.my_attachments import _mine, checked
+from classfit.service.files.my_attachments import checked, require_mine
 from classfit.service.files.store import store_bytes
 from classfit.service.rules.attachment import reordered
 
 MY_ATTACHMENT_FIELDS = frozenset({"title", "description", "url", "position"})
+# link 첨부 :replace 의 409 문구(끝점의 미리 판정도 이 글자를 쓴다)
+LINK_REPLACE_REFUSED = "링크 첨부는 파일로 바꿀 수 없습니다(주소는 PATCH url)"
 _NO_ATTACHMENT = "첨부가 없습니다"
 
 
@@ -51,7 +53,7 @@ async def patch_my_attachment(
     found = await crud_attachment_edit.get_with_session(session, attachment_id)
     if found is None:
         raise NotFound(_NO_ATTACHMENT)
-    _mine(found[1], instructor_id)
+    require_mine(found[1], instructor_id)
     if await crud_course.lock_course(session, found[2]) is None:
         raise NotFound(_NO_ATTACHMENT)
     found = await crud_attachment_edit.get_with_session(
@@ -60,7 +62,7 @@ async def patch_my_attachment(
     if found is None:
         raise NotFound(_NO_ATTACHMENT)
     row, owner, _ = found
-    _mine(owner, instructor_id)
+    require_mine(owner, instructor_id)
     if "url" in changes and row.kind != "link":
         raise Conflict("주소는 링크 첨부만 바꿀 수 있습니다")
     fields = {k: changes[k] for k in ("title", "description", "url") if k in changes}
@@ -106,9 +108,9 @@ async def replace_my_file(
     found = await crud_attachment_edit.get_with_session(session, attachment_id)
     if found is None:
         raise NotFound(_NO_ATTACHMENT)
-    _mine(found[1], instructor_id)
+    require_mine(found[1], instructor_id)
     if found[0].kind == "link":
-        raise Conflict("링크 첨부는 파일로 바꿀 수 없습니다(주소는 PATCH url)")
+        raise Conflict(LINK_REPLACE_REFUSED)
     kind, content_type = checked(filename, data, max_bytes, expect_kind=found[0].kind)
     sha256 = await asyncio.to_thread(store_bytes, root, data)
     if await crud_course.lock_course(session, found[2]) is None:
@@ -119,7 +121,7 @@ async def replace_my_file(
     if found is None:
         raise NotFound(_NO_ATTACHMENT)
     row, owner, _ = found
-    _mine(owner, instructor_id)
+    require_mine(owner, instructor_id)
     stored = await crud_stored_file.insert_stored_file(
         session,
         sha256=sha256,

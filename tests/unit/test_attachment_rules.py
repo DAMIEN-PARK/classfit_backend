@@ -71,6 +71,7 @@ def test_attachment_rules_rejects_table() -> None:
         ("a.png", PDF, "image"),
         ("a.pdf", ZIP, "pdf"),
         ("a.csv", b"a,b\x00c\n", "office"),
+        ("a.csv", b"", "office"),  # 빈 파일
         ("a.docx", PDF, "office"),
         ("a.zip", PDF, "html"),
         ("a.jpg", PNG, "image"),

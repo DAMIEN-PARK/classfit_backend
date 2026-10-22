@@ -50,13 +50,13 @@ def _webp(head: bytes) -> bool:
     return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
 
 
-# 확장자 → 첫 바이트 검사. csv 는 머리에 NUL 이 없으면 된다(글자 파일)
+# 확장자 → 첫 바이트 검사. csv 는 비어 있지 않고 머리에 NUL 이 없으면 된다(글자 파일)
 _SHAPES: dict[str, Callable[[bytes], bool]] = {
     ".pdf": lambda head: head.startswith(PDF_MAGIC),
     ".pptx": _zip,
     ".docx": _zip,
     ".xlsx": _zip,
-    ".csv": lambda head: b"\x00" not in head,
+    ".csv": lambda head: bool(head) and b"\x00" not in head,
     ".zip": lambda head: head.startswith((ZIP_MAGIC, EMPTY_ZIP_MAGIC)),
     ".png": lambda head: head.startswith(PNG_MAGIC),
     ".jpg": lambda head: head.startswith(JPEG_MAGIC),

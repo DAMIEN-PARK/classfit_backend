@@ -7,7 +7,8 @@
 - 초대코드는 산 코드(없으면 404)와 등록 수, 안내문은 관리자 안내문과 같은 글자(codes.notice_text)다. 재발급·정지·
   만료·정원 바꾸기는 강사에게 없다.
 - 명단은 최소 노출이다: crud.enrollment.roster_stmt(learner 를 잇지 않는다 — 이메일 없음, 결정 xxi) + 키셋 커서.
-  깨진 커서는 ValueError 그대로다(끝점이 422 loc ["query","cursor"]).
+  깨진 커서만 InvalidCursor(ValueError)로 바꾼다(끝점이 422 loc ["query","cursor"]) — keyset_page 호출만 감싸
+  결정 xxii 가드 같은 다른 ValueError 가 커서 422 로 가려지지 않게 한다.
 """
 
 from __future__ import annotations
@@ -22,6 +23,10 @@ from classfit.crud.scope import Subject
 from classfit.models import Course, Enrollment, InviteCode
 from classfit.service.courses import codes, mine
 from classfit.service.courses.portal import Portal, build_portal
+
+
+class InvalidCursor(ValueError):
+    """깨진 키셋 커서. 끝점은 이 예외만 422 loc ["query","cursor"] 로 바꾼다."""
 
 
 @dataclass(frozen=True)
@@ -64,7 +69,12 @@ async def my_roster(
     cursor: str | None,
     limit: int,
 ) -> tuple[list[Enrollment], str | None, bool]:
-    """(행, next_cursor, has_more). 행에서는 이름·부서·등록일(created_at)만 쓴다."""
+    """(행, next_cursor, has_more). 행에서는 이름·부서·등록일(created_at)만 쓴다. 깨진 커서는 InvalidCursor."""
     await mine.course_for(session, subject, course_id)
     stmt = crud_enrollment.roster_stmt(subject, course_id)
-    return await keyset_page(session, stmt, cursor, limit)
+    try:
+        return await keyset_page(session, stmt, cursor, limit)
+    except ValueError as exc:
+        if cursor is None:  # 커서가 없으면 커서 오류가 아니다
+            raise
+        raise InvalidCursor("깨진 커서입니다") from exc
