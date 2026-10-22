@@ -11,7 +11,7 @@ URL: ""
 # Plan: T3 instructor-onboarding (from plan.md#T3, 2026-10-22)
 
 - 근거: intent [`docs/process/intents/2026-10-21-phase1-backend.md`](../process/intents/2026-10-21-phase1-backend.md)(1차에 하는 것 "P4 강사 가입·로그인은 T3") · spec 절 [`docs/process/2026-10-21-phase1-backend-design.md`](../process/2026-10-21-phase1-backend-design.md) §1 수명(강사 세션 14일 :39 · 인증 코드 10분 5회 :41 · 로그인 잠금 :42) · §2 강사 갈래(:58 · 정지 403·반려 로그인 :63) · §4 0005 행(:86) · owner_kind 등록 순서(:95) · §5 규칙 3·4·5·6·7·8·9·11·12·13·14·18·19·20 · 부록 A T3 3행(:160-162) · 태스크 [`docs/process/plan.md`](../process/plan.md) 3절 T3 행(:52). 그 밖에 [`docs/process/adr/ADR-003-external-ports.md`](../process/adr/ADR-003-external-ports.md)(결정 1·2·4·5·6) · [`docs/process/adr/ADR-002-learner-session.md`](../process/adr/ADR-002-learner-session.md)(`auth_session` 공용) · r3 §1 H-2(108행) · §4 서류 시드(140) · §5.2 T3 행(164) · §7-2(199) · 부록 A1 I2·A2·A6·P4 행(220·221·230·232) · A4 메일·인증 코드 행(276) · A5 P4 행(283) · B T3 끝점(303)·시험 세부(316) · C 0005(332)·owner_kind(340) · D 폭발 반경(354) · F 무차별 대입(459) · 기획안 v3 P4·I2·A2·A6·7절 Instructor·Document·Tag·8-1·8-5 · `공개홈_v24.html` P4(외부, 미추적).
-- 승인: 
+- 승인: `d38d589 approve: T3` 와 `7c711b8 approve: T3`(2026-10-22, 승인자 `DAMIEN-PARK`, 둘 다 빈 커밋·트레일러만 — 승인자가 두 번 실행한 중복, check_task_order 는 OK 라 그대로 둠). 결정 (i)~(xix) 는 기본값 그대로. 순서는 plan `0c3b57e` → 승인 둘 → 구현 `ef39d0c`·`e701a55`·`41b877e` → 문서 `f2ee15f` → (리뷰 반영) → 계획 갱신이다. 가지는 master `cb5edaa` 에서 땄고 sync 는 없다.
 - 승인 방법: 승인자 `DAMIEN-PARK` 이 이 가지에 `git commit --allow-empty -m "approve: T3" -m "Approved-by: DAMIEN-PARK"` 를 더한다. 그 커밋 전에는 코드 변경이 없고, 에이전트는 위 줄과 `Approved-by` 를 쓰지 않는다.
 - **T2b 는 병합됐다** — master `cb5edaa merge: T2b enter-portal`(트리 = T2b 가지 머리 `a7879d8`, 코드 = 리뷰 반영 `5a1a3ed`). 가지 `T3-instructor-onboarding` 은 리드가 2026-10-22 에 `cb5edaa` 에서 땄다. 병합 뒤 분기라 겹침이 없고 `sync_task.sh` 도 필요 없다(`check_task_order.sh` 는 master..가지가 `plan:` 으로 시작해야 한다). T2b 가지 커밋은 계획 `f047294` · approve `f636ce9` · sync `f3fcabc` · 구현 `dbb8706`·`2a90c24`·`7b01baa`·`ddee125`·`3dcc1cf` · 문서 `0118897` · 리뷰 반영 `5a1a3ed`(description 제어 문자 422 · `resume_invite_code(session, course_id, *, today)` · 코드 입력 상한 `CODE_INPUT_MAX = 256`, `parse_invite_input` 이 6자 아닌 길이를 malformed) · 계획 갱신 `a7879d8` 이다.
 - **이 계획은 master `cb5edaa`(= T2b 코드 `5a1a3ed` · 문서·계획 `a7879d8`) 기준이다.** T1·T2a·T2b 이름은 그 트리에서 `file:line` 으로 확인했다("T1·T2a·T2b 부품" 칸). T2b 리뷰 반영이 고친 src 다섯 파일(`app/endpoints/invite_codes.py`·`schemas/attachment.py`·`schemas/enter.py`·`service/courses/codes.py`·`service/rules/invite.py`) 중 이 계획이 줄을 인용하는 것은 `schemas/enter.py` 뿐이고(`normalize_email` :30 · `Email` :55), 나머지 넷은 인용하지 않는다. T2b 계획의 결정 (iv)·(viii)·(xii)·(xiv) 는 문서(`f047294`)를 인용한다.
@@ -233,8 +233,8 @@ SHA=$(shasum -a 256 "$tmp/r.pdf" | cut -d' ' -f1); rm -f "var.nosync/files/${SHA
 6. `OWNER_KINDS["instructor_document"]` 판정을 항상 True 로: `test_instructor_document_other_instructor_403` 이 빨개진다(B 강사 200). **6b.** 같은 판정에서 `subject.type == "instructor"` 만 뺀다(`subject.id == owner_id` 는 남긴다): 같은 시험이 "같은 id 의 관리자·수강생 토큰" 단언에서 빨개진다(200).
 7. 관리자 서류 끝점의 `insert_audit` 호출을 뺀다: `test_instructor_document_admin_view_audit_each_time` 이 빨개진다(audit 0).
 8. `put_document` 의 옛 `stored_file` 행 삭제를 뺀다: `test_instructor_document_put_replace_deletes_old_file_row` 가 빨개진다(2행 · 옛 href 200).
-9. `request_email_code` 가 열린 행을 재사용하지 않고 매번 `insert_verification` 만 하게 하고(부분 유일 색인도 사본 0005 에서 지운다). `find_open_verification` 은 id 오름차순 첫 행을 돌려주므로 첫 코드가 계속 산다: `test_instructor_email_code_resend_invalidates_previous` 가 빨개진다(첫 코드 201).
-10. `instructor_login` 의 `_lockout` 호출을 뺀다: `test_instructor_login_lockout_same_client_429_other_client_ok` 가 빨개진다(11번째 401).
+9. `request_email_code` 가 열린 행을 재사용하지 않고 매번 `insert_verification` 만 하게 하고(부분 유일 색인도 사본 0005 에서 지운다). `find_open_verification` 은 id 오름차순 첫 행을 돌려주므로 첫 코드가 계속 산다: `test_instructor_email_code_resend_invalidates_previous` 가 빨개진다(첫 코드 201). **끝나면 그 변이 사본으로 `alembic downgrade base` 를 돌려 시험 DB 를 되돌린다** — 색인 없는 0005 가 head 로 남으면 다음 실행의 `downgrade base` 가 `UndefinedObject` 로 실패한다(worker-c 발견, 편차 21).
+10. `instructor_login` 의 `_lockout` 호출을 뺀다: `test_instructor_login_lockout_same_client_429_other_client_ok` 가 빨개진다(11번째는 맞는 비밀번호라 200).
 11. `outbox_preview` 의 `instructor_rejected` 렌더러가 `audit_log.detail.reason` 대신 `instructor.reject_reason` 을 읽게 한다: `test_instructor_status_reject_sets_reason_and_outbox` 가 `:reapply` 뒤 본문 단언에서 빨개진다(사유 빈 글자).
 12. `test_db_concurrency.py` 정리 줄의 시드 표 제외를 뺀다(TRUNCATE 전부로 되돌림): 사본에서 `pytest tests/integration -q` 를 통째로 돌리면 `test_document_type_seed_three_rows` 가 빨개진다(0행). 파일 하나만 돌리면 녹색이므로 반드시 전체 순서로 돈다.
 13. `service/instructors/status.py::transition` 의 `lock_instructor` 호출을 `get_instructor` 로 바꾼다: `test_instructor_status_lock_call_sites` 가 빨개진다(호출 0). 결정 (xix) 기본에서는 이것이 잠금 누락을 잡는 유일한 시험이고 실제 줄 세움은 재지 않는다.
@@ -243,24 +243,70 @@ SHA=$(shasum -a 256 "$tmp/r.pdf" | cut -d' ' -f1); rm -f "var.nosync/files/${SHA
 
 | 기록 칸 | 값 |
 |---|---|
-| 착수 조건 결정 (i)~(xix) 변경 여부 · 선택 항목 선택 (approve 커밋 해시) | |
-| T2b 최종 이름 대조 세 줄 출력 · 분기 시점 master 해시 · `check_task_order` 출력 | |
-| `make verify` 끝 20줄 | |
-| `alembic heads` · dev `alembic check` · 0005 가드 동작(행 있을 때 멈춤) | |
-| E-13 · 계약 49 · 통합+단위 16 · `tests/integration` 전체 · table-ok · no-code-generation 출력 | |
-| 증명 표 16항목 출력 | |
-| 이웃 흐름 응답(202 · 코드 · stderr 줄 · 200 · 201 · 200 · 403 · 422 · 200 · 200 · 200 · 401 · 403) · 정리 psql 행 수 · `port-free` | |
-| 대조 실험 13개(+6b)(빨개진 시험 이름 · 단언) · 정리 뒤 `git status --short` | |
-| verifier 세션 · 날짜 · 판정 · 평문 검사(outbox params·audit detail·로그에 6자리 코드·비밀번호 없음) | |
-| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | |
+| 착수 조건 결정 (i)~(xix) 변경 여부 · 선택 항목 선택 (approve 커밋 해시) | 변경 없음((iii)·(xiv)·(xvii)·(xviii)·(xix) 기본). approve 커밋 **둘** `d38d589`·`7c711b8`(승인자가 두 번 실행, 둘 다 빈 커밋·트레일러만, check_task_order OK) |
+| T2b 최종 이름 대조 세 줄 출력 · 분기 시점 master 해시 · `check_task_order` 출력 | `t2b-names-ok` · `30` · `1`(HEAD 7c711b8 · 0c3b57e) · master `cb5edaa merge: T2b enter-portal`(sync 없음) · `task order: OK`(1개 → 9개) |
+| `make verify` 끝 20줄 | HEAD `f2ee15f` exit 0(파이프 없이, 로그 t3-wrap/verify-1.log): `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · 시험 파일 목록 … · `============================= 240 passed in 17.39s =============================` · `OKF_PYTHON=.venv/bin/python bash scripts/okf/guard.sh docs` · `OKF guard OK`. T2b 179 → 240 passed(failed·error·skipped 0). 리뷰 반영 `21a36b3` 뒤 재실행 exit 0 `241 passed in 17.52s`(로그 t3-wrap/verify-after-nits.log) |
+| `alembic heads` · dev `alembic check` · 0005 가드 동작(행 있을 때 멈춤) | `0005 (head)` · dev `make migrate` 0004 → 0005(email_verification 0행·mail_outbox email_code 0행이라 정리 불필요) · dev `alembic check` → `No new upgrade operations detected.` · 가드 실측(worker-a: 0004 + email_verification 1행 → "0005 중단 - email 칸이 없던 때의 email_verification 행 1 개" 로 0004 유지, 지운 뒤 0005) |
+| E-13 · 계약 49 · 통합+단위 16 · `tests/integration` 전체 · table-ok · no-code-generation 출력 | E-13 `1 passed`(expected_paths 47줄) · 계약 6파일 `49 passed in 8.96s` · 통합+단위 `16 passed`(T1 4 포함) · `pytest tests/integration -q` 전체 `49 passed`(concurrency 뒤 시드 시험 녹색) · `table-ok` 한 줄만 · `no-code-generation` 한 줄 · check_docs `④ T0a T0b T1 T2a T2b · 42행 중 20행 · docs check: OK`(리드, classfit_c_test, t3-wrap/proof16.log) |
+| 증명 표 16항목 출력 | 1~8·10~12·14~16 각 `1 passed`, 9 `4 passed`, 13 `2 passed`(리드, classfit_c_test; worker-b 도 41b877e 에서 노드별 -v 24 passed) |
+| 이웃 흐름 응답(202 · 코드 · stderr 줄 · 200 · 201 · 200 · 403 · 422 · 200 · 200 · 200 · 401 · 403) · 정리 psql 행 수 · `port-free` | worker-c(dev 0005, make run 백그라운드, create_admin 은 expect, 코드는 `outbox_preview --apply` stdout 변수로만): 202 · 코드 추출 · **가입 201 stderr `pending 2026-10-22`** · 강사 로그인 200(expires_at 14일 뒤) · 서류 PUT 201 · 본인 href 200(바이트 동일) · 관리자 href 403 · reject `{}` 422 `["body","reason"]` · approve 200 · 관리자 열람 200 · suspend 200 → /v1/me 401 · 재로그인 403 `/problems/instructor-suspended` · 정리 psql exit 0(audit 4 · auth_session 2 · mail_outbox 2 · instructor_document 1 · stored_file 1 · instructor_tag 1 · tag 1 · email_verification 1 · instructor 1 · auth_attempt 4 · admin_account 1) · 바이트 삭제 · `port-free`. uvicorn 500·Traceback 0, dev 잔여 0. 정리 전 대조: outbox params email_code `{verification_id}` · instructor_approved `{audit_id, instructor_id}`, audit approve·suspend·view 각 1. verifier 재실행은 verifier 칸 |
+| 대조 실험 13개(+6b)(빨개진 시험 이름 · 단언) · 정리 뒤 `git status --short` | 13+6b 전부 빨강(임시 clone, classfit_b_test, 대조군 12 passed·integration 49 passed, 사본 import 확인): 1 `expired_410` 201 · 2 `locked_after_5_tries_429` 6번째 422 · 3 `request_enqueues_outbox_without_plaintext` params 키 `{verification_id, code}` · 4 `transition_table_outside_409` 200 · 5 `suspended_login_403` 200 · 6 `other_instructor_403` 전부 200 · 6b 같은 시험, 같은 id 의 관리자·수강생 200 · 7 `admin_view_audit_each_time` audit [] · 8 `put_replace_deletes_old_file_row` StoredFile `2 == 1` · 9 `resend_invalidates_previous` 첫 코드 201 · 10 `lockout_same_client_429_other_client_ok` 11번째 200 · 11 `reject_sets_reason_and_outbox` reapply 뒤 사유 빔 · 12(integration 전체) `seed_three_rows` 0행 + `document_unique_per_type` FK(2 failed, 47 passed) · 13 `lock_call_sites` `0 >= 1`. 정리 뒤 `git status --short` 실험 전과 같음(미추적 4개). 발견: 실험 9 가 시험 DB 를 색인 없는 0005 로 남겨 다음 downgrade 가 실패 → 변이 사본으로 downgrade base 뒤 10·11·12 재실행(편차 21) |
+| verifier 세션 · 날짜 · 판정 · 평문 검사(outbox params·audit detail·로그에 6자리 코드·비밀번호 없음) | verifier-t3(에이전트 세션, 저장소 무변경) · 2026-10-22 · **PASS**: check_task_order OK(7) · `make verify` exit 0(`240 passed in 17.21s`, OKF guard OK) · 증명 블록 전부(0005 head · dev alembic check · E-13 47줄 · 계약 49 · 통합+단위 16 · integration 49 · table-ok · no-code-generation · check_docs ④ 20행) · 표 16 노드별 passed + 시험 본문 단언 대조(표보다 약한 단언 없음, 2·3·8·12 는 더 강함) · 이웃 흐름 재실행 전부 일치(202 · 201 `pending 2026-10-22` · 200 · 201 · 200 · 403 · 422 · 200 · 200 · 200 · 401 · 403 · 정리 exit 0 · `port-free`, dev 잔여 0) · 대조 실험 3·6b·12 재측정 빨강 · **평문 검사 0**(src outbox params `{verification_id}`·`{instructor_id, audit_id}` · audit detail `{reason}`·`{instructor_id, type_id}` 에 코드·비밀번호 없음, 시험·이웃 흐름 로그에 6자리·비밀번호 0, 실 IP·호스트명 0). 발견: 실험 12 는 `unique_per_type` 도 빨강(편차 22) · 6b 의 관리자 토큰이 그 배치에서 소유 강사와 같은 id(중복 사례, 결함 아님) |
+| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | 병합 뒤 다음 태스크의 문서 커밋에서 적는다(T2a·T2b 전례). 병합 전 HEAD: ④ T0a T0b T1 T2a T2b 42행 중 20행, T3 3행은 아직 대상 밖. 근사 `table-ok` 한 줄만 |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t3(다른 세션) · 2026-10-22 · 범위 `git diff master...41b877e`(cb5edaa → 41b877e, 코드 커밋 ef39d0c·e701a55·41b877e; 문서 커밋 f2ee15f 는 범위 밖). 읽기 전용(시험·명령은 verifier 몫). 패스 Bugs → Security → Compliance. **Important 0건 · Nit 8건(표시 5)**.
+
+확인한 것(근거 41b877e): 가입 순서 = 결정 (ii)(`lock_attempt_key` → `find_open_verification` FOR UPDATE + `func.now()` `crud/auth.py:141-157` → 해시·issued_at NULL mismatch → `code_expired` → tries → `verify_password`/`bump_tries` → `resolve_field_tags`(중지 검사가 생성 앞 `signup.py:57-71`) → `insert_instructor` → `replace_tags` → `consume_verification` → attempt, `signup.py:113-149`; 실패 셋은 결과값 85-91, Conflict·`InactiveTags` 만 예외) · 전이 `status.py:32-67`(`lock_instructor` → `next_status` None 이면 `Conflict(current_status)` → `set_status` → suspend 만 세션 폐기 51 → audit → approve·reject 만 outbox `{instructor_id, audit_id}` 62-67; `reapply` 같은 잠금 `profile.py:45-52`; 표는 `rules/instructor.py` 한 곳) · `login.py:53-71` `_lockout` 이 T1 `admin_login` 세 단계를 그대로, `instructor_login` 108-149 = 결정 (viii) · 서류 판정 순서 401→403→404→411·413→400→422→501→413→422→201/200(`instructor_documents.py:112-135`), 교체는 새 stored_file → `upsert_document` FOR UPDATE → 옛 행 삭제(`documents.py:55-56`), 관리자 열람 audit 뒤 FileResponse(205-218) · 잠금 순서 advisory → email_verification → instructor → auth_session·mail_outbox·audit_log 를 거꾸로 잡는 경로 없음 · crud 첫 WHERE `instructor_scope`(`crud/instructor.py:47, 115`), ILIKE 이스케이프(99-105), `lock_instructor` populate_existing(68-69), `OWNER_KINDS["instructor_document"]` 종류+id(`scope.py:90`), `instructor_photo` 관리자 ∨ 본인(93-99), `ON CONFLICT (kind, name)`(`tag.py:57`), `list_tags` limit+1(84), `update_tag` 사전 조회 409(108-122), `insert_verification` index_where, `revoke_principal_sessions` 산 행만(205-219) · 0005 가드·표 5·ALTER·부분 유일 색인(229)·시드(200)·downgrade 역순(242-259), CHECK 이름 naming_convention 일치 · 끝점 `InactiveTags.indexes` → loc(`instructors.py:76-90`), 응답에 해시 없음·memo 는 AdminOut 만, 409 `current_status` extra, memo 바뀔 때만 audit(238), 상세·목록 href 없음(106), 공개 태그 active_only·20, 관리자 500(`tags.py:30-31, 58, 70`) · `outbox_preview.py:51-70` 렌더러 2종, 사유는 audit detail, 코드 평문 경로 없음 · concurrency 정리 줄 `SEED_TABLES` 만, T1 준비 3줄은 `email=` 뿐. Security: 비인증 라우트 계획의 넷뿐, 남의 서류는 종류+id 판정이라 같은 id 토큰도 403, 로그·problem·outbox·audit 에 PII·비밀 없음, 무차별 대입은 결정 (xiii). Compliance: 바뀐 파일 46개 전부 "바뀌는 파일" 안, "바꾸지 않는 것" diff 없음, 커밋 묶음 = 작업 순서 4·5·6, 계약 49 이름 일치·접두 3종·parametrize/skip 없음, expected_paths 47, no-code-generation, 증명 표 1~16 기대 = 단언, T1·T2a·T2b 단언 약화 없음, 교차 소유 import 는 `schemas.enter.normalize_email` 두 줄(허용).
+
+- **Nit 1 · Bugs · `app/endpoints/instructor_documents.py:30`, `tags.py:20`** — 다른 끝점 모듈의 비공개 이름 `_check_length`·`_invalid`·`MIB`·`query_text` 를 import. 동작·계획에 맞지만 `_` 이름은 소유 모듈이 바꿔도 되는 약속이라 다음 태스크가 `attachments.py` 를 고치면 조용히 깨짐. 제안 `app/endpoints/_common.py` 공개 이름(T2b 파일 import 줄 변경). → **승인자 보류**(범위 밖 파일, T4 이후 묶음).
+- **Nit 2 · Security · `service/instructors/signup.py:116-126`** — 열린 요청 없음·발송 전은 argon2 대조 없이 mismatch 라 응답 시간으로 열린 요청 유무가 드러남(T1 로그인의 `DUMMY_HASH` 와 같은 종류). → **반영** `21a36b3`.
+- **Nit 3 · Bugs · `scripts/outbox_preview.py:65-67`** — `instructor_rejected` 렌더러가 audit 의 target 만 보고 `action` 은 안 봄(approve audit 을 가리키면 빈 사유). → **반영** `21a36b3`: `action == "instructor.reject"` 전제, 아니면 3. 시험 추가.
+- **Nit 4 · Bugs · `crud/instructor.py:23, 99-105` · `crud/tag.py:22, 77-83`** — LIKE 이스케이프 코드·상수가 두 벌. → **반영** `21a36b3`: `crud/like.py::contains_pattern` 하나.
+- **Nit 5 · Bugs · `crud/auth.py:160-180`** — `insert_verification` 뒤 읽기 `.one()` 이 DO NOTHING 직후 소비·커밋과 겹치면 500(창 매우 좁음, 추정). → **반영** `21a36b3`: `one_or_none()` 뒤 재시도.
+- **보류(미표시 3, 승인자 판단)**: `status` 칸 `# type: ignore[arg-type]` 세 곳(`admin_instructors.py:93·155`, `instructors.py:128`) · `service/files/documents.py:37` 서류 종류 재조회(방어용) · `outbox_preview.py:51` `_instructor_approved` 의 안 쓰는 `reveal` 인자.
+
+의견: 코드 기준으로 병합을 막는 발견 없음. 증명 실행 증거(`make verify`·`alembic check`·표 16·대조 실험)는 verifier 가 돌려 기록 칸에 채운 뒤 승인자가 결정.
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+리드 · worker-a · worker-b · 리뷰 반영 순. 번호는 기록용이다.
+
+**리드**
+1. approve 커밋이 둘(`d38d589`·`7c711b8`, 중복). 둘 다 빈 커밋·트레일러만이라 check_task_order 는 OK. 되돌리려면 구현 커밋 전에 `git reset --soft HEAD~1` 이 필요했는데 바로 착수해 그대로 뒀다.
+2. 시험 DB: 계획대로 worker-a `classfit_test`(+dev), worker-b `classfit_b_test`. 리드 증명 16 은 `classfit_c_test`, worker-c 대조 실험은 `classfit_b_test`(b 가 끝난 뒤), verifier 는 `classfit_c_test`.
+3. 15:39:39 작업 트리가 에이전트 밖에서 `T2b-enter-portal` 로 checkout 됐다(reflog). worker-a 가 4단계 관문 녹색 뒤 커밋 직전에 발견·보고. 두 머리 사이 src·tests·alembic 차이가 0 이라 리드가 `T3-instructor-onboarding` 으로 복귀했고 수정 8파일·미추적 파일은 그대로였다. 이후 워커 절차에 "커밋 전 `git branch --show-current` 확인" 을 더했다.
+4. worker-b 가 끝점 조립에 필요하다고 미리 물은 crud 읽기 함수 3개와 서명 9건을 리드가 확정해 두 워커에 보냈다. 그중 4건은 worker-a 가 이미 커밋한 서명과 달랐고(아래 6·7·11·13), worker-b 의 끝점이 커밋된 서명으로 짜여 있어 **커밋된 서명을 유지**했다.
+5. T2b 계획 기록 칸 "병합 뒤 ④ 20행"·CI run 39733979529 는 worker-b 7단계 문서 커밋에 포함했다(계획 "문서" 절 밖 파일 1개).
+
+**worker-a**
+6. crud 읽기 함수 3개 추가(끝점 응답 조립용): `crud.tag.tags_by_instructor(session, instructor_ids) -> dict[int, list[Tag]]`((sort, name, id) 순) · `crud.instructor_document.list_documents(session, instructor_id) -> list[(DocumentType, InstructorDocument | None, StoredFile | None)]`(종류 sort 순, 미제출 종류 포함) · `get_document_file(session, instructor_id, type_id) -> (InstructorDocument, StoredFile) | None`.
+7. `create_missing_field_tags(session, names, *, source, group)` 에 `group` 키워드(crud 는 rules 를 import 못 해 service 가 `DEFAULT_TAG_GROUP` 을 넘긴다).
+8. `find_open_verification` 이 요청 행을 `FOR UPDATE OF email_verification` 로 잠근다 — 여러 주소에서 같은 이메일 코드를 동시에 대조해도 tries 상한 5를 넘지 않게. 잠금 순서 advisory(`lock_attempt_key`) → email_verification 행 → instructor 삽입, 역순 경로 없음.
+9. `get_document(…, for_update=False)` 키워드, `upsert_document` 는 기존 행을 FOR UPDATE 로 읽는다(같은 종류 동시 교체 때 둘째가 첫째의 새 파일을 옛 파일로 지우는 경쟁 방지). 없던 행의 동시 첫 제출은 `flush_or_conflict` → 409.
+10. `update_tag` 의 이름 겹침은 쓰기 전 읽기로 409(`flush_or_conflict` 는 이미 바뀐 칸을 SAVEPOINT 밖에서 flush 해 쓸 수 없음). 그 사이 경쟁은 유일 제약이 막는다(500).
+11. `document_counts` 는 required 종류만 센다(n/3 의 분자). `insert_instructor`·`insert_tag`·`upsert_document` 는 flush 뒤 refresh 로 서버 기본값을 채운다. `insert_instructor` 가 `terms_agreed_at=func.now()` 를 직접 넣는다. `list_tags(session, *, kind, q, active_only, limit) -> (list[Tag], has_more)` 튜플(crud 가 limit+1 로 읽는다).
+12. `InactiveTags`(속성 `indexes: list[int]` — 받은 tags 목록의 자리)·`resolve_field_tags` 는 signup.py 에 두고 profile.py 가 import(새 파일 없이 계획의 파일 4개 유지). status.py 에 `apply_transition` 공개 도우미를 두고 transition·reapply 가 공유한다(reapply 도 `lock_instructor` 를 직접 부른다).
+13. `signup` 의 intro·career 에 기본값(None·()). `put_document` 가 종류 존재도 본다(FK 23503 → 500 대신 404). `outbox_preview` 의 `instructor_rejected` 는 audit 의 target 이 그 강사가 아니면 ValueError → 3(계획은 행 없음만 3). 단위 전이표 시험은 5동작 × 4상태 = 20 중 표 밖 15 를 센다(계약 시험은 4동작 12쌍). 전이 밖 Conflict 는 core `DomainError` 의 `**extra` 로 `current_status` 를 싣고 전역 처리기가 problem 본문에 넣는다(클래스 무수정).
+14. 4단계 관문에서 dev 의 0005 가드를 실측했다(0004 + email_verification 1행 → 중단 → 지운 뒤 통과 → downgrade 왕복). 두 커밋 모두 임시 clone 에서 단독 재실행해 같은 결과였다.
+
+**worker-b**
+15. `tests/fixtures/instructors.py` 에 계획의 셋 외 도우미(`count` · `problem_of` · `locs` · `PASSWORD` · `REJECT_REASON` · `DOCUMENT_TYPES`)를 더했다(여섯 시험 파일이 함께 쓴다).
+16. `app/endpoints/instructor_documents.py` 가 411·413 판정을 T2b `app/endpoints/attachments.py` 의 private `_check_length`·`_invalid`·`MIB` 를 import 해 쓴다(같은 순서를 원본 하나로).
+17. 서류 `type_id` 가 `[a-z0-9_]{1,32}` 밖이면 DB 를 치지 않고 같은 404 를 준다(`%00` → 500 방지). 관리자 열람 내려받기 파일 이름은 `<강사id>-<type_id>.pdf`(T1 files 끝점은 key).
+18. 관리자 상세의 `documents_submitted` 는 목록(`document_counts`)과 같게 낸 필수 서류 수만 센다. 질의 `q`(관리자 강사 목록·공개 태그)의 제어 문자는 422 `loc ["query","q"]`.
+19. 6단계 중 `app/deps.py`·`app/routers.py`·`app/endpoints/auth.py`·`expected_paths.txt` 수정본을 스크래치에 보관해 worker-a 의 관문을 흔들지 않았다(a 커밋 뒤 복귀). `ruff format` 을 tests/contracts 폴더에 돌려 기존 3파일 서식이 바뀐 것을 `git show HEAD:` 로 복원(diff 0). 커밋 트레일러는 `Co-Authored-By: Claude Opus 5.5`(워커 모델 기준).
+20. 문서: plan.md T2b 행을 "완료. master `cb5edaa`" 로(T2a 전례) · spec DEC-005·006 처리 칸에 T3 기본값 한 줄(상태 칸은 "결정 필요" 유지) · Design 5절 6·8·11·20 근거 칸에 결정 번호, 6·13 의 T 칸에 T3 · 부록 A 무수정(접두 그대로) · T2b 계획 기록 칸 ④ 20행·CI 한 칸.
+
+**worker-c(이웃 흐름·대조 실험)**
+21. 대조 실험 9 의 변이(사본 0005 에서 부분 유일 색인 제거)가 시험 DB `classfit_b_test` 를 색인 없는 0005 head 로 남겨, 다음 실행의 `downgrade base` 가 `UndefinedObject: index "uq_email_verification_open"` 로 실패했다(10·11·12 첫 회차 error). 변이 사본으로 `alembic downgrade base` 를 돌려 되돌린 뒤 재실행해 전부 빨강. 계획 실험 9 에 되돌리기 줄을 더했다(이 커밋).
+22. 계획 실험 10 의 괄호 "(11번째 401)" 은 시험과 달랐다(11번째는 맞는 비밀번호라 변이 뒤 200). 글자를 고쳤다. 실험 12 는 시드 시험 외에 `test_instructor_document_unique_per_type` 도 같은 원인으로 빨개진다.
+23. 이웃 흐름의 평문 검사용 psql 줄(`-c` 안의 `:'c'` 변수)은 psql 이 `-c` 에서 변수를 치환하지 않아 돌지 않았다. 대체 증거: outbox params 에 코드 칸 없음 · audit detail 은 view 의 `{instructor_id, type_id}` 뿐 · 스크래치·uvicorn 로그 grep 에 코드 원문 0.
+
+**리뷰 반영**
+24. (리뷰 Nit 2·3·4·5) `21a36b3` 로 반영: 열린 요청 없음·발송 전에도 더미 해시 대조 뒤 mismatch · `instructor_rejected` 렌더러가 audit `action` 도 전제(아니면 3, 시험 추가) · LIKE 이스케이프를 `crud/like.py::contains_pattern` 하나로 · `insert_verification` 뒤 읽기 `one_or_none` + 재시도. 시험 수 240 → 241(`test_outbox_preview_rejected_needs_reject_audit` 추가; 통합+단위 16 → 17, integration 전체 49 → 50). `DUMMY_HASH` 는 `core/passwords.py:28`(core 층이라 계약 ② 무관). 반영 뒤 리드 `make verify` exit 0 `241 passed in 17.52s` · 증명 16 전부 녹색(t3-wrap/proof16-after-nits.log). 커밋 트레일러는 Opus 5.5(워커 환경 규칙).
+25. (리뷰 Nit 1 + 미표시 3) 승인자 보류: 끝점 모듈 간 private 이름 import 의 공용화(`app/endpoints/_common.py`, T2b 파일 import 줄 변경) · `# type: ignore` 셋 · documents.py:37 재조회 · `reveal` 인자.
 
 
 
