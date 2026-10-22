@@ -13,11 +13,14 @@
 - GET /v1/admin/courses/{course_id}/assignee-candidates?pool_id=: 승인 강사만, 추천(그 과정의 역량 강사 ∨ 고유 과정
   소유자) 먼저 · 이름 · id 순. 한 쪽 500, 커서 없음(next_cursor 항상 null). 없는 강의·과정 404 이고, 모양 밖 pool_id 는
   DB 를 치지 않고 같은 404 다. 비활성 과정이어도 목록은 준다(이미 있는 세션의 배정).
+- 경로·본문의 행 id 는 1 ≤ id < 2**63(BIGINT)이다. 밖이면 DB 를 치지 않고 422(경로는 IdPath, 본문은 schemas.course.DbId).
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Path
 
 from classfit.app.deps import AdminCaller, DbSession
 from classfit.app.endpoints.pool import id_or_404
@@ -29,11 +32,14 @@ from classfit.schemas.assign import (
     SectionAssignIn,
     SectionAssignOut,
 )
-from classfit.schemas.course import SessionOut
+from classfit.schemas.course import DB_ID_LIMIT, SessionOut
 from classfit.schemas.page import Page
 from classfit.service.courses import assign, pool_sessions
 
 router = APIRouter(prefix="/v1/admin", tags=["assign"])
+
+# T5 끝점의 경로 id(BIGINT). 범위 밖은 DB 를 치지 않고 422 loc ["path", <이름>] 다(본문 DbId 와 같은 상한)
+IdPath = Annotated[int, Path(ge=1, lt=DB_ID_LIMIT)]
 
 _SECTION = "/courses/{course_id}/sections/{section_id}"
 
@@ -48,8 +54,8 @@ _SECTION = "/courses/{course_id}/sections/{section_id}"
     },
 )
 async def add_sessions_from_pool(
-    course_id: int,
-    section_id: int,
+    course_id: IdPath,
+    section_id: IdPath,
     body: FromPoolIn,
     session: DbSession,
     _: AdminCaller,
@@ -76,8 +82,8 @@ async def add_sessions_from_pool(
     },
 )
 async def assign_whole_section(
-    course_id: int,
-    section_id: int,
+    course_id: IdPath,
+    section_id: IdPath,
     body: SectionAssignIn,
     session: DbSession,
     caller: AdminCaller,
@@ -104,7 +110,7 @@ async def assign_whole_section(
     responses={404: {"description": "강의가 없음 · 과정이 없음"}},
 )
 async def list_assignee_candidates(
-    course_id: int,
+    course_id: IdPath,
     session: DbSession,
     caller: AdminCaller,
     pool_id: str | None = None,

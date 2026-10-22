@@ -28,6 +28,8 @@ from tests.fixtures.instructors import count, locs, problem_of
 ADMIN = "/v1/admin"
 MINE = "/v1/me/courses"
 MISSING = 999_999_999
+LARGEST = 2**63 - 1  # BIGINT 로 표현되는 가장 큰 id — 없으면 404
+OVERFLOW = 2**63  # BIGINT 밖 — DB 를 치기 전에 422(codex 구현 리뷰 1차)
 
 
 def _session_url(session_id: int) -> str:
@@ -128,13 +130,22 @@ async def test_instructor_session_other_403(
             403,
             "/problems/forbidden",
         )
-    problem_of(
+    for sid in (MISSING, LARGEST):
+        problem_of(
+            await client.patch(
+                _session_url(sid), headers=b_auth, json={"description": "x"}
+            ),
+            404,
+            "/problems/not_found",
+        )
+    got = problem_of(
         await client.patch(
-            _session_url(MISSING), headers=b_auth, json={"description": "x"}
+            _session_url(OVERFLOW), headers=b_auth, json={"description": "x"}
         ),
-        404,
-        "/problems/not_found",
+        422,
     )
+    assert locs(got) == [["path", "session_id"]]
+    assert [v["type"] for v in got["violations"]] == ["less_than"]
     assert [await _row(db_session, s) for s in (mine_a, nobody)] == before
 
     # 같은 강의의 남의 세션은 읽기는 된다(쓰기만 403)
@@ -144,8 +155,15 @@ async def test_instructor_session_other_403(
     assert seen == {mine_a, mine_b, nobody}
     for url in (f"{MINE}/{other.id}", f"{MINE}/{other.id}/schedule"):
         problem_of(await client.get(url, headers=b_auth), 403, "/problems/forbidden")
-    for url in (f"{MINE}/{MISSING}", f"{MINE}/{MISSING}/schedule"):
-        problem_of(await client.get(url, headers=b_auth), 404, "/problems/not_found")
+    for missing in (MISSING, LARGEST):
+        for url in (f"{MINE}/{missing}", f"{MINE}/{missing}/schedule"):
+            problem_of(
+                await client.get(url, headers=b_auth), 404, "/problems/not_found"
+            )
+    for url in (f"{MINE}/{OVERFLOW}", f"{MINE}/{OVERFLOW}/schedule"):
+        got = problem_of(await client.get(url, headers=b_auth), 422)
+        assert locs(got) == [["path", "course_id"]], url
+        assert [v["type"] for v in got["violations"]] == ["less_than"]
 
 
 async def test_instructor_session_patch_own_fields(

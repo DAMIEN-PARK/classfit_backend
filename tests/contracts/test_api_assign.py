@@ -28,6 +28,8 @@ from tests.fixtures.pool import make_pool_course, set_flags
 
 ADMIN = "/v1/admin"
 MISSING = 999_999_999
+LARGEST = 2**63 - 1  # BIGINT 로 표현되는 가장 큰 id — 없으면 404
+OVERFLOW = 2**63  # BIGINT 밖 — DB 를 치기 전에 422(codex 구현 리뷰 1차)
 X_NAME = "가명 배정"
 # 포털 응답의 허용 키(결정 xiv — 교집합이 아니라 집합을 정확히 잰다)
 TOP_KEYS = {"course", "sections"}
@@ -305,15 +307,61 @@ async def test_assign_unknown_404(
         ("POST", _assign_url(course.id, MISSING), x),
         ("POST", _assign_url(MISSING, section.id), x),
         ("POST", _assign_url(course.id, other_section.id), x),  # 다른 강의의 섹션
+        ("PATCH", f"{ADMIN}/sessions/{row.id}", LARGEST),
+        ("POST", _assign_url(course.id, section.id), LARGEST),
     ]
     for method, url, iid in cases:
         r = await client.request(method, url, headers=auth, json={"instructor_id": iid})
         problem_of(r, 404, "/problems/not_found")
+    overflow = [
+        (
+            "PATCH",
+            f"{ADMIN}/sessions/{row.id}",
+            {"instructor_id": OVERFLOW},
+            "body",
+            "instructor_id",
+        ),
+        (
+            "POST",
+            _assign_url(course.id, section.id),
+            {"instructor_id": OVERFLOW},
+            "body",
+            "instructor_id",
+        ),
+        (
+            "POST",
+            _assign_url(course.id, OVERFLOW),
+            {"instructor_id": x},
+            "path",
+            "section_id",
+        ),
+        (
+            "POST",
+            _from_pool_url(OVERFLOW, section.id),
+            {"pool_ids": [ax.id]},
+            "path",
+            "course_id",
+        ),
+        (
+            "GET",
+            f"{ADMIN}/courses/{OVERFLOW}/assignee-candidates",
+            None,
+            "path",
+            "course_id",
+        ),
+    ]
+    for method, url, body, where, name in overflow:
+        got = problem_of(
+            await client.request(method, url, headers=auth, json=body), 422
+        )
+        assert locs(got) == [[where, name]], (url, got)
+        assert [v["type"] for v in got["violations"]] == ["less_than"], got
     assert await _instructor_of(db_session, row.id) is None
     assert await _instructor_of(db_session, foreign.id) is None
     assert await _audits(db_session) == []
     assert await _outbox(db_session) == []
     assert await _course_sessions(db_session, other_course.id) == 1
+    assert await _course_sessions(db_session, course.id) == 1
 
 
 async def test_assign_candidates_recommended_first(

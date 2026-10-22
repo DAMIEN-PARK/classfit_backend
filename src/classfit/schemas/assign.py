@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
-from classfit.schemas.course import DayNo, SessionOut, TextId
+from classfit.schemas.course import DayNo, DbId, SessionOut, TextId
 
 POOL_PICK_MAX = 20
 
@@ -35,7 +35,7 @@ class FromPoolOut(BaseModel):
 
 
 class SectionAssignIn(BaseModel):
-    instructor_id: int = Field(ge=1)
+    instructor_id: DbId
 
 
 class SectionAssignOut(BaseModel):

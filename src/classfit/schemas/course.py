@@ -61,6 +61,9 @@ TextId = Annotated[
 ]
 DayNo = Annotated[int, Field(ge=1, le=60)]
 Slot = Annotated[int, Field(ge=1, le=60)]
+# 본문의 행 id(BIGINT). 2**63 이상은 DB 가 범위 오류를 내 422 대신 500 이 되므로 모양에서 막는다(core/cursor.py _MAX_ID 와 같은 까닭)
+DB_ID_LIMIT = 2**63
+DbId = Annotated[int, Field(ge=1, lt=DB_ID_LIMIT)]
 
 
 class _Patch(BaseModel):
@@ -93,7 +96,7 @@ class CourseOpenIn(BaseModel):
     """
 
     start: Literal["blank", "clone", "curriculum"]
-    source_course_id: int | None = Field(default=None, ge=1)
+    source_course_id: DbId | None = None
     curriculum_id: TextId | None = None
     title: Line
     client_name: Line
@@ -341,7 +344,7 @@ class SessionPatchIn(_Patch):
     keywords: list[Word] | None = Field(default=None, max_length=20)
     is_open: bool | None = None
     # 담당 강사(T5 결정 vii). null 은 배정 해제다. 승인 강사만(409), 없는 강사 404
-    instructor_id: int | None = Field(default=None, ge=1)
+    instructor_id: DbId | None = None
 
     @model_validator(mode="after")
     def _shape(self) -> SessionPatchIn:

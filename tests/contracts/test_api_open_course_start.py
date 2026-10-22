@@ -27,12 +27,14 @@ from classfit.models import (
 from tests.fixtures.assign import approved, course_with_section, pool_session
 from tests.fixtures.courses import admin_headers, open_test_course
 from tests.fixtures.enter import add_pdf, add_section, add_session
-from tests.fixtures.instructors import count, problem_of
+from tests.fixtures.instructors import count, locs, problem_of
 from tests.fixtures.pool import ME, curriculum_body, make_pool_course
 
 ADMIN = "/v1/admin"
 URL = f"{ADMIN}/courses"
 MISSING = 999_999_999
+LARGEST = 2**63 - 1  # BIGINT 로 표현되는 가장 큰 id — 없으면 404
+OVERFLOW = 2**63  # BIGINT 밖 — DB 를 치기 전에 422(codex 구현 리뷰 1차)
 BODY: dict[str, Any] = {
     "start": "blank",
     "title": "새 강의",
@@ -413,6 +415,14 @@ async def test_open_course_start_rejections(
         "/problems/conflict",
     )
     assert got["instructor_status"] == "pending"
+    await rejected(
+        {**BODY, "start": "clone", "source_course_id": LARGEST},
+        404,
+        "/problems/not_found",
+    )
+    got = await rejected({**BODY, "start": "clone", "source_course_id": OVERFLOW}, 422)
+    assert locs(got) == [["body", "source_course_id"]]
+    assert [v["type"] for v in got["violations"]] == ["less_than"]
     await rejected({**BODY, "start": "clone"}, 422)
     await rejected({**BODY, "start": "blank", "curriculum_id": pending_owner}, 422)
     await rejected(

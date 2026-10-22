@@ -8,6 +8,7 @@
   없다. 일정표는 관리자 일정표와 같은 ScheduleOut 이다(CRS-010).
 - PATCH /v1/me/sessions/{session_id} 본문 {description?, keywords?, is_open?}: 그 밖의 키는 422 extra_forbidden.
   없는 세션 404 → 강의 행을 잠근 뒤 다시 읽어 내 세션이 아니면 403(배정이 바뀌는 사이의 수정을 막는다). audit 없음.
+- 경로 id 는 1 ≤ id < 2**63(BIGINT)이다. 밖이면 DB 를 치지 않고 422 loc ["path", <이름>](IdPath).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from fastapi import APIRouter, Query
 from fastapi.exceptions import RequestValidationError
 
 from classfit.app.deps import DbSession, InstructorCaller, Today
+from classfit.app.endpoints.assign import IdPath
 from classfit.crud.schedule import get_session_and_course
 from classfit.schemas.course import CourseStatus, ScheduleOut
 from classfit.schemas.my_course import (
@@ -146,7 +148,7 @@ async def list_my_courses(
 
 @router.get("/courses/{course_id}", response_model=MyCourseDetailOut, responses=_ONE)
 async def get_my_course(
-    course_id: int, session: DbSession, caller: InstructorCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: InstructorCaller, today: Today
 ) -> MyCourseDetailOut:
     view = await mine.course_view(session, caller, course_id=course_id)
     return _detail_out(view, today)
@@ -154,7 +156,7 @@ async def get_my_course(
 
 @router.get("/courses/{course_id}/schedule", response_model=ScheduleOut, responses=_ONE)
 async def get_my_schedule(
-    course_id: int, session: DbSession, caller: InstructorCaller
+    course_id: IdPath, session: DbSession, caller: InstructorCaller
 ) -> ScheduleOut:
     return await mine.schedule_for(session, caller, course_id=course_id)
 
@@ -168,7 +170,7 @@ async def get_my_schedule(
     },
 )
 async def patch_my_session(
-    session_id: int,
+    session_id: IdPath,
     body: MySessionPatchIn,
     session: DbSession,
     caller: InstructorCaller,
