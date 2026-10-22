@@ -75,7 +75,7 @@ layers = [
   "core",
 ]
 
-# ② service 구성요소: rules(순수 함수)가 맨 아래, 그 위 auth·courses·enroll·files 는 서로 모른다(Design 5절 14).
+# ② service 구성요소: rules(순수 함수)가 맨 아래, 그 위 auth·courses·enroll·files·instructors 는 서로 모른다(Design 5절 14).
 #    구성요소 사이의 읽기는 crud 를 거친다. exhaustive 라 새 구성요소 폴더는 여기 더하기 전엔 lint-imports 가 막는다.
 #    rules 가 crud·models 를 부르지 않는 것은 이 계약이 아니라 tests/unit/test_import_rules.py 가 본다(T2a 결정 iv).
 [[tool.importlinter.contracts]]
@@ -84,7 +84,7 @@ type = "layers"
 containers = ["classfit.service"]
 exhaustive = true
 layers = [
-  "auth | courses | enroll | files",
+  "auth | courses | enroll | files | instructors",
   "rules",
 ]
 

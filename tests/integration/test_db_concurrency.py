@@ -39,11 +39,14 @@ WAIT_SECONDS = 5.0
 POLL_SECONDS = 0.02
 
 Factory = async_sessionmaker[AsyncSession]
+# 마이그레이션이 넣는 시드 표는 비우지 않는다(0005 document_type, 뒤에 도는 시드 시험이 잰다).
+# CASCADE 는 참조하는 쪽으로만 번지므로 이 표를 빼도 TRUNCATE 는 성립한다(T3 계획 착수 조건 ⑩)
+SEED_TABLES = frozenset({"document_type"})
 
 
 @pytest_asyncio.fixture
 async def committing(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
-    """커밋하는 엔진. 끝에 ORM 표를 전부 비운다(sorted_tables, CASCADE)."""
+    """커밋하는 엔진. 끝에 ORM 표를 비운다(sorted_tables, CASCADE). 시드 표 SEED_TABLES 는 남긴다."""
     engine = make_engine(migrated_db_url, poolclass=NullPool)
     try:
         yield engine
@@ -51,7 +54,11 @@ async def committing(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
         try:
             async with engine.begin() as conn:
                 quote = conn.dialect.identifier_preparer.format_table
-                names = ", ".join(quote(t) for t in Base.metadata.sorted_tables)
+                names = ", ".join(
+                    quote(t)
+                    for t in Base.metadata.sorted_tables
+                    if t.name not in SEED_TABLES
+                )
                 await conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
         finally:
             await engine.dispose()

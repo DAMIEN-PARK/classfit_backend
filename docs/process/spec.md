@@ -35,7 +35,7 @@ URL: ""
 | ADR-002 학습자 세션 | [`docs/process/adr/ADR-002-learner-session.md`](adr/ADR-002-learner-session.md) | 저장소 | git 추적 | 승인 | r3 §4 · §1.1 ④ | [Design](2026-10-21-phase1-backend-design.md) 1·2절 |
 | ADR-003 외부 포트 | [`docs/process/adr/ADR-003-external-ports.md`](adr/ADR-003-external-ports.md) | 저장소 | git 추적 | 승인 | r3 §4 | [Design](2026-10-21-phase1-backend-design.md) 1·3절 |
 | ADR-004 공개홈 | [`docs/process/adr/ADR-004-public-home.md`](adr/ADR-004-public-home.md) | 저장소 | git 추적 | 승인 · r3 §7-1 답에 따라 다시 봄 | r3 §4 · 부록 A5 | [feature intent](intents/2026-10-21-phase1-backend.md) |
-| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1·T2a 병합 · T2b 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
+| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1·T2a·T2b 병합 · T3 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
 | 에이전트 편성 | [`docs/process/agent.md`](agent.md) | 저장소 | git 추적 | 승인자 DAMIEN-PARK | r3 §5.1 · 부록 E11 | CLAUDE.md · `.claude/settings.json` |
 
 ## 2. 정책 대조표
@@ -69,7 +69,7 @@ r3 부록 A2 데이터 계약 차이 11건, A3 시안 전용 기능 5종, §2 �
 | 2026-10-21 | A2-4 Session·Attachment 칸 이름이 넷(att·files·attachments·keys), 종류 img·image | 2 | keywords[], kind=image, href | 결정(r3) · T2b 반영(0004 `session_attachment`, kind 5종 pdf·office·html·link·image · 응답 `href`) |
 | 2026-10-21 | A2-5 Diagnosis·DiagLink 상태 값이 다르다 | 2 | draft·review·final / open·submitted·revoked, 만료는 계산 | 결정(r3) · T9a |
 | 2026-10-21 | A2-6 Company 규모가 시안 5구간, 문의 4구간 | 2 | 회사 5구간, 문의 4구간 그대로 | 결정(r3) · T9a·T9b |
-| 2026-10-21 | A2-7 강사 서류가 기획안 3종, 시안 4종 + 계약서 + 기타 | 2 | document_type 표, 시드 3종. 최종 항목은 DEC-006 | 1차 결정(r3) · DEC-006 열림 |
+| 2026-10-21 | A2-7 강사 서류가 기획안 3종, 시안 4종 + 계약서 + 기타 | 2 | document_type 표, 시드 3종. 최종 항목은 DEC-006 | 1차 결정(r3) · T3 반영(0005 `document_type` 시드 3종 resume·cert·pledge) · DEC-006 열림 |
 | 2026-10-21 | A2-8 Capability 의 시안 confirmed·fix | 2 | 1차는 기획안대로 | 결정(r3) · T4 |
 | 2026-10-21 | A2-9 Pool 직무군이 문자열과 배열로 다르다 | 2 | job_groups[] | 결정(r3) · T4 |
 | 2026-10-21 | A2-10 심화 과정 시드에 id·pub·active 가 없다 | 2 | 표에 둔다 | 결정(r3) · T4 |
@@ -84,8 +84,8 @@ r3 부록 A2 데이터 계약 차이 11건, A3 시안 전용 기능 5종, §2 �
 | 2026-10-21 | DEC-002 관리자 일정과 강사·학습자 시간 함수의 점심·요일 처리가 다르다 | 2 | 관리자 일정 정의로 통합 권고, 시수 기준 확정 | 결정 필요 |
 | 2026-10-21 | DEC-003 진단 17지표 최저 응답 총점 160 이라 L1 이 불가능하다 | 2 | 단계 점수 체계·레벨 경계를 기획자가 확정, 임의 변경 금지 | 결정 필요 |
 | 2026-10-21 | DEC-004 학습자 시안은 강의를 즉시 전환하고 전역 이름을 쓴다 | 6 | ADR-002 로 결정됨. 시안 UI 수정 대상 | 결정(ADR-002) |
-| 2026-10-21 | DEC-005 강사 반려·정지 제한, 재신청, 관리자 초기 비밀번호가 시안에서 미완성 | 해당 없음 | 공개홈·기존 설계와 대조해 인증·복구·정지 범위 확정 | 결정 필요 |
-| 2026-10-21 | DEC-006 필수 서류가 시안 4종 + 계약서, r3 는 기획안 3종 시드 | 해당 없음 | 초기 제출 항목·예외·필수 정책 확정. 1차 시드는 3종(r3 §7-2) | 결정 필요 |
+| 2026-10-21 | DEC-005 강사 반려·정지 제한, 재신청, 관리자 초기 비밀번호가 시안에서 미완성 | 해당 없음 | 공개홈·기존 설계와 대조해 인증·복구·정지 범위 확정. T3 기본값(계획 결정 vi·vii·viii·xii): 반려는 사유 1~500자 필수 · 반려 강사는 로그인해 사유를 보고 `:reapply` 로 대기에 돌아간다 · 정지는 산 세션 폐기 + 로그인 403 · 해제는 승인으로. 관리자 초기 비밀번호는 T1 `create_admin` 그대로 | 결정 필요 |
+| 2026-10-21 | DEC-006 필수 서류가 시안 4종 + 계약서, r3 는 기획안 3종 시드 | 해당 없음 | 초기 제출 항목·예외·필수 정책 확정. 1차 시드는 3종(r3 §7-2). T3 기본값(계획 결정 xiv·xviii): 0005 시드 이력서·자격증/경력증명·강사 서약서, 셋 다 필수 · PDF 만 · 서류는 승인 조건이 아니다 | 결정 필요 |
 | 2026-10-21 | DEC-007 실제 시각 공란이면 계획 시간으로 집계, 확정 후 수정 흐름이 불분명 | 해당 없음 | 실제 시간 필수 여부·수정 이력 확정. 정산은 1차 제외 | 결정 필요 |
 | 2026-10-21 | DEC-008 보관 강의를 관리자 시수 집계에서 뺀다 | 해당 없음 | 역사적 집계 유지 권고, 보관 후 규칙 확정 | 결정 필요 |
 | 2026-10-21 | DEC-009 비공개 차시 숨김 안내와 학습자 렌더러 판정이 다르다 | 7 | 비공개 카드 숨김·노출 범위 확정. 자료 접근 차단은 공통 | 결정 필요 |

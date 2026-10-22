@@ -3,8 +3,10 @@
 - 인증은 `Authorization: Bearer <불투명 토큰>` 하나다(관리자·강사·수강생 공용 auth_session).
   헤더 없음·모양 틀림·없는 토큰·폐기·만료는 전부 401 + WWW-Authenticate: Bearer.
 - 권한은 타입 별칭으로 건다: CurrentPrincipal(로그인만) · AdminCaller(관리자, 아니면 403) ·
-  LearnerCaller(수강생, 아니면 403). 수강생 주체는 토큰의 강의 하나에 묶인다(ADR-002 결정 1).
-  LearnerCaller 는 learner 행을 찾지 않는다. 세션 행의 (principal_id, course_id) 가 주체다.
+  LearnerCaller(수강생, 아니면 403) · InstructorCaller(강사, 아니면 403). 수강생 주체는 토큰의 강의 하나에
+  묶인다(ADR-002 결정 1). LearnerCaller 는 learner 행을 찾지 않는다. 세션 행의 (principal_id, course_id) 가 주체다.
+- InstructorCaller 도 instructor 행을 읽지 않는다(T3 계획 결정 v). 정지(:suspend)가 그 강사의 산 세션을 전부
+  폐기하므로 정지된 강사의 옛 토큰은 401 이다. 대기·반려 강사도 통과한다(승인 여부는 배정·첨부 태스크가 본다).
 - 날짜는 Today(Asia/Seoul) 한 곳에서 받는다. 시험은 app.dependency_overrides[today] 로 주입한다.
 """
 
@@ -81,6 +83,15 @@ async def require_learner(principal: CurrentPrincipal) -> Principal:
 
 
 LearnerCaller = Annotated[Principal, Depends(require_learner)]
+
+
+async def require_instructor(principal: CurrentPrincipal) -> Principal:
+    if principal.type != "instructor":
+        raise forbidden("강사만 할 수 있습니다")
+    return principal
+
+
+InstructorCaller = Annotated[Principal, Depends(require_instructor)]
 
 
 def today() -> date:

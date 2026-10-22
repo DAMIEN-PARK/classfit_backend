@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     invite_expiry_days: int = 30  # 초대코드 만료 = 강의 종료일 + 이 일수(Design 1절)
     # 관리자 첨부 PDF 상한(기획안 I4). 기본값이 있어 missing() 대상이 아니다
     attachment_pdf_max_mb: int = 50
+    instructor_session_days: int = 14
+    email_code_minutes: int = 10  # 인증 코드 수명. 기준은 해시를 저장한 시각(issued_at)
+    email_code_max_tries: int = 5  # 한 코드에 틀릴 수 있는 횟수. 넘으면 재발송해야 한다
+    document_pdf_max_mb: int = 10  # 강사 서류 PDF 상한(T3 결정 ix)
+    # 약관 판본. 제품 상수에 가까워 기본값을 둔다 — "미구성은 실패" 규칙의 예외(T3 결정 iii). 빈 글자는 막는다
+    terms_version: str = "2026-10-22"
 
     @field_validator("file_store_root", "file_signing_key", mode="before")
     @classmethod
@@ -100,11 +106,22 @@ class Settings(BaseSettings):
         "file_gc_grace_hours",
         "invite_expiry_days",
         "attachment_pdf_max_mb",
+        "instructor_session_days",
+        "email_code_minutes",
+        "email_code_max_tries",
+        "document_pdf_max_mb",
     )
     @classmethod
     def _positive(cls, v: int) -> int:
         if v < 1:
             raise ValueError("1 이상이어야 합니다")
+        return v
+
+    @field_validator("terms_version")
+    @classmethod
+    def _not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("빈 글자를 쓰지 않는다")
         return v
 
     @field_validator("db_max_overflow")
