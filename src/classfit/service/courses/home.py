@@ -29,7 +29,17 @@ HOME_TODO_MAX = 20
 
 @dataclass(frozen=True)
 class MyHomeCourse:
-    row: crud_my_home.HomeCourseRow
+    """강의 표 한 행. 칸 이름이 응답 칸과 같다(끝점이 from_attributes 로 읽는다)."""
+
+    id: int
+    title: str
+    course_type: str | None
+    client_name: str
+    status: str  # 오늘 기준 강의 상태
+    start_on: dt.date
+    end_on: dt.date
+    my_sessions: int
+    my_ready: int  # 첨부가 1개 이상인 내 세션
     code: str | None  # 산 코드가 없으면 None
     code_state: CodeState | None
 
@@ -63,7 +73,15 @@ async def home_of(session: AsyncSession, subject: Subject, *, today: dt.date) ->
         code = codes.get(r.course.id)
         courses.append(
             MyHomeCourse(
-                row=r,
+                id=r.course.id,
+                title=r.course.title,
+                course_type=r.course.course_type,
+                client_name=r.course.client_name,
+                status=r.status,
+                start_on=r.course.start_on,
+                end_on=r.course.end_on,
+                my_sessions=r.my_sessions,
+                my_ready=r.my_ready,
                 code=None if code is None else code.code,
                 code_state=None
                 if code is None
