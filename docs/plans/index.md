@@ -12,3 +12,4 @@
 * [Plan: T2a open-course](T2a-open-course.md) - 빈 강의 개설 + 초대코드 발급(한 트랜잭션)·일정·섹션·세션·코드 관리·course_status_at·code_state_at(+SQL 판)·golden 추출·깨진 커서 422 와 마이그레이션 0003 을 까는 태스크 계획
 * [Plan: T2b enter-portal](T2b-enter-portal.md) - 수강생 입장·재입장(초대코드 + 이메일)·learner(이메일만)·enrollment(이름·부서)·포털·관리자 첨부(pdf·link)·파일 열람 href·정원·재발급 잠금과 마이그레이션 0004 를 까는 태스크 계획
 * [Plan: T3 instructor-onboarding](T3-instructor-onboarding.md) - 강사 가입(이메일 인증 코드 해시·분야 태그·약관 판본)·로그인·프로필·서류 3종(열람 audit)·관리자 승인/반려/정지/해제(A2 상태 4행 전이)·태그 설정과 마이그레이션 0005 를 까는 태스크 계획
+* [Plan: T4 course-pool](T4-course-pool.md) - 과정 풀(AX 과정·강사 고유 과정·강사 역량·커리큘럼·심화 과정)과 마이그레이션 0006, 멱등 관리 명령 import_ax_catalog, 공개 카탈로그 질의 함수 published_catalog() 를 까는 태스크 계획
