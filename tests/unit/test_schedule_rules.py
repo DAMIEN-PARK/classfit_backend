@@ -9,7 +9,12 @@ from datetime import date, time
 from pathlib import Path
 from types import SimpleNamespace
 
-from classfit.service.rules.schedule import make_days, session_time
+from classfit.service.rules.schedule import (
+    make_days,
+    session_time,
+    slot_count,
+    slot_times,
+)
 
 GOLDEN_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "golden.json"
 GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
@@ -86,3 +91,25 @@ def test_golden_schedule_session_time() -> None:
                 }
             )
         assert got == case["out"], case["id"]
+
+
+def test_golden_schedule_slot_count() -> None:
+    cases = GOLDEN["slot_count"]
+    assert cases, "golden slot_count 사례가 0개다"
+    for case in cases:
+        i = case["in"]
+        d = i["day"]
+        day = SimpleNamespace(
+            start_time=_t(d["start"]),
+            end_time=_t(d["end"]),
+            lunch_start=_t(d["lunch_start"]),
+            lunch_end=_t(d["lunch_end"]),
+        )
+        times = [
+            {"start": a, "end": b}
+            for a, b in slot_times(day, i["slot_min"], i["break_min"])
+        ]
+        assert times == case["out"]["times"], case["id"]
+        assert slot_count(day, i["slot_min"], i["break_min"]) == case["out"]["count"], (
+            case["id"]
+        )

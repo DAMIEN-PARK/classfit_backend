@@ -5,21 +5,44 @@
 - 이메일은 정규화(schemas.enter.normalize_email)해 넘긴다. 비교는 식 유일 색인과 같은 SQL lower() 로 한다.
 - 목록·단건 조회의 첫 WHERE 는 주체 범위다(crud.scope.instructor_scope).
 - 상태 전이·재신청·로그인 상태 판정은 lock_instructor 로 행을 잠근 뒤 한다(T3 결정 vi·viii, Design 5절 6).
+  배정 가능 판정도 같다(T5 결정 viii, service.courses.assign.lock_assignable).
+- 배정 후보 list_candidates(T5 결정 xx)는 승인 강사만, 추천 = 그 과정 역량 ∨ 그 고유 과정 소유자, 순서 (추천 먼저, 이름, id).
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import Select, delete, func, or_, select
+from sqlalchemy import Select, delete, exists, false, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.crud.flush import flush_or_conflict
 from classfit.crud.like import LIKE_ESCAPE, contains_pattern
 from classfit.crud.scope import Subject, instructor_scope
-from classfit.models import DocumentType, Instructor, InstructorDocument, InstructorTag
+from classfit.models import (
+    Capability,
+    CourseSession,
+    DocumentType,
+    Instructor,
+    InstructorDocument,
+    InstructorTag,
+    PoolCourse,
+    Section,
+)
+
+
+@dataclass(frozen=True)
+class CandidateRow:
+    """배정 후보 한 줄(이메일·전화 없음)."""
+
+    instructor_id: int
+    name: str
+    org: str | None
+    recommended: bool
+    assigned_sessions: int  # 이 강의에서 이미 맡은 세션 수
 
 
 def _by_email(email: str) -> Select[tuple[Instructor]]:
@@ -162,3 +185,67 @@ async def document_counts(
         .group_by(InstructorDocument.instructor_id)
     )
     return {iid: n for iid, n in (await session.execute(stmt)).all()}
+
+
+async def names_by_id(session: AsyncSession, ids: Iterable[int]) -> dict[int, str]:
+    """강사 id → 이름. 없는 id 는 키가 없다.
+
+    범위로 걸러진 id 만 받는다 — 이미 범위 안에서 읽은 세션의 instructor_id 만 넘긴다.
+    """
+    wanted = sorted(set(ids))
+    if not wanted:
+        return {}
+    stmt = select(Instructor.id, Instructor.name).where(Instructor.id.in_(wanted))
+    return {iid: name for iid, name in (await session.execute(stmt)).all()}
+
+
+async def list_candidates(
+    session: AsyncSession,
+    subject: Subject,
+    *,
+    course_id: int,
+    pool_course_id: str | None,
+    limit: int,
+) -> tuple[list[CandidateRow], bool]:
+    """(앞 limit 줄, 더 있는지). 첫 WHERE 는 주체 범위, 그 뒤 승인 강사만. pool_course_id 가 없으면 추천 없음."""
+    if pool_course_id is None:
+        recommended: Any = false()
+    else:
+        recommended = or_(
+            exists().where(
+                Capability.instructor_id == Instructor.id,
+                Capability.pool_course_id == pool_course_id,
+            ),
+            exists().where(
+                PoolCourse.id == pool_course_id,
+                PoolCourse.owner_instructor_id == Instructor.id,
+            ),
+        )
+    assigned = (
+        select(func.count())
+        .select_from(CourseSession)
+        .join(Section, Section.id == CourseSession.section_id)
+        .where(
+            Section.course_id == course_id, CourseSession.instructor_id == Instructor.id
+        )
+        .scalar_subquery()
+    )
+    flag = recommended.label("recommended")
+    stmt = (
+        select(Instructor.id, Instructor.name, Instructor.org, flag, assigned)
+        .where(instructor_scope(subject))
+        .where(Instructor.status == "approved")
+        .order_by(flag.desc(), Instructor.name, Instructor.id)
+        .limit(limit + 1)
+    )
+    rows = [
+        CandidateRow(
+            instructor_id=iid,
+            name=name,
+            org=org,
+            recommended=bool(rec),
+            assigned_sessions=n or 0,
+        )
+        for iid, name, org, rec, n in (await session.execute(stmt)).all()
+    ]
+    return rows[:limit], len(rows) > limit
