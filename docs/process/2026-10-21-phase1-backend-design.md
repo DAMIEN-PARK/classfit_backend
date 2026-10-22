@@ -40,7 +40,7 @@ URL: ""
 | 수강생 세션 | 1일. 종료 후 복습 때마다 재입장한다 | 승인자 답(r3 §1.1 ④) |
 | 인증 코드 | 10분, 5회 시도 | 제안 |
 | 로그인 잠금 | 같은 (계정, 클라이언트 주소)에서 15분 안 10회 실패면 그 쌍만 15분 차단. 잠긴 요청은 429 + `Retry-After`(잠금 분 × 60초) | 제안 |
-| 초대코드 만료 | 강의 종료일 + 30일 | 기획안 5-4 |
+| 초대코드 만료 | 강의 종료일 + 30일(설정 칸 `invite_expiry_days`). 발급 때 만료일을 저장하고, 강의 기간이 바뀌어도 따라가지 않는다. 바꾸려면 관리자가 코드를 PATCH 한다. 재발급은 옛 행의 만료일·정원을 새 행으로 옮긴다 | 기획안 5-4 · T2a 계획 착수 조건 결정 (ii) |
 | 진단 링크 만료 | 발급 + 14일 | 기획안 8-4 |
 | 설문 닫힘 | 강의 종료일 + 14일 | 기획안 8-2 |
 | 문의 중복 창 | 1분 | 기획안 P6 |
@@ -114,11 +114,11 @@ r3 부록 D 가 본문이다. r1 B0 의 규칙은 r3 와 겹치지 않는 것만
 | 10 | 응답 모양 | 파일은 `href`(지금은 `/v1/files/{key}`)로 가리킨다. 서명 URL 로 바꿔도 칸 이름과 타입이 같다 | T1 · T2b | r3 부록 D · N12 |
 | 11 | 소유자 삭제 | 소유자 행을 지우는 crud 는 같은 트랜잭션에서 stored_file 행도 지운다 | T2b 부터 | r3 부록 C |
 | 12 | 상태 열 | `Text + CheckConstraint` 로 둔다. 마이그레이션 리비전 id 는 손으로 매긴다(0002, 0003 …) | T1 부터 전부 | r1 B0 |
-| 13 | 단일 진입점 | 강의 개설 + 코드 발급은 `open_course()`, 초대코드는 `issue_invite_code()`, 인증 코드는 `issue_email_code()`(`classfit.service.auth.email_code`) 로만 만든다 | T1 · T2a | r3 부록 E7 |
-| 14 | 구성요소·import 경계 | `service/rules`(최하위 순수 함수 `course_status_at·code_state_at·make_days·session_time`) · `service/auth` · `service/courses`(`open_course`·`issue_invite_code`). 계약 ② 는 T1 에 처음 더한다. T1 의 ② 는 `type = "independence"`, modules `classfit.service.auth`·`classfit.service.files` 다. 위아래 계약(rules 최하위)으로 바꾸는 일은 rules 가 생기는 T2a 다. 계약 ① 이 exhaustive 라 1차에는 새 최상위 모듈을 만들지 않는다. 구성요소 사이의 읽기는 crud 를 거친다 | T1 부터 | r3 부록 D · r1 B0 |
+| 13 | 단일 진입점 | 강의 개설 + 코드 발급은 `open_course()`(`classfit.service.courses.open`), 초대코드는 `issue_invite_code()`(`classfit.service.courses.codes`. 생성 도우미 `_new_invite_code` 는 그 파일 밖에서 부르지 않는다), 인증 코드는 `issue_email_code()`(`classfit.service.auth.email_code`) 로만 만든다 | T1 · T2a | r3 부록 E7 |
+| 14 | 구성요소·import 경계 | `service/rules`(최하위 순수 함수 `course_status_at·code_state_at·make_days·session_time`) · `service/auth` · `service/courses`(`open_course`·`issue_invite_code`). 계약 ② 는 T1 에 `type = "independence"`(`classfit.service.auth`·`classfit.service.files`)로 처음 더했고, T2a 에서 `type = "layers"`·containers `classfit.service`·exhaustive 로 바꿨다. 위층은 서로 독립인 `auth`·`courses`·`files`, 아래층은 `rules` 다. 새 구성요소 폴더는 ② 에 더하기 전엔 lint-imports 가 막는다. rules 가 crud·models·DB 를 부르지 않는 것은 계약이 아니라 `tests/unit/test_import_rules.py` 가 본다. 계약 ① 이 exhaustive 라 1차에는 새 최상위 모듈을 만들지 않는다. 구성요소 사이의 읽기는 crud 를 거친다 | T1 부터 | r3 부록 D · r1 B0 |
 | 15 | 날짜 | 날짜는 `Today`(Asia/Seoul) 한 곳에서 받고 시험이 `app.dependency_overrides[classfit.app.deps.today]` 로 주입한다. 상태 판정 함수는 오늘을 인자로 받는다 | T1 부터 | r3 §2 가정 5 |
 | 16 | 원본 한 곳 | 문항·산식·상태 규칙은 코드 한 곳에 둔다. 진단 A4 와 자가진단 P5 가 같은 원본을 쓴다 | T2a · T9a | r3 §3 원칙 ② |
-| 17 | golden 추출 | `scripts/golden/extract.mjs` 는 시안 JS(`scTime·scMakeDays·calc`)를 node 로 돌려 숫자·시각만 대조 대상으로 남긴다. 회사명·인명은 `A사`·`강사A` 같은 가명 토큰으로 바꿔 저장한다. CI 는 커밋된 `tests/fixtures/golden.json` 을 쓴다 | T2a · T9a | r3 부록 D · N8 |
+| 17 | golden 추출 | `scripts/golden/extract.mjs` 는 시안 JS(`scTime·scMakeDays·calc`)를 node 로 돌려 숫자·날짜·시각만 대조 대상으로 남긴다. 입력은 extract.mjs 가 만든 합성 사례라 회사명·인명이 처음부터 없다. 시간대는 첫 줄에서 Asia/Seoul 로 고정해 기계 시간대와 무관하다. 재추출 대조는 `scripts/golden/check.sh`(pre-push) 한 곳이고, CI 는 커밋된 `tests/fixtures/golden.json` 을 쓴다 | T2a · T9a | r3 부록 D · N8 · T2a 계획 착수 조건 "golden 이름 처리" |
 | 18 | 시험 | 파일 이름은 `test_api_*`·`test_db_*`·`test_*_rules` 이고 basename 이 유일해야 한다(tests/conftest.py:7). 수용 기준이 세는 시험 이름은 부록 A 를 따른다. 동시성 시험은 `tests/integration/test_db_concurrency.py` 에 두고, 커밋하고 끝에 지우는 별도 픽스처를 쓴다 | 전부 | r3 부록 D |
 | 19 | 폭발 반경 | T1·T2a·T2b·T3·T9a·T9b 는 시험 + 대조 실험 + verifier, 나머지는 시험 + 대조 실험이다 | 전부 | r3 부록 D |
 | 20 | 설정 칸 | `FILE_STORE_ROOT`·`INQUIRY_NOTIFY_TO` 는 없으면 그 기능만 501 이다(`Settings.missing()`). 1절 수명·잠금·gc 유예 값은 1절 값을 설정 기본값으로 가지므로 `missing()` 대상이 아니다(ADR-002 결정 5, T1 계획 착수 조건 (ii)). `FILE_SIGNING_KEY` 는 예약 칸이라 `missing()` 밖이다 | T1 부터 | r3 부록 D |
