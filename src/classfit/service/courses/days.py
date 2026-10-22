@@ -5,6 +5,11 @@
 - PUT 은 일차를 통째로 바꾸고 1..n 으로 다시 매긴다. 없어진 일차(> n)의 세션은 "일차 미정"(day_no·slot NULL)이 된다.
 - PATCH 로 날짜를 바꿔 앞뒤 일차와 순서가 어긋나면 409. DELETE 는 번호를 다시 매기지 않고 그날 세션을 일차 미정으로 둔다.
 - 저장 상태와의 충돌은 409(Conflict), 본문 모양 오류는 schemas 가 422 로 막는다.
+- 쓰기 함수 넷 전부가 맨 앞에서 강의 행을 잠근다(crud.course.lock_course, T5 결정 xviii). populate_existing 이 끝점이
+  넘긴 같은 Course 객체를 새 값으로 덮으므로 "바뀐 칸"·기간 비교가 잠근 뒤 값으로 돈다. 그래서 이 파일의 잠금 순서는
+  전부 course → 일차·세션 행이다(옛 patch_day 의 일차 → course 순서가 일차 PUT·DELETE 와 교착 고리였다, codex 2차 #1).
+  그 사이 강의가 지워졌으면 404. 밑줄 도우미 _follow_period(update_course)는 이 넷 안에서만 부른다.
+- 일정표의 세션 칸에 담당 강사 id·이름을 싣는다(T5 결정 xiv).
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.core.errors import Conflict, NotFound
 from classfit.crud import course as crud_course
+from classfit.crud import instructor as crud_instructor
 from classfit.crud import schedule as crud_schedule
 from classfit.models import Course, CourseSession
 from classfit.schemas.course import (
@@ -29,6 +35,7 @@ from classfit.schemas.course import (
 from classfit.service.rules.schedule import session_time
 
 _PERIOD = ("start_on", "end_on")
+_NO_COURSE = "강의가 없습니다"
 _DAY_FIELDS = ("date", "start_time", "end_time", "lunch_start", "lunch_end")
 
 
@@ -39,6 +46,8 @@ async def patch_course(
 
     일차가 있는데 기간을 바꾸면 409, 기간이 뒤집히면 409.
     """
+    if await crud_course.lock_course(session, course.id) is None:
+        raise NotFound(_NO_COURSE)
     changes = {k: v for k, v in body.changes().items() if getattr(course, k) != v}
     if any(k in changes for k in _PERIOD):
         if await crud_schedule.list_days(session, course.id):
@@ -65,6 +74,8 @@ async def _follow_period(session: AsyncSession, course: Course) -> None:
 
 
 async def put_days(session: AsyncSession, course: Course, body: DaysPutIn) -> None:
+    if await crud_course.lock_course(session, course.id) is None:
+        raise NotFound(_NO_COURSE)
     rows = [{"day_no": no, **d.model_dump()} for no, d in enumerate(body.days, start=1)]
     await crud_schedule.replace_days(session, course.id, rows)
     await crud_schedule.unset_session_days(session, course.id, after=len(rows))
@@ -74,6 +85,8 @@ async def put_days(session: AsyncSession, course: Course, body: DaysPutIn) -> No
 async def patch_day(
     session: AsyncSession, course: Course, day_no: int, body: DayPatchIn
 ) -> None:
+    if await crud_course.lock_course(session, course.id) is None:
+        raise NotFound(_NO_COURSE)
     day = await crud_schedule.get_day(session, course.id, day_no)
     if day is None:
         raise NotFound("그 일차가 없습니다")
@@ -104,6 +117,8 @@ async def _check_order(
 
 
 async def delete_day(session: AsyncSession, course: Course, day_no: int) -> None:
+    if await crud_course.lock_course(session, course.id) is None:
+        raise NotFound(_NO_COURSE)
     if not await crud_schedule.delete_day(session, course.id, day_no):
         raise NotFound("그 일차가 없습니다")
     await crud_schedule.unset_session_days(session, course.id, day_nos=[day_no])
@@ -118,6 +133,9 @@ async def schedule_of(session: AsyncSession, course: Course) -> ScheduleOut:
     """일차마다 세션 시각을 rules.schedule.session_time 으로 계산한 일정표. 일차 미정 세션은 undated."""
     days = await crud_schedule.list_days(session, course.id)
     sessions = await crud_schedule.list_sessions(session, course.id)
+    names = await crud_instructor.names_by_id(
+        session, [s.instructor_id for s in sessions if s.instructor_id is not None]
+    )
     by_section: dict[int, list[CourseSession]] = defaultdict(list)
     for s in sessions:
         by_section[s.section_id].append(s)
@@ -136,6 +154,10 @@ async def schedule_of(session: AsyncSession, course: Course) -> ScheduleOut:
             slot=s.slot,
             start=times[0] if times else None,
             end=times[1] if times else None,
+            instructor_id=s.instructor_id,
+            instructor_name=names.get(s.instructor_id)
+            if s.instructor_id is not None
+            else None,
         )
         if day is None:
             undated.append(item)

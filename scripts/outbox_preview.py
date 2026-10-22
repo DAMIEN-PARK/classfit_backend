@@ -5,6 +5,9 @@
 - `instructor_approved`·`instructor_rejected`(T3)는 params {instructor_id, audit_id} 로 강사 이름과 반려 사유를 읽는다.
   사유는 강사 행이 아니라 그 audit 행의 detail.reason(불변 스냅샷)이다 — 재신청이 행의 사유를 비워도 본문은 같다.
   사유 칸이 비면 빈 글자로 찍는다. 강사·audit 행이 없거나 audit 이 그 강사의 반려(instructor.reject) 기록이 아니면 3 이다.
+- `session_assigned`(T5)는 params {instructor_id, audit_id} 로 강사 이름과 그 audit(session.assign, target course)의
+  detail 스냅샷(강의 제목·세션 제목)을 읽는다 — 강의가 그 뒤 지워져도 본문은 같다. audit 이 배정 기록이 아니거나
+  detail 의 강사가 params 와 다르면 3 이다.
 - 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 코드 자리는 `******` 로 가리고 "무효 코드(미리 보기)" 라고 찍는다.
   실제 숫자는 `--apply` 때만 stdout 에 나온다.
 - `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다.
@@ -72,11 +75,29 @@ async def _instructor_rejected(
     )
 
 
+async def _session_assigned(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
+    row = await _instructor(session, params)
+    audit = await session.get(AuditLog, int(params["audit_id"]))
+    if audit is None:
+        raise NotFound("audit 행이 없습니다")
+    is_assign = (audit.action, audit.target_type) == ("session.assign", "course")
+    if not is_assign or audit.detail.get("instructor_id") != row.id:
+        raise ValueError("audit 행이 그 강사의 배정 기록이 아니다")
+    titles = ", ".join(str(s["title"]) for s in audit.detail["sessions"])
+    return (
+        f"{row.name} 강사님, 「{audit.detail['course_title']}」 강의에 배정되었습니다.\n"
+        f"배정된 세션: {titles}\n로그인해 내 세션을 확인하세요."
+    )
+
+
 # (session, params, reveal) → 본문. reveal 은 --apply 일 때만 참이다(미리 보기의 코드는 무효라 가린다)
 RENDERERS: dict[str, Callable[[AsyncSession, dict[str, Any], bool], Awaitable[str]]] = {
     "email_code": _email_code,
     "instructor_approved": _instructor_approved,
     "instructor_rejected": _instructor_rejected,
+    "session_assigned": _session_assigned,
 }
 CODE_KINDS = frozenset({"email_code"})
 

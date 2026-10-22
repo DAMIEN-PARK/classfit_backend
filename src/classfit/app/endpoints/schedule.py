@@ -134,12 +134,23 @@ async def add_session(
 
 
 @router.patch(
-    "/sessions/{session_id}", response_model=SessionOut, responses={**_404, **_409}
+    "/sessions/{session_id}",
+    response_model=SessionOut,
+    responses={
+        404: {"description": "세션이 없음 · 배정할 강사가 없음"},
+        409: {
+            "description": "그 강의에 없는 일차 · 저장 상태와 충돌 · 승인되지 않은 강사 배정"
+            "(instructor_status)"
+        },
+    },
 )
 async def patch_session(
-    session_id: int, body: SessionPatchIn, session: DbSession, _: AdminCaller
+    session_id: int, body: SessionPatchIn, session: DbSession, caller: AdminCaller
 ) -> SessionOut:
-    row = await sections.patch_session(session, session_id, body)
+    """instructor_id 를 주면 담당 강사를 바꾼다(null 은 해제). 배정은 audit·배정 알림 outbox 를 쓴다(T5)."""
+    row = await sections.patch_session(
+        session, session_id, body, actor=f"admin:{caller.id}"
+    )
     return SessionOut.model_validate(row)
 
 

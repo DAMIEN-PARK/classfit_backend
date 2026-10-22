@@ -5,6 +5,7 @@
 - 첨부는 crud 의 주체 범위(course_scope) 첫 WHERE 로 거른다. 자기 강의인지(경로 course_id)는 끝점이 먼저 403 으로 본다.
 - 관리자 포털은 같은 판정의 미리 보기다. 응답의 href 는 끝점이 단다(schemas 는 service 를 모르고, courses 는 files 를 모른다).
 - 종료·보관 강의도 판정은 같다(L1 "종료된 강의도 열람은 된다"). 보관(archived_at)은 쓰지 않는다.
+- 카드마다 담당 강사 이름(instructor_name, T5 결정 xiv). 잠긴 카드에도 있고, 미배정이면 None 이다. 강사 id 는 싣지 않는다.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from classfit.core.errors import Forbidden, NotFound
 from classfit.crud import attachment as crud_attachment
 from classfit.crud import course as crud_course
+from classfit.crud import instructor as crud_instructor
 from classfit.crud import schedule as crud_schedule
 from classfit.crud.scope import Subject
 from classfit.models import Course, CourseSession, Section
@@ -36,6 +38,7 @@ class PortalCard:
     end: str | None
     state: CardState
     attachments: list[AttachmentItem]  # 잠긴 카드는 비어 있다
+    instructor_name: str | None = None  # 미배정이면 None
 
 
 @dataclass(frozen=True)
@@ -80,8 +83,12 @@ async def build_portal(
     for item in await crud_attachment.list_for_course(session, subject, course_id):
         by_session[item[0].session_id].append(item)
 
+    rows = await crud_schedule.list_sessions(session, course_id)
+    names = await crud_instructor.names_by_id(
+        session, [s.instructor_id for s in rows if s.instructor_id is not None]
+    )
     cards: dict[int, list[PortalCard]] = defaultdict(list)
-    for s in await crud_schedule.list_sessions(session, course_id):
+    for s in rows:
         attachments = by_session[s.id]
         state = card_state(is_open=s.is_open, attachments=len(attachments))
         day, start, end = times.get(s.id, (None, None, None))
@@ -93,6 +100,9 @@ async def build_portal(
                 end=end,
                 state=state,
                 attachments=attachments if state == "open" else [],
+                instructor_name=None
+                if s.instructor_id is None
+                else names.get(s.instructor_id),
             )
         )
     sections = [

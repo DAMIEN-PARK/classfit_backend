@@ -105,11 +105,14 @@ async def _file_rows(
     ]
 
 
-async def _locked(
-    session: AsyncSession, rows: Sequence[tuple[str, Any, StoredFile | None]]
+def _stored_ids(rows: Sequence[tuple[str, Any, StoredFile | None]]) -> list[int]:
+    return [stored.id for _, _, stored in rows if stored is not None]
+
+
+def _source_set(
+    rows: Sequence[tuple[str, Any, StoredFile | None]], held: set[int]
 ) -> SourceSet:
-    """원본 stored_file 을 FOR SHARE 로 잡고, 잡힌 것과 link 만 MaterialSource 로 만든다."""
-    held = await share_sources(session, [s.id for _, _, s in rows if s is not None])
+    """잠근 stored_file(held)과 link 만 MaterialSource 로 만들고, 잠그지 못한(사라진) 파일 수를 센다."""
     sources: list[MaterialSource] = []
     skipped = 0
     for origin, row, stored in rows:
@@ -150,10 +153,12 @@ async def pool_sources(
     )
     if capability_id is not None:
         rows += await _file_rows(session, CAPABILITY_FILE, capability_id)
-    return await _locked(session, rows)
+    held = await share_sources(session, _stored_ids(rows))
+    return _source_set(rows, held)
 
 
 async def curriculum_sources(session: AsyncSession, curriculum_id: str) -> SourceSet:
     """커리큘럼 기본 자료((sort, id) 순). 소유 행(curriculum)은 부르는 쪽이 이미 FOR UPDATE 로 잡았다."""
     rows = await _file_rows(session, CURRICULUM_FILE, curriculum_id)
-    return await _locked(session, rows)
+    held = await share_sources(session, _stored_ids(rows))
+    return _source_set(rows, held)
