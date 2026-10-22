@@ -165,8 +165,8 @@ async def test_session_attachment_link_requires_url(db_session: AsyncSession) ->
 
 
 def test_enrollment_created_only_in_enter() -> None:
-    # 넣기를 부르는 곳은 service/enroll/enter.py 밖에 없다. 생성자는 crud/enrollment.py 하나다
-    assert set(_callers(r"\binsert_enrollment\(")) <= {"service/enroll/enter.py"}
+    # 넣기를 부르는 곳은 service/enroll/enter.py 하나, 생성자는 crud/enrollment.py 하나다
+    assert _callers(r"\binsert_enrollment\(") == ["service/enroll/enter.py"]
     assert _callers(r"\bEnrollment\(") == ["crud/enrollment.py"]
 
 
