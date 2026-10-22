@@ -35,7 +35,7 @@ URL: ""
 | ADR-002 학습자 세션 | [`docs/process/adr/ADR-002-learner-session.md`](adr/ADR-002-learner-session.md) | 저장소 | git 추적 | 승인 | r3 §4 · §1.1 ④ | [Design](2026-10-21-phase1-backend-design.md) 1·2절 |
 | ADR-003 외부 포트 | [`docs/process/adr/ADR-003-external-ports.md`](adr/ADR-003-external-ports.md) | 저장소 | git 추적 | 승인 | r3 §4 | [Design](2026-10-21-phase1-backend-design.md) 1·3절 |
 | ADR-004 공개홈 | [`docs/process/adr/ADR-004-public-home.md`](adr/ADR-004-public-home.md) | 저장소 | git 추적 | 승인 · r3 §7-1 답에 따라 다시 봄 | r3 §4 · 부록 A5 | [feature intent](intents/2026-10-21-phase1-backend.md) |
-| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1·T2a·T2b·T3 병합 · T4 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
+| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1·T2a·T2b·T3·T4 병합 · T5 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
 | 에이전트 편성 | [`docs/process/agent.md`](agent.md) | 저장소 | git 추적 | 승인자 DAMIEN-PARK | r3 §5.1 · 부록 E11 | CLAUDE.md · `.claude/settings.json` |
 
 ## 2. 정책 대조표
@@ -51,9 +51,9 @@ r3 §3 원칙 ①~⑤ 와 기획안 03 운영 원칙 중 서버가 지킬 것(2�
 | 5 | r3 원칙 ⑤ 강제는 기계로 | `Makefile` verify(editable-check → gate → lint → lint-imports → test, T0b 에서 끝에 okf) · `.githooks/pre-push` · `.github/workflows/ci.yml` gates·test · 금지 의존성 `pyproject.toml` banned-api(ruff TID251) · `.claude/hooks/deny-deps.sh` · `scripts/gate.sh` · 차단기 회귀 `scripts/test_gate.sh` · `.claude/hooks/test_hooks.sh` · 문서 `scripts/okf/guard.sh`(T0b) · `scripts/check_docs.sh` | 강제(훅·CI) | DAMIEN-PARK |
 | 6 | 기획안 원칙 2 수강생의 문은 초대코드 하나(가입·비밀번호 없음) | [ADR-002](adr/ADR-002-learner-session.md) · `tests/integration/test_db_auth_session.py`(수강생 세션은 course_id 필수, auth_session CHECK) · `tests/contracts/test_api_enter.py`(`test_p3_*` 9건 · `test_reissue_*` 2건 · `test_cross_course_portal_403` · `test_enrollment_name_isolated`, E-10 13건. 입장 판정 `src/classfit/service/enroll/enter.py`) · `tests/integration/test_db_enroll.py`(learner 이메일 lower 유일 · 등록은 `enter_course` 한 곳) | 시험(T1·T2b) + ADR | DAMIEN-PARK |
 | 7 | 기획안 원칙 5 첨부가 없거나 공개가 꺼진 세션은 "준비 중" | `tests/contracts/test_api_portal.py`(`test_portal_locked_` 3건: 카드 잠김 · 잠긴 세션의 첨부 목록·`href` 403) · 카드 판정 `src/classfit/service/rules/portal.py` 의 `card_state` · 파일 판정 `src/classfit/crud/scope.py`(`session_attachment` 는 세션 `is_open` 일 때만) · `tests/unit/test_enter_rules.py`(`test_enter_card_state_needs_open_and_attachment`) | 시험 | DAMIEN-PARK |
-| 8 | 기획안 원칙 10 응답은 개인과 연결해 보여 주지 않는다 | REVIEW.md 보안 패스(원칙 10 항목) · [Design](2026-10-21-phase1-backend-design.md) 1절 만족도 공개 범위 · `tests/contracts/test_api_portal.py`(`test_no_personal_keys_portal`, 수강생·관리자 포털과 첨부 목록에 `email`·`name`·`dept`·`learner_id`·`enrollment_id` 키 0) · `tests/integration/test_db_pool.py`(`test_no_personal_keys_catalog`, 공개 카탈로그 질의 `src/classfit/crud/catalog.py` 의 `published_catalog()` 출력 키 집합에 강사 id·이름·이메일 없음) · `tests/contracts/test_api_pool.py`(`test_pool_list_other_own_course_has_no_author_keys`, 강사용 풀 응답에 작성자 키 없음) · 예정: T8 + `test_no_personal_keys_i7`·`test_no_personal_keys_a5`(E-14) | 리뷰 + 시험(T2b·T4 일부, 나머지 예정) | DAMIEN-PARK |
+| 8 | 기획안 원칙 10 응답은 개인과 연결해 보여 주지 않는다 | REVIEW.md 보안 패스(원칙 10 항목) · [Design](2026-10-21-phase1-backend-design.md) 1절 만족도 공개 범위 · `tests/contracts/test_api_portal.py`(`test_no_personal_keys_portal`, 수강생·관리자 포털과 첨부 목록에 `email`·`name`·`dept`·`learner_id`·`enrollment_id` 키 0) · `tests/integration/test_db_pool.py`(`test_no_personal_keys_catalog`, 공개 카탈로그 질의 `src/classfit/crud/catalog.py` 의 `published_catalog()` 출력 키 집합에 강사 id·이름·이메일 없음) · `tests/contracts/test_api_pool.py`(`test_pool_list_other_own_course_has_no_author_keys`, 강사용 풀 응답에 작성자 키 없음) · 포털 강사 칸은 `instructor_name` 하나(T5, `tests/contracts/test_api_assign.py` 의 `test_assign_portal_instructor_name` 이 카드·첨부·섹션·강의 키 집합을 정확히 잰다) · 예정: T8 + `test_no_personal_keys_i7`·`test_no_personal_keys_a5`(E-14) | 리뷰 + 시험(T2b·T4·T5 일부, 나머지 예정) | DAMIEN-PARK |
 | 9 | 기획안 원칙 12 실제 고객사명은 시안·데모 데이터에 쓰지 않는다 | `scripts/gate.sh` 4번(금지 용어 `scripts/forbidden_terms.txt`, 범위 src·tests·alembic·scripts·docs·루트 md, 출력은 file:line 만) · pre-push·CI 의 `CLASSFIT_FORBIDDEN_TERMS_REQUIRED=1` · `scripts/check_secrets.sh` · CLAUDE.md Rules · `scripts/golden/extract.mjs`(합성 사례만 돌려 회사명·인명이 처음부터 없다. `tests/fixtures/golden.json` 은 사례 id·숫자·날짜·시각뿐) | 강제(CI) | DAMIEN-PARK |
-| 10 | 기획안 원칙 13 강의는 관리자가 개설하고 강사를 배정한다. 강사는 구조를 만지지 않는다 | CLAUDE.md Rules 단일 진입점 `open_course()`(`src/classfit/service/courses/open.py`) · `tests/integration/test_db_open_course.py`(`test_courses_open_single_entry`) · 예정: T5 + `test_assign_`(미승인 배정 409) · `test_instructor_session_`(제목 PATCH 422 · 남의 세션 403) | 시험(T2a 일부, T5 예정) | DAMIEN-PARK |
+| 10 | 기획안 원칙 13 강의는 관리자가 개설하고 강사를 배정한다. 강사는 구조를 만지지 않는다 | CLAUDE.md Rules 단일 진입점 `open_course()`(`src/classfit/service/courses/open.py`) · `tests/integration/test_db_open_course.py`(`test_courses_open_single_entry`) · `tests/contracts/test_api_assign.py`(`test_assign_`: 미승인 배정 409 등, 판정 `src/classfit/service/courses/assign.py`) · `tests/contracts/test_api_my_courses.py`(`test_instructor_session_`: 제목 PATCH 422 · 남의 세션 403, 판정 `src/classfit/service/courses/mine.py`) | 시험(T2a·T5) | DAMIEN-PARK |
 
 정책이 바뀌면 소유자가 정하고, 같은 커밋에서 훅·스크립트·문서를 고치고, 이 표의 행을 갱신한다.
 
@@ -84,7 +84,7 @@ r3 부록 A2 데이터 계약 차이 11건, A3 시안 전용 기능 5종, §2 �
 | 2026-10-21 | DEC-002 관리자 일정과 강사·학습자 시간 함수의 점심·요일 처리가 다르다 | 2 | 관리자 일정 정의로 통합 권고, 시수 기준 확정 | 결정 필요 |
 | 2026-10-21 | DEC-003 진단 17지표 최저 응답 총점 160 이라 L1 이 불가능하다 | 2 | 단계 점수 체계·레벨 경계를 기획자가 확정, 임의 변경 금지 | 결정 필요 |
 | 2026-10-21 | DEC-004 학습자 시안은 강의를 즉시 전환하고 전역 이름을 쓴다 | 6 | ADR-002 로 결정됨. 시안 UI 수정 대상 | 결정(ADR-002) |
-| 2026-10-21 | DEC-005 강사 반려·정지 제한, 재신청, 관리자 초기 비밀번호가 시안에서 미완성 | 해당 없음 | 공개홈·기존 설계와 대조해 인증·복구·정지 범위 확정. T3 기본값(계획 결정 vi·vii·viii·xii): 반려는 사유 1~500자 필수 · 반려 강사는 로그인해 사유를 보고 `:reapply` 로 대기에 돌아간다 · 정지는 산 세션 폐기 + 로그인 403 · 해제는 승인으로. 관리자 초기 비밀번호는 T1 `create_admin` 그대로 | 결정 필요 |
+| 2026-10-21 | DEC-005 강사 반려·정지 제한, 재신청, 관리자 초기 비밀번호가 시안에서 미완성 | 해당 없음 | 공개홈·기존 설계와 대조해 인증·복구·정지 범위 확정. T3 기본값(계획 결정 vi·vii·viii·xii): 반려는 사유 1~500자 필수 · 반려 강사는 로그인해 사유를 보고 `:reapply` 로 대기에 돌아간다 · 정지는 산 세션 폐기 + 로그인 403 · 해제는 승인으로. 관리자 초기 비밀번호는 T1 `create_admin` 그대로. T5 기본: 정지 강사의 기존 배정 유지, 새 배정은 승인만(결정 viii·ix) | 결정 필요 |
 | 2026-10-21 | DEC-006 필수 서류가 시안 4종 + 계약서, r3 는 기획안 3종 시드 | 해당 없음 | 초기 제출 항목·예외·필수 정책 확정. 1차 시드는 3종(r3 §7-2). T3 기본값(계획 결정 xiv·xviii): 0005 시드 이력서·자격증/경력증명·강사 서약서, 셋 다 필수 · PDF 만 · 서류는 승인 조건이 아니다 | 결정 필요 |
 | 2026-10-21 | DEC-007 실제 시각 공란이면 계획 시간으로 집계, 확정 후 수정 흐름이 불분명 | 해당 없음 | 실제 시간 필수 여부·수정 이력 확정. 정산은 1차 제외 | 결정 필요 |
 | 2026-10-21 | DEC-008 보관 강의를 관리자 시수 집계에서 뺀다 | 해당 없음 | 역사적 집계 유지 권고, 보관 후 규칙 확정 | 결정 필요 |
@@ -97,6 +97,10 @@ r3 부록 A2 데이터 계약 차이 11건, A3 시안 전용 기능 5종, §2 �
 | 2026-10-21 | DEC-015 시안 전용 5종이 시안에는 있고 r3 1차에서 빠졌다 | 해당 없음 | 시안 전체 요구로 유지. 착수 때 범위 변경 또는 후속 배치 결정 | 결정 필요 |
 | 2026-10-21 | DEC-016 과정 시안 데이터가 144개 중 42개 예시, 부서 선택지 코드가 다르다 | 2 | 이관 원본·개수·ID 와 입장 부서 선택지 확정. T4: 원본은 외부 JSON 경로 인자, 저장소는 합성 표본만(결정 ii) | 결정 필요 |
 | 2026-10-22 | 요구정의서 CAT-006(:172)·CAT-009(:175)·UAT-002(:420)·전이표(:292) 는 강사가 검토 뒤 고치면 비공개로, 미검토는 카탈로그 제외라 하고, Design 부록 A T4 3행·r3 317·기획안 :567 은 pub·active 유지라 한다 | 2 | 정본(Design·기획안) 대로 pub 유지. 요구정의서는 정본 아님(1절) | T4 결정 vi·vii 기본 · 대안 ③ 열림 |
+| 2026-10-22 | 시안 강사.html:1090·요구정의서 CRS-007(:187)·:98 은 강사가 세션 제목(주제)을 고치게 하고, 기획안 :205·Design 부록 A T5 는 설명·키워드·공개·첨부만이라 한다 | 10 | 정본(기획안·Design) 대로 제목 PATCH 422 | T5 결정 xiii |
+| 2026-10-22 | 배정 알림의 트리거: 요구정의서 NTF-001(:280)·기획안 :775·:320·시안 관리자.html:1787 은 관리자가 누르는 「배정 알림 보내기」, r3 318·기획안 8-5 :968 은 배정 이벤트 | 해당 없음 | 배정 이벤트마다 새 강사에게 outbox 1행(r3 318) | T5 결정 xv 기본 · 대안 ②(`:notify`) 열림 |
+| 2026-10-22 | 기획안 :774 는 풀에서 고를 때 기본 강의안이 따라온다고 하고 :564·:573 은 배정될 때 붙는다고 한다(고르는 시점엔 강사가 없어 원본을 못 정한다) | 해당 없음 | 배정 때 자동 첨부 | T5 결정 vi·x 기본 · 고르며 배정하는 대안 ②·③ 이면 고를 때도 붙음 |
+| 2026-10-22 | 기획안 :909 는 세션 자료에 「원본 기본강의안 여부」 를 두고, Design 4절 0007 행(:88)은 `session_attachment` 를 바꾸지 않았다. 사본이 보통 첨부와 섞이면 T6 가 출처를 되살릴 수 없다(codex 1차 #6) | 2 | 0007 이 `session_attachment.origin`(NULL · CHECK 원본 owner_kind 셋)을 더해 사본마다 저장, 응답 노출은 T6 | T5 결정 xi 기본 · 대안 ①(bool)·②(칸 없음) 열림 |
 
 ## 4. 스펙 변경 규칙
 
