@@ -334,6 +334,26 @@ async def test_courses_patch_period_with_days_409(
         422,
     )
 
+    # 같은 값 PATCH 는 200 이고 audit 이 없다(일차가 있어도 기간이 그대로면 409 아님). audit fields 는 바뀐 칸만
+    same = await client.patch(
+        f"{URL}/{with_days.id}",
+        headers=auth,
+        json={"title": "새 이름", "start_on": "2026-11-02"},
+    )
+    assert same.status_code == 200, same.text
+    audits = (
+        (
+            await db_session.execute(
+                select(AuditLog)
+                .where(AuditLog.action == "course.update")
+                .order_by(AuditLog.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [a.detail["fields"] for a in audits] == [["title"], ["end_on"]]
+
 
 async def test_courses_archive_hidden_from_default_list(
     client: httpx.AsyncClient, db_session: AsyncSession

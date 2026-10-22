@@ -7,7 +7,7 @@ from datetime import date
 
 import httpx
 from fastapi import FastAPI
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.app.deps import today
@@ -54,6 +54,11 @@ async def test_code_state_resume_ended_course_409(
         f"{URL}/{course.id}:set-status", headers=auth, json={"status": "ended"}
     )
     assert (await client.post(f"{code_url}:resume", headers=auth)).status_code == 409
+    # 산 코드가 없으면 종료 강의라도 404 가 먼저다
+    await db_session.execute(
+        delete(InviteCode).where(InviteCode.course_id == course.id)
+    )
+    assert (await client.post(f"{code_url}:resume", headers=auth)).status_code == 404
 
 
 async def test_code_state_pause_resume_200(
@@ -76,6 +81,16 @@ async def test_code_state_pause_resume_200(
         await _audits(db_session, "invite_code.pause"),
         await _audits(db_session, "invite_code.resume"),
     ) == (1, 1)
+    # 멱등 호출: 이미 그 상태면 200 이고 쓰기·audit 이 없다
+    again = await client.post(f"{code_url}:resume", headers=auth)
+    assert (again.status_code, again.json()["status"]) == (200, "active")
+    await client.post(f"{code_url}:pause", headers=auth)
+    twice = await client.post(f"{code_url}:pause", headers=auth)
+    assert (twice.status_code, twice.json()["status"]) == (200, "paused")
+    assert (
+        await _audits(db_session, "invite_code.pause"),
+        await _audits(db_session, "invite_code.resume"),
+    ) == (2, 1)
 
 
 async def test_invite_code_reissue_api_old_replaced(
@@ -143,6 +158,13 @@ async def test_invite_code_patch_expires_on_and_max_seats(
     for bad in ({"expires_on": None}, {"max_seats": 0}):
         assert (await client.patch(code_url, headers=auth, json=bad)).status_code == 422
     assert await _audits(db_session, "invite_code.update") == 2
+    same = await client.patch(
+        code_url, headers=auth, json={"expires_on": "2027-01-31", "max_seats": None}
+    )
+    assert same.status_code == 200, same.text
+    assert (
+        await _audits(db_session, "invite_code.update") == 2
+    )  # 같은 값 PATCH 는 audit 없음
     # 새 만료일이 상태에 쓰인다(강의는 수동 running 으로 두어 stopped 가 먼저 서지 않게)
     await client.post(
         f"{URL}/{course.id}:set-status", headers=auth, json={"status": "running"}

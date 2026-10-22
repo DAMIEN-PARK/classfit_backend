@@ -5,7 +5,7 @@
   깨진 커서는 422 problem 이고 violations[].loc 는 ["query", "cursor"] 다.
 - 응답 status 는 오늘(Today, Asia/Seoul) 기준 계산값이다. 목록 필터는 같은 규칙의 SQL 판으로 거른다.
 - 상태를 바꾸는 요청(개설·수정·삭제·보관·상태 지정·되돌리기)은 audit_log 1행을 같은 트랜잭션에 쓴다
-  (target course·id 글자, T2a 계획 결정 viii).
+  (target course·id 글자, T2a 계획 결정 viii). 멱등 호출(이미 보관 · 같은 값 PATCH)은 audit 을 쓰지 않는다.
 - 동작은 접미사 경로(`{course_id}:archive` 등)다. 같은 경로의 다른 메서드가 먼저 맞아도 Starlette 는 다음 라우트를 찾는다.
 """
 
@@ -175,11 +175,10 @@ async def patch_course_info(
     today: Today,
 ) -> CourseOut:
     course = await course_or_404(session, course_id)
-    changes = body.changes()
-    await patch_course(session, course, body)
-    if changes:
+    fields = await patch_course(session, course, body)
+    if fields:
         await audit_course(
-            session, caller, "course.update", course_id, {"fields": sorted(changes)}
+            session, caller, "course.update", course_id, {"fields": fields}
         )
     return course_out(course, today)
 

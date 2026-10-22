@@ -129,6 +129,27 @@ async def test_invite_code_reissue_marks_old_replaced(db_session: AsyncSession) 
     assert await _live_count(db_session, course.id) == 1
 
 
+async def test_invite_code_issue_when_live_exists_409_no_retry(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """산 코드가 있는 강의에 또 발급하면 부분 유일 색인에 걸린다. 새 코드로도 안 풀리니 다시 넣지 않고 409."""
+    course, live = await open_test_course(db_session)
+    real = codes._new_invite_code
+    calls: list[str] = []
+
+    def counted() -> str:
+        calls.append(real())
+        return calls[-1]
+
+    monkeypatch.setattr("classfit.service.courses.codes._new_invite_code", counted)
+    with pytest.raises(Conflict, match="산 초대코드가 이미 있습니다"):
+        await codes.issue_invite_code(
+            db_session, course_id=course.id, expires_on=live.expires_on
+        )
+    assert len(calls) == 1  # INSERT 1회, 재시도 없음
+    assert await _live_count(db_session, course.id) == 1
+
+
 async def test_invite_code_retry_on_collision(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:

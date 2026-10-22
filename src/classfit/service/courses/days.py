@@ -34,12 +34,14 @@ _DAY_FIELDS = ("date", "start_time", "end_time", "lunch_start", "lunch_end")
 
 async def patch_course(
     session: AsyncSession, course: Course, body: CoursePatchIn
-) -> Course:
-    """강의 기본 정보를 준 칸만 바꾼다. 일차가 있는데 기간을 바꾸면 409, 기간이 뒤집히면 409."""
-    changes = body.changes()
+) -> list[str]:
+    """강의 기본 정보를 바꾸고 실제로 바뀐 칸 이름을 돌려준다(준 칸 중 현재 값과 다른 칸만 쓴다).
+
+    일차가 있는데 기간을 바꾸면 409, 기간이 뒤집히면 409.
+    """
+    changes = {k: v for k, v in body.changes().items() if getattr(course, k) != v}
     if any(k in changes for k in _PERIOD):
-        moved = any(getattr(course, k) != changes[k] for k in _PERIOD if k in changes)
-        if moved and await crud_schedule.list_days(session, course.id):
+        if await crud_schedule.list_days(session, course.id):
             raise Conflict("일차가 있는 강의의 기간은 일차가 정합니다. 일차를 바꾸세요")
         start_on = changes.get("start_on", course.start_on)
         end_on = changes.get("end_on", course.end_on)
@@ -47,7 +49,7 @@ async def patch_course(
             raise Conflict("시작일이 종료일보다 뒤가 됩니다")
     if changes:
         await crud_course.update_course(session, course, **changes)
-    return course
+    return sorted(changes)
 
 
 async def _follow_period(session: AsyncSession, course: Course) -> None:

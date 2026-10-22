@@ -3,7 +3,7 @@
 - 대상은 그 강의의 산 코드(replaced 아님) 하나다. state 는 오늘 기준 계산값(stopped·expired 포함)이다.
 - 재개는 강의가 종료(계산값 ended)면 409 다. 정지·재발급은 종료 강의에서도 200 이다(T2a 계획 결정 iii).
 - 상태를 바꾸는 요청(수정·재발급·정지·재개)은 audit_log 1행을 같은 트랜잭션에 쓴다(target course·id 글자, 결정 viii).
-  audit 에 코드 글자는 싣지 않는다.
+  멱등 호출(이미 그 상태 · 같은 값 PATCH)은 쓰지 않으므로 audit 도 없다. audit 에 코드 글자는 싣지 않는다.
 """
 
 from __future__ import annotations
@@ -42,15 +42,10 @@ async def patch_invite_code(
 ) -> InviteCodeOut:
     """만료일·정원을 바꾼다. 기간을 바꿔도 만료일은 따라가지 않으므로 여기서 고친다(결정 ii)."""
     course = await course_or_404(session, course_id)
-    changes = body.changes()
-    row = await codes.update_invite_code(session, course_id, changes)
-    if changes:
+    row, fields = await codes.update_invite_code(session, course_id, body.changes())
+    if fields:
         await audit_course(
-            session,
-            caller,
-            "invite_code.update",
-            course_id,
-            {"fields": sorted(changes)},
+            session, caller, "invite_code.update", course_id, {"fields": fields}
         )
     return code_out(row, course, today)
 
@@ -81,10 +76,11 @@ async def pause_invite_code(
     course_id: int, session: DbSession, caller: AdminCaller, today: Today
 ) -> InviteCodeOut:
     course = await course_or_404(session, course_id)
-    row = await codes.pause_invite_code(session, course_id)
-    await audit_course(
-        session, caller, "invite_code.pause", course_id, {"invite_code_id": row.id}
-    )
+    row, changed = await codes.pause_invite_code(session, course_id)
+    if changed:
+        await audit_course(
+            session, caller, "invite_code.pause", course_id, {"invite_code_id": row.id}
+        )
     return code_out(row, course, today)
 
 
@@ -97,10 +93,11 @@ async def resume_invite_code(
     course_id: int, session: DbSession, caller: AdminCaller, today: Today
 ) -> InviteCodeOut:
     course = await course_or_404(session, course_id)
-    row = await codes.resume_invite_code(session, course, today=today)
-    await audit_course(
-        session, caller, "invite_code.resume", course_id, {"invite_code_id": row.id}
-    )
+    row, changed = await codes.resume_invite_code(session, course, today=today)
+    if changed:
+        await audit_course(
+            session, caller, "invite_code.resume", course_id, {"invite_code_id": row.id}
+        )
     return code_out(row, course, today)
 
 
