@@ -21,6 +21,7 @@ from pydantic import (
     model_validator,
 )
 
+from classfit.models.pool import POOL_ID_MAX
 from classfit.schemas.auth import no_control_chars
 from classfit.schemas.invite_code import InviteCodeOut
 
@@ -51,8 +52,18 @@ Word = Annotated[
 ]
 LongText = Annotated[str, StringConstraints(max_length=5000), AfterValidator(_no_nul)]
 Clock = Annotated[dt.time, AfterValidator(_naive)]
+# 풀 과정·커리큘럼 글자 id(T4 경로 변수 검사 app/endpoints/pool.py _TEXT_ID 와 같은 꼴)
+TextId = Annotated[
+    str,
+    StringConstraints(
+        min_length=1, max_length=POOL_ID_MAX, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$"
+    ),
+]
 DayNo = Annotated[int, Field(ge=1, le=60)]
 Slot = Annotated[int, Field(ge=1, le=60)]
+# 본문의 행 id(BIGINT). 2**63 이상은 DB 가 범위 오류를 내 422 대신 500 이 되므로 모양에서 막는다(core/cursor.py _MAX_ID 와 같은 까닭)
+DB_ID_LIMIT = 2**63
+DbId = Annotated[int, Field(ge=1, lt=DB_ID_LIMIT)]
 
 
 class _Patch(BaseModel):
@@ -77,9 +88,16 @@ def _ordered(earlier: Any, later: Any, message: str) -> None:
 
 
 class CourseOpenIn(BaseModel):
-    """빈 강의 개설(기획안 A3 시작점 ①). day_count ≥ 1 이면 기간은 일정이 정하므로 end_on 을 받지 않는다."""
+    """개설(기획안 A3 시작점 ①②④). day_count ≥ 1 이면 기간은 일정이 정하므로 end_on 을 받지 않는다.
 
-    start: Literal["blank"]
+    start 와 원본 칸의 짝: blank 는 원본 없음 · clone 은 source_course_id 만 · curriculum 은 curriculum_id 만(T5 결정 iii).
+    기본 정보·일정 칸은 세 시작점 모두 본문이 정한다(서버는 원본에서 값을 채우지 않는다). 판별 유니온은 오류 loc 에
+    태그가 끼어 쓰지 않는다.
+    """
+
+    start: Literal["blank", "clone", "curriculum"]
+    source_course_id: DbId | None = None
+    curriculum_id: TextId | None = None
     title: Line
     client_name: Line
     course_type: Word | None = None
@@ -95,6 +113,21 @@ class CourseOpenIn(BaseModel):
     break_min: int = Field(default=10, ge=0, le=240)
     intro: LongText | None = None
     notice: LongText | None = None
+
+    @model_validator(mode="after")
+    def _source(self) -> CourseOpenIn:
+        wanted = {
+            "blank": (False, False),
+            "clone": (True, False),
+            "curriculum": (False, True),
+        }[self.start]
+        given = (self.source_course_id is not None, self.curriculum_id is not None)
+        if given != wanted:
+            raise ValueError(
+                "start 가 blank 면 원본이 없고, clone 이면 source_course_id 만,"
+                " curriculum 이면 curriculum_id 만 줍니다"
+            )
+        return self
 
     @model_validator(mode="after")
     def _period(self) -> CourseOpenIn:
@@ -310,6 +343,8 @@ class SessionPatchIn(_Patch):
     time_end: Clock | None = None
     keywords: list[Word] | None = Field(default=None, max_length=20)
     is_open: bool | None = None
+    # 담당 강사(T5 결정 vii). null 은 배정 해제다. 승인 강사만(409), 없는 강사 404
+    instructor_id: DbId | None = None
 
     @model_validator(mode="after")
     def _shape(self) -> SessionPatchIn:
@@ -343,10 +378,16 @@ class SessionOut(BaseModel):
     time_end: dt.time | None
     keywords: list[str]
     is_open: bool
+    pool_course_id: str | None = None
+    curriculum_id: str | None = None
+    instructor_id: int | None = None
 
 
 class ScheduleSessionOut(BaseModel):
-    """일정표의 세션 한 칸. start·end 는 계산한 "HH:MM"(service.rules.schedule.session_time), 못 정하면 null."""
+    """일정표의 세션 한 칸. start·end 는 계산한 "HH:MM"(service.rules.schedule.session_time), 못 정하면 null.
+
+    담당 강사는 id·이름(T5 결정 xiv), 미배정이면 둘 다 null.
+    """
 
     id: int
     section_id: int
@@ -354,6 +395,8 @@ class ScheduleSessionOut(BaseModel):
     slot: int | None
     start: str | None
     end: str | None
+    instructor_id: int | None = None
+    instructor_name: str | None = None
 
 
 class ScheduleDayOut(BaseModel):

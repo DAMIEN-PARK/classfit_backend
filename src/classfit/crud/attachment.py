@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from sqlalchemy import ColumnElement, Select, delete, func, select
@@ -37,8 +38,12 @@ async def insert_attachment(
     title: str,
     description: str | None,
     url: str | None = None,
+    origin: str | None = None,
 ) -> SessionAttachment:
-    """그 세션의 끝에 붙인다(sort = 지금 최댓값 + 1, 처음이면 0). pdf 는 url 없이 넣고 set_file_id 로 잇는다."""
+    """그 세션의 끝에 붙인다(sort = 지금 최댓값 + 1, 처음이면 0). pdf 는 url 없이 넣고 set_file_id 로 잇는다.
+
+    origin 은 기본 강의안 사본의 원본 owner_kind 다(T5 결정 xi). 보통 첨부는 주지 않는다(NULL).
+    """
     last = select(func.max(SessionAttachment.sort)).where(
         SessionAttachment.session_id == session_id
     )
@@ -50,6 +55,7 @@ async def insert_attachment(
         description=description,
         url=url,
         sort=0 if top is None else top + 1,
+        origin=origin,
     )
     session.add(row)
     await session.flush()
@@ -70,7 +76,27 @@ async def get_attachment(
     return await session.get(SessionAttachment, attachment_id)
 
 
+async def counts_by_session(
+    session: AsyncSession, session_ids: Iterable[int]
+) -> dict[int, int]:
+    """세션마다 첨부 수. 첨부가 없으면 키가 없다(부르는 쪽이 0 으로).
+
+    범위로 걸러진 세션 id 만 받는다 — 강의 범위·잠금을 지난 뒤 부른다.
+    """
+    ids = list(session_ids)
+    if not ids:
+        return {}
+    stmt = (
+        select(SessionAttachment.session_id, func.count())
+        .where(SessionAttachment.session_id.in_(ids))
+        .group_by(SessionAttachment.session_id)
+    )
+    return {sid: n for sid, n in (await session.execute(stmt)).all()}
+
+
 def _listed(subject: Subject) -> Select[Any]:
+    """첨부 목록의 바탕(첫 WHERE course_scope). 강사 주체로 부르지 않는다 — 첨부 key 가 course_scope 강사 갈래 범위를
+    그대로 통과한다(T6 에서 강사 화면이 필요하면 따로 정한다, T5 리뷰 Nit 4)."""
     return (
         select(SessionAttachment, StoredFile.key, StoredFile.size)
         .join(CourseSession, CourseSession.id == SessionAttachment.session_id)

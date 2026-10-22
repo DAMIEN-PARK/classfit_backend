@@ -6,6 +6,7 @@
   (id 가 Identity always 라 첨부 id 를 미리 못 받는다). 그 규칙은 시험이 잰다.
 - FK 는 둘 다 기본 NO ACTION 이다. 세션·섹션·강의를 지우는 service 가 첨부 행과 그 stored_file 행을 먼저 지운다(r3 부록 C).
 - 순서는 (session_id, sort, id). sort 는 끝에 붙인다(crud.attachment).
+- origin(T5, 0007): NULL 보통 첨부 · 값은 기본 강의안 사본의 원본 owner_kind(ATTACHMENT_ORIGINS), 응답 노출은 T6.
 """
 
 from __future__ import annotations
@@ -24,6 +25,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from classfit.models.base import Base, BigIdMixin, TimestampMixin
 
 ATTACHMENT_KINDS = ("pdf", "office", "html", "link", "image")
+# 기본 강의안 사본의 원본 종류(= T4 풀 파일 표 이름, crud.pool_file.FILE_OWNER_KINDS 와 같다 — 통합 시험이 잰다)
+ATTACHMENT_ORIGINS = ("pool_course_file", "capability_file", "curriculum_file")
 
 
 class SessionAttachment(BigIdMixin, TimestampMixin, Base):
@@ -36,6 +39,11 @@ class SessionAttachment(BigIdMixin, TimestampMixin, Base):
             "((kind = 'link') = (url IS NOT NULL))"
             " AND (kind <> 'link' OR file_id IS NULL)",
             name="target",
+        ),
+        CheckConstraint(
+            "origin IS NULL"
+            " OR origin IN ('pool_course_file', 'capability_file', 'curriculum_file')",
+            name="origin",
         ),
         Index("ix_session_attachment_session_id_sort_id", "session_id", "sort", "id"),
     )
@@ -51,3 +59,4 @@ class SessionAttachment(BigIdMixin, TimestampMixin, Base):
     )
     url: Mapped[str | None] = mapped_column(Text)
     sort: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    origin: Mapped[str | None] = mapped_column(Text)

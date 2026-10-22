@@ -5,6 +5,8 @@
 - session 표의 클래스 이름은 CourseSession 이다(AuthSession · SQLAlchemy 세션과 구별).
 - 열 이름은 PG 예약어 end·desc 를 피한다(기획안 Session.desc → description).
 - 표를 지우면 아래 표는 CASCADE 다: course → course_day · section → session.
+- 0007(T5): 원본 참조·담당 강사. 원본 삭제는 비활성이라 NO ACTION(T4) — session 의 pool_course_id · curriculum_id ·
+  instructor_id(차시 하나의 현재 담당 강사), course 의 curriculum_src_id(커리큘럼 시작점의 원본).
 """
 
 from __future__ import annotations
@@ -64,6 +66,9 @@ class Course(BigIdMixin, TimestampMixin, Base):
         Boolean, nullable=False, server_default=text("false")
     )
     archived_at: Mapped[dt.datetime | None] = mapped_column()
+    curriculum_src_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("curriculum.id")
+    )
 
 
 class CourseDay(BigIdMixin, Base):
@@ -136,4 +141,11 @@ class CourseSession(BigIdMixin, Base):
     )
     is_open: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
+    )
+    pool_course_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("pool_course.id")
+    )
+    curriculum_id: Mapped[str | None] = mapped_column(Text, ForeignKey("curriculum.id"))
+    instructor_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("instructor.id"), index=True
     )

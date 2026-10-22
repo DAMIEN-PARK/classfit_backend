@@ -13,3 +13,4 @@
 * [Plan: T2b enter-portal](T2b-enter-portal.md) - 수강생 입장·재입장(초대코드 + 이메일)·learner(이메일만)·enrollment(이름·부서)·포털·관리자 첨부(pdf·link)·파일 열람 href·정원·재발급 잠금과 마이그레이션 0004 를 까는 태스크 계획
 * [Plan: T3 instructor-onboarding](T3-instructor-onboarding.md) - 강사 가입(이메일 인증 코드 해시·분야 태그·약관 판본)·로그인·프로필·서류 3종(열람 audit)·관리자 승인/반려/정지/해제(A2 상태 4행 전이)·태그 설정과 마이그레이션 0005 를 까는 태스크 계획
 * [Plan: T4 course-pool](T4-course-pool.md) - 과정 풀(AX 과정·강사 고유 과정·강사 역량·커리큘럼·심화 과정)과 마이그레이션 0006, 멱등 관리 명령 import_ax_catalog, 공개 카탈로그 질의 함수 published_catalog() 를 까는 태스크 계획
+* [Plan: T5 course-assign](T5-course-assign.md) - 강의 개설 완성(지난 강의 복제·강사 커리큘럼 시작점)·과정 풀에서 세션 고르기·강사 배정(승인 강사만)·기본 강의안 행 복제(같은 sha 다른 key)·강사의 배정 강의 열람과 내 세션 수정, 마이그레이션 0007 을 까는 태스크 계획

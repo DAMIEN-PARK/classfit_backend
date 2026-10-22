@@ -3,14 +3,15 @@
 파일 소유 종류 등록부 OWNER_KINDS 는 기본 거절이다: 등록 안 된 owner_kind 는 404.
 종류는 T2b 부터 Design 4절 순서로 등록한다(session_attachment → instructor_document … → diagnosis_pdf).
 판정은 (session, 주체, owner_id) → 범위 안이면 True(아니면 403).
-강의 범위 course_scope 도 기본 거절이다: 관리자는 전부, 수강생은 토큰의 강의 하나(T2b), 나머지는 아무것도 못 본다.
-T5(강사 배정)가 넓힌다. 강사 범위 instructor_scope 는 관리자 전부 · 강사 자기 자신 · 그 밖 거절이다(T3).
+강의 범위 course_scope 도 기본 거절이다: 관리자는 전부, 수강생은 토큰의 강의 하나(T2b), 강사는 세션 하나라도 배정된
+강의(T5 결정 xii), 나머지는 아무것도 못 본다. 강사 범위 instructor_scope 는 관리자 전부 · 강사 자기 자신 · 그 밖 거절이다(T3).
 과정 풀 범위(T4)도 기본 거절이다: pool_scope 는 관리자 전부 · 강사는 활성 과정, own_course_scope·curriculum_scope·
 capability_scope 는 관리자 전부 · 강사는 자기 것. 범위 함수는 목록과 "범위 밖은 404" 인 읽기에만 쓴다. 쓰기·소유 판정은
 service 가 범위 없는 getter 로 읽어 404 → 403(owned_by) → 409 순으로 한다(T4 결정 i).
 
 등록된 owner_kind:
 - session_attachment(T2b) — 관리자 참 · 수강생은 같은 강의 ∧ 세션 is_open · 그 밖 거짓(T6 이 강사를 넓힌다).
+  강사는 T5 의 강의 범위 안이어도 거짓이다(범위보다 먼저 수강생만 통과시킨다, T5 결정 xii).
 - instructor_document(T3) — owner_id = 강사 id. 본인 강사만 참(주체 종류까지 본다), 관리자도 거짓이다.
   관리자의 열람 문은 audit 을 남기는 관리자 서류 끝점 하나다(T3 결정 ix·x).
 - instructor_photo(T3) — owner_id = 강사 id. 관리자 ∨ 본인 강사. 등록만 했고 행을 만드는 끝점은 아직 없다(결정 xv).
@@ -60,11 +61,23 @@ OwnerCheck = Callable[[AsyncSession, Subject, int], Awaitable[bool]]
 
 
 def course_scope(subject: Subject) -> ColumnElement[bool]:
-    """강의 목록의 첫 WHERE(Design 5절 3). 관리자는 전부, 수강생은 자기 강의 하나, 그 밖은 기본 거절."""
+    """강의 목록의 첫 WHERE(Design 5절 3). 관리자는 전부, 수강생은 자기 강의 하나, 강사는 세션 하나라도 배정된 강의,
+    그 밖은 기본 거절.
+
+    수강생 명단(crud.enrollment.list_stmt)·첨부 목록(crud.attachment._listed)은 강사 주체로 부르지 않는다 — 명단 PII
+    (이름·이메일)·첨부 key 가 강사 갈래 범위를 그대로 통과한다(T6 에서 강사 화면이 필요하면 따로 정한다, T5 리뷰 Nit 4).
+    """
     if subject.type == "admin":
         return true()
     if subject.type == "learner" and subject.course_id is not None:
         return Course.id == subject.course_id
+    if subject.type == "instructor":
+        assigned = (
+            select(Section.course_id)
+            .join(CourseSession, CourseSession.section_id == Section.id)
+            .where(CourseSession.instructor_id == subject.id)
+        )
+        return Course.id.in_(assigned)
     return false()
 
 

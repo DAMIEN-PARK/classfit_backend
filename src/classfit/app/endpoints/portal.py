@@ -42,6 +42,7 @@ def _card_out(card: PortalCard) -> PortalSessionOut:
         description=row.description if opened else None,
         keywords=list(row.keywords) if opened else None,
         attachments=[attachment_out(a) for a in card.attachments],
+        instructor_name=card.instructor_name,
     )
 
 

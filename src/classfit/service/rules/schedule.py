@@ -1,4 +1,4 @@
-"""일정 규칙. 시안 관리자.html 의 일정 함수(656~675줄)를 그대로 옮긴 순수 함수다.
+"""일정 규칙. 시안 관리자.html 의 일정 함수(656~678줄, scSlotTimes·scSlots 는 T5)를 그대로 옮긴 순수 함수다.
 
 golden(tests/fixtures/golden.json, scripts/golden/extract.mjs)이 시안 값과 같은지 잰다.
 시각은 datetime.time 으로 받고, session_time 은 시안처럼 "HH:MM" 글자를 돌려준다.
@@ -7,7 +7,7 @@ golden(tests/fixtures/golden.json, scripts/golden/extract.mjs)이 시안 값과 
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, time, timedelta
 from typing import Protocol
@@ -16,6 +16,7 @@ SLOT_MIN = 50  # 시안 656 SC_SLOT: 교시 길이(분) 기본값
 BREAK_MIN = 10  # 시안 656 SC_BREAK: 휴식(분) 기본값
 MAKE_DAYS_GUARD = 60  # 시안 675: 달력 날을 60일까지만 본다
 _NO_SLOT = 99  # 시안 672: slot 이 없으면 맨 뒤
+SLOT_TIMES_MAX = 60  # 시안 677: 하루 교시를 60개까지만 만든다
 
 
 @dataclass(frozen=True)
@@ -128,3 +129,71 @@ def session_time(
             return _m2(st), _m2(min(en, day_end))
         cur = en + bm
     raise AssertionError("target 은 same_day 에 있다")
+
+
+def slot_times(
+    day: DayHours, slot_min: int | None, break_min: int | None
+) -> list[tuple[str, str]]:
+    """시안 677 scSlotTimes: 그날 교시 시간표 [(시작, 끝) "HH:MM"].
+
+    그날 시작부터 「교시 + 휴식」을 반복하고, 점심에 걸리는 교시는 점심 뒤로 민다(scSkip). 끝을 넘는 교시는 만들지 않고,
+    SLOT_TIMES_MAX(60)개에서 멈춘다. 교시가 0 이하·None 이면 SLOT_MIN, 휴식이 None 이면 BREAK_MIN 이다.
+    """
+    bm = BREAK_MIN if break_min is None else break_min
+    sm = slot_min if slot_min is not None and slot_min > 0 else SLOT_MIN
+    end = _hm(day.end_time)
+    cur = _hm(day.start_time)
+    out: list[tuple[str, str]] = []
+    while len(out) < SLOT_TIMES_MAX:
+        st = _skip_lunch(day, cur, sm)
+        if st + sm > end:
+            break
+        out.append((_m2(st), _m2(st + sm)))
+        cur = st + sm + bm
+    return out
+
+
+def slot_count(day: DayHours, slot_min: int | None, break_min: int | None) -> int:
+    """시안 678 scSlots: 하루 교시 수. 하나도 안 들어가도 1 이다."""
+    return max(1, len(slot_times(day, slot_min, break_min)))
+
+
+def _first_free(capacity: int, used: set[int]) -> int:
+    """시안 667 scNextSlot 의 안쪽: 1..capacity 중 안 쓴 첫 교시, 없으면 0."""
+    for slot in range(1, capacity + 1):
+        if slot not in used:
+            return slot
+    return 0
+
+
+def place_in_free_slots(
+    capacity: Mapping[int, int],
+    used: Mapping[int, set[int]],
+    start_day: int | None,
+    n: int,
+) -> list[tuple[int, int] | None]:
+    """고른 n 개를 차례로 (일차, 교시)에 놓는다(시안 :1840-1842 pmgo 가 scNextSlot 을 고른 수만큼 돈다).
+
+    capacity 는 일차 → 하루 교시 수(slot_count), used 는 일차 → 이미 쓴 교시다(그 섹션만).
+    start_day 부터 일차 오름차순으로 빈 교시를 채우고 그날이 차면 다음 일차로 간다. 일차가 모자라면 None(일차 미정).
+    start_day 가 None 이면 전부 None 이다. capacity 에 없는 start_day 는 ValueError(service 가 409 로 먼저 막는다).
+    """
+    if start_day is None:
+        return [None] * n
+    if start_day not in capacity:
+        raise ValueError(f"그 강의에 {start_day}일차가 없다")
+    days = sorted(capacity)
+    taken = {d: set(used.get(d, ())) for d in days}
+    di = days.index(start_day)
+    out: list[tuple[int, int] | None] = []
+    for _ in range(n):
+        while di < len(days) and not _first_free(capacity[days[di]], taken[days[di]]):
+            di += 1
+        if di == len(days):
+            out.append(None)
+            continue
+        day = days[di]
+        slot = _first_free(capacity[day], taken[day])
+        taken[day].add(slot)
+        out.append((day, slot))
+    return out

@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, case, delete, literal, select
+from sqlalchemy import ColumnElement, Select, case, delete, exists, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.crud.scope import Subject, course_scope
@@ -41,6 +41,12 @@ async def lock_course(session: AsyncSession, course_id: int) -> Course | None:
         .execution_options(populate_existing=True)
     )
     return await session.scalar(stmt)
+
+
+async def in_scope(session: AsyncSession, subject: Subject, course_id: int) -> bool:
+    """그 강의가 주체 범위 안인가(강사 끝점의 403 판정). 존재(404)는 get_course 가 먼저 본다."""
+    stmt = select(exists().where(course_scope(subject), Course.id == course_id))
+    return bool(await session.scalar(stmt))
 
 
 async def update_course(session: AsyncSession, row: Course, **fields: Any) -> Course:

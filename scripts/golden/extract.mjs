@@ -1,5 +1,5 @@
 process.env.TZ = 'Asia/Seoul'; // 시안 scMakeDays 는 new Date('YYYY-MM-DD')(UTC 자정)를 현지 getDay 로 읽는다. 기계 시간대와 무관하게 고정한다
-// golden 추출(Design 5절 17). 시안/관리자.html 에서 상수 줄과 일정 함수 8개 줄만 이름으로 찾아 node:vm 에서 돌린다.
+// golden 추출(Design 5절 17). 시안/관리자.html 에서 상수 줄과 일정 함수 10개 줄만 이름으로 찾아 node:vm 에서 돌린다.
 // 입력은 아래 합성 사례뿐이라 사람·회사 이름이 없다. 출력은 사례 id·숫자·날짜(ISO)·시각이다.
 // 키 정렬 · 2칸 들여쓰기 · 끝 줄바꿈 JSON 을 stdout 으로 낸다. 대조는 scripts/golden/check.sh 한 곳이다.
 import { readFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import vm from 'node:vm';
 
 const ROOT = new URL('../../', import.meta.url);
 const SOURCE = new URL('시안/관리자.html', ROOT);
-const NAMES = ['scHm', 'scM2', 'scDay', 'scLunch', 'scSkip', 'scTime', 'scBySlot', 'scMakeDays'];
+const NAMES = ['scHm', 'scM2', 'scDay', 'scLunch', 'scSkip', 'scTime', 'scBySlot', 'scMakeDays', 'scSlotTimes', 'scSlots'];
 
 function pickLines(html) {
   const lines = html.split('\n');
@@ -21,7 +21,7 @@ function pickLines(html) {
 
 const ctx = vm.createContext({});
 vm.runInContext(pickLines(readFileSync(SOURCE, 'utf8')), ctx, { filename: '시안/관리자.html' });
-const { scMakeDays, scTime } = vm.runInContext('({ scMakeDays, scTime })', ctx);
+const { scMakeDays, scTime, scSlotTimes, scSlots } = vm.runInContext('({ scMakeDays, scTime, scSlotTimes, scSlots })', ctx);
 
 // ── make_days 사례: 시작 요일(월·금·토·일) · n(0·1·4·5·10) · 월말·연말 넘김 · 60일 가드
 const MAKE_DAYS = [
@@ -95,6 +95,29 @@ function sessionTimeCase([id, slotMin, breakMin, days, rows]) {
   return { id, in: { slot_min: slotMin, break_min: breakMin, days, sessions }, out };
 }
 
+// ── slot_count 사례(T5 결정 xix): 하루 교시 시간표 scSlotTimes 와 교시 수 scSlots. 일차 칸: [start, end, lunch_start, lunch_end]
+const SLOT_COUNT = [
+  ['sc-pm-50-10', ['13:00', '17:00'], 50, 10], // 4
+  ['sc-lunch-1200-1300', ['09:00', '18:00', '12:00', '13:00'], 50, 10],
+  ['sc-lunch-outside-day', ['13:00', '17:00', '12:00', '13:00'], 50, 10],
+  ['sc-lunch-mid-afternoon', ['13:00', '17:00', '14:30', '15:00'], 50, 10],
+  ['sc-slot120-break0', ['13:00', '17:00'], 120, 0],
+  ['sc-longer-than-day', ['13:00', '14:00'], 120, 10], // 하나도 안 들어가도 1
+  ['sc-break-null', ['13:00', '17:00'], 50, null], // 휴식 기본 10
+  ['sc-slot-null', ['13:00', '17:00'], null, 10], // 교시 기본 50
+  ['sc-guard-60', ['09:00', '18:00'], 5, 0], // 108 개가 들어가지만 60 에서 멈춘다
+];
+
+function slotCountCase([id, [start, end, lunch_start = null, lunch_end = null], slotMin, breakMin]) {
+  const d = { start, end, ...(lunch_start ? { lunch: { start: lunch_start, end: lunch_end } } : {}) };
+  const times = scSlotTimes(d, slotMin, breakMin).map((t) => ({ start: t.start, end: t.end }));
+  return {
+    id,
+    in: { day: { start, end, lunch_start, lunch_end }, slot_min: slotMin, break_min: breakMin },
+    out: { count: scSlots(d, slotMin, breakMin), times },
+  };
+}
+
 function sortKeys(v) {
   if (Array.isArray(v)) return v.map(sortKeys);
   if (v && typeof v === 'object') {
@@ -103,5 +126,9 @@ function sortKeys(v) {
   return v;
 }
 
-const golden = { make_days: MAKE_DAYS.map(makeDaysCase), session_time: SESSION_TIME.map(sessionTimeCase) };
+const golden = {
+  make_days: MAKE_DAYS.map(makeDaysCase),
+  session_time: SESSION_TIME.map(sessionTimeCase),
+  slot_count: SLOT_COUNT.map(slotCountCase),
+};
 process.stdout.write(JSON.stringify(sortKeys(golden), null, 2) + '\n');

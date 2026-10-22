@@ -5,6 +5,7 @@ from classfit.app.endpoints import (
     admin_pool,
     admins,
     advanced_courses,
+    assign,
     attachments,
     auth,
     capabilities,
@@ -17,6 +18,7 @@ from classfit.app.endpoints import (
     instructor_documents,
     instructors,
     invite_codes,
+    my_courses,
     own_courses,
     pool,
     pool_files,
@@ -48,4 +50,6 @@ ROUTERS = (
     pool_files.router,
     admin_pool.router,
     advanced_courses.router,
+    assign.router,
+    my_courses.router,
 )
