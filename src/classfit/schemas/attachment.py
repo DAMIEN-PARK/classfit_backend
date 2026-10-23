@@ -4,6 +4,7 @@
   글자 필드를 AttachmentFormIn 으로 검증한다(422). 파일 파트(file)는 끝점이 따로 본다.
 - T2b 는 pdf·link 만 받는다(표의 kind CHECK 는 5종). link 는 http·https 만, 2048자까지다. pdf 에는 url 을 주지 않는다.
 - href 는 pdf 면 파일 끝점 주소(service.files.store.href_for), link 면 그 url 이다. size 는 pdf 의 바이트 수다.
+- Title·Description 은 T6 강사 첨부 모양(schemas.my_attachment)도 쓴다.
 """
 
 from __future__ import annotations
@@ -60,6 +61,9 @@ Title = Annotated[
     StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
     AfterValidator(no_control_chars),
 ]
+Description = Annotated[
+    str | None, Field(max_length=DESCRIPTION_MAX), AfterValidator(_optional_line)
+]
 
 
 class AttachmentFormIn(BaseModel):
@@ -67,9 +71,7 @@ class AttachmentFormIn(BaseModel):
 
     kind: Literal["pdf", "link"]
     title: Title
-    description: Annotated[
-        str | None, Field(max_length=DESCRIPTION_MAX), AfterValidator(_optional_line)
-    ] = None
+    description: Description = None
     url: str | None = Field(default=None, max_length=URL_MAX * 2, validate_default=True)
 
     @field_validator("url")

@@ -210,7 +210,7 @@ async def test_assign_course_scope_instructor_branch(db_session: AsyncSession) -
         db_session, _Subject("instructor", x), other.id
     )
 
-    # 강의 범위 안이어도 강사의 첨부 판정은 거짓이다(T6 몫, 결정 xii)
+    # 강사는 자기 세션 첨부를 연다(T6 결정 vi)
     attachment = await insert_attachment(
         db_session,
         session_id=x_session.id,
@@ -220,7 +220,7 @@ async def test_assign_course_scope_instructor_branch(db_session: AsyncSession) -
         url="https://example.com/a",
     )
     check = OWNER_KINDS["session_attachment"]
-    assert not await check(db_session, _Subject("instructor", x), attachment.id)
+    assert await check(db_session, _Subject("instructor", x), attachment.id)
     assert await check(db_session, _Subject("admin", 1), attachment.id)
 
     # 배정을 바꾸면 범위가 따라간다

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from typing import Any
 
 from sqlalchemy import select
@@ -19,6 +20,22 @@ async def get_live_code(session: AsyncSession, course_id: int) -> InviteCode | N
         InviteCode.course_id == course_id, InviteCode.status != "replaced"
     )
     return await session.scalar(stmt)
+
+
+async def live_codes(
+    session: AsyncSession, course_ids: Collection[int]
+) -> dict[int, InviteCode]:
+    """강의마다 산 코드(replaced 가 아닌 행). 산 코드가 없는 강의는 키가 없다.
+
+    범위로 걸러진 강의 id 만 받는다 — 홈이 course_scope 목록에서 뽑아 넘긴다.
+    """
+    ids = list(course_ids)
+    if not ids:
+        return {}
+    stmt = select(InviteCode).where(
+        InviteCode.course_id.in_(ids), InviteCode.status != "replaced"
+    )
+    return {row.course_id: row for row in (await session.scalars(stmt)).all()}
 
 
 async def find_course_id_by_code(session: AsyncSession, code: str) -> int | None:

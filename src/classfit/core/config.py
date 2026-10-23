@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     invite_expiry_days: int = 30  # 초대코드 만료 = 강의 종료일 + 이 일수(Design 1절)
     # 관리자 첨부 PDF 상한(기획안 I4). 기본값이 있어 missing() 대상이 아니다
     attachment_pdf_max_mb: int = 50
+    # 강사 첨부 종류별 상한(T6 결정 iv, 기획안 I4). pdf 는 attachment_pdf_max_mb. 기본값이 있어 missing() 대상이 아니다
+    attachment_office_max_mb: int = 50
+    attachment_zip_max_mb: int = 100
+    attachment_image_max_mb: int = 10
     instructor_session_days: int = 14
     email_code_minutes: int = 10  # 인증 코드 수명. 기준은 해시를 저장한 시각(issued_at)
     email_code_max_tries: int = 5  # 한 코드에 틀릴 수 있는 횟수. 넘으면 재발송해야 한다
@@ -106,6 +110,9 @@ class Settings(BaseSettings):
         "file_gc_grace_hours",
         "invite_expiry_days",
         "attachment_pdf_max_mb",
+        "attachment_office_max_mb",
+        "attachment_zip_max_mb",
+        "attachment_image_max_mb",
         "instructor_session_days",
         "email_code_minutes",
         "email_code_max_tries",

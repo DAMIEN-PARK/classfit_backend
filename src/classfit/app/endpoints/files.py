@@ -1,7 +1,9 @@
 """GET /v1/files/{key} — Bearer 인증과 범위 판정 뒤 앱이 바이트를 준다(ADR-003 결정 1·3).
 
 판정 순서: 401(bearer_principal) → 501(FILE_STORE_ROOT 미구성) → 404(key 모양 틀림 · 행 없음 · 등록 안 된 owner_kind,
-모두 같은 본문) → 403(범위 밖) → 200. FILE_SIGNING_KEY 는 예약 칸이라 보지 않는다.
+모두 같은 본문) → 403(범위 밖) → 501(HTML 패키지, T6) → 200. FILE_SIGNING_KEY 는 예약 칸이라 보지 않는다.
+HTML 패키지(content_type 이 rules.attachment 의 고정값)는 1차에 보관만 하고 열지 않는다(T6 결정 ix). 범위 판정 뒤라
+남의 강의 수강생은 403 을 받는다(있는지 흘리지 않는다). 주체·owner_kind 를 가리지 않는다.
 디스크 경로는 행의 sha256 으로만 만든다(key 는 경로에 쓰지 않는다). 바이트는 내려받기(attachment)로만 준다.
 """
 
@@ -20,6 +22,7 @@ from classfit.core.errors import Forbidden, NotConfigured, NotFound
 from classfit.crud.scope import OWNER_KINDS
 from classfit.crud.stored_file import get_by_key
 from classfit.service.files.store import path_for
+from classfit.service.rules.attachment import HTML_PACKAGE_CONTENT_TYPE
 
 log = logging.getLogger("classfit.files")
 
@@ -37,7 +40,13 @@ SAFE_HEADERS = {
 @router.get(
     "/files/{key}",
     response_class=FileResponse,
-    responses={200: {"content": {"application/octet-stream": {}}}},
+    responses={
+        200: {"content": {"application/octet-stream": {}}},
+        501: {
+            "description": "FILE_STORE_ROOT 미구성(/problems/not_configured)"
+            " · HTML 패키지(/problems/not-implemented, 1차는 보관만)"
+        },
+    },
 )
 async def get_file(
     key: str,
@@ -57,6 +66,12 @@ async def get_file(
         raise NotFound("파일이 없습니다")
     if not await judge(session, principal, row.owner_id):
         raise Forbidden("이 파일을 볼 권한이 없습니다")
+    if row.content_type == HTML_PACKAGE_CONTENT_TYPE:
+        raise AppError(
+            501,
+            "HTML 패키지는 1차에 열지 않습니다(보관만)",
+            type="/problems/not-implemented",
+        )
     path = path_for(root, row.sha256)
     if not path.is_file():
         # 행은 있는데 바이트가 없다: 서버 쪽 불일치. 내부 경로는 로그에도 응답에도 싣지 않는다

@@ -112,12 +112,4 @@ async def invite_code_notice(
     """고객사 담당자에게 보낼 안내문 글자: 강의명·기간·코드·만료일."""
     course = await course_or_404(session, course_id)
     row = await codes.live_code(session, course_id)
-    text = "\n".join(
-        (
-            f"[{course.title}] 수강 안내",
-            f"교육 기간: {course.start_on.isoformat()} ~ {course.end_on.isoformat()}",
-            f"초대코드: {row.code}",
-            f"코드 만료일: {row.expires_on.isoformat()}",
-        )
-    )
-    return NoticeOut(text=text)
+    return NoticeOut(text=codes.notice_text(course, row))

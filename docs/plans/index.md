@@ -14,3 +14,4 @@
 * [Plan: T3 instructor-onboarding](T3-instructor-onboarding.md) - 강사 가입(이메일 인증 코드 해시·분야 태그·약관 판본)·로그인·프로필·서류 3종(열람 audit)·관리자 승인/반려/정지/해제(A2 상태 4행 전이)·태그 설정과 마이그레이션 0005 를 까는 태스크 계획
 * [Plan: T4 course-pool](T4-course-pool.md) - 과정 풀(AX 과정·강사 고유 과정·강사 역량·커리큘럼·심화 과정)과 마이그레이션 0006, 멱등 관리 명령 import_ax_catalog, 공개 카탈로그 질의 함수 published_catalog() 를 까는 태스크 계획
 * [Plan: T5 course-assign](T5-course-assign.md) - 강의 개설 완성(지난 강의 복제·강사 커리큘럼 시작점)·과정 풀에서 세션 고르기·강사 배정(승인 강사만)·기본 강의안 행 복제(같은 sha 다른 key)·강사의 배정 강의 열람과 내 세션 수정, 마이그레이션 0007 을 까는 태스크 계획
+* [Plan: T6 instructor-attachments](T6-instructor-attachments.md) - 강사가 배정된 자기 세션에 첨부(pdf·오피스·HTML 패키지 zip·이미지 파일과 링크)를 넣고·고치고·바꾸고·지우게 하고, HTML 패키지 열기 501·교체 뒤 옛 href 404·gc 유예·소유자 삭제와 파일 행 같은 트랜잭션을 고정하며, 강사 화면 읽기(홈·포털 미리 보기·초대코드·안내문·명단 — 명단은 최소 노출)를 더하는 태스크 계획(마이그레이션 없음)
