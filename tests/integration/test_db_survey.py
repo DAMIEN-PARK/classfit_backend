@@ -61,8 +61,9 @@ DAY = dt.timedelta(days=1)
 TODAY = TODAY_RUNNING
 ADMIN = "admin:1"
 SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
-# survey 표를 읽는 문장(FROM survey 또는 survey. 칸 — survey_response 는 아니다)
-SURVEY_SQL = re.compile(r"\bFROM survey\b|\bsurvey\.")
+# survey·survey_response 표를 읽는 문장(표 이름이 낱말로 나온다). 결과 읽기는 둘을 한 문장으로 읽어야 한다 — 설문을 따로
+# 읽든(current_for_course → survey_with_answers) 답을 따로 읽든(설문 SELECT → 응답 SELECT) 둘째 문장이 센다
+SURVEY_SQL = re.compile(r"\bsurvey(?:_response)?\b")
 CLOSED_AT = dt.datetime(2026, 11, 3, 9, tzinfo=dt.UTC)
 QUESTION_KEYS = {
     "key",
@@ -515,8 +516,8 @@ async def test_survey_course_delete_cascades(db_session: AsyncSession) -> None:
 async def test_survey_instructor_results_single_statement(
     db_connection: AsyncConnection, db_session: AsyncSession
 ) -> None:
-    """관리자 결과(admin_results)·강사 결과(instructor_results) 각각에서 survey 를 읽는 문장은 하나다(설문 행 · 강의 행 · 답 배열을
-    한 SELECT 로 — 상태와 답이 한 스냅샷). 응답 0건이면 답은 NULL 이 아니라 빈 배열이고 종합은 null 이다."""
+    """관리자 결과(admin_results)·강사 결과(instructor_results) 각각에서 survey·survey_response 를 읽는 문장은 하나다(설문 행 ·
+    강의 행 · 답 배열을 한 SELECT 로 — 상태와 답이 한 스냅샷). 응답 0건이면 답은 NULL 이 아니라 빈 배열이고 종합은 null 이다."""
     db = db_session
     x = await _course_with_people(db, learners=1, tag="stmt")
     (row,) = await deploy_to(db, [x.course_id])
