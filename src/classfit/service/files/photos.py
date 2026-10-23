@@ -31,11 +31,11 @@ from classfit.crud import photo as crud_photo
 from classfit.crud import record as crud_record
 from classfit.crud import stored_file as crud_stored_file
 from classfit.models import CourseSession, Photo, StoredFile
+from classfit.service.files.my_attachments import MIB
 from classfit.service.files.store import store_bytes
 from classfit.service.rules.attachment import HEAD_BYTES, FileRejected, classify
 from classfit.service.rules.record import is_past
 
-MIB = 1024 * 1024
 NO_SESSION = "세션이 없습니다"
 NOT_MY_SESSION = "본인 세션에만 사진을 올릴 수 있습니다"
 NOT_PAST = "지난 차시에만 사진을 올릴 수 있습니다"

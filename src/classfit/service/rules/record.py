@@ -6,6 +6,8 @@
 - 바뀐 칸은 저장 본문 여섯 칸(RecordFields)을 지금 행과 견준 이름 목록이다. 없던 기록은 여섯 칸 전부다.
 - 계획 값(계획대로 기록): 실시일 = 일차 날짜 · 시작·끝 = 일정표 시각(rules.schedule.session_time 의 "HH:MM") ·
   진행 내용 = 다듬은 설명이 비지 않으면 그것, 아니면 제목 · 참석 = 등록 수 · 비고 없음.
+  등록 수가 참석 상한 ATTENDEES_MAX(models.record 와 같은 값 — 단위 시험이 잰다)를 넘으면 참석은 None(모름)이다.
+  잘라서 틀린 수를 쓰지 않고, DB CHECK attendees 에 걸려 500 이 되지 않게 한다.
   일정표는 끝을 그날 끝에서 자르고 시작은 자르지 않아, 시작이 끝보다 늦거나 24시를 넘으면 실제 시각을 정할 수 없어 둘 다 None 이다.
 """
 
@@ -16,6 +18,9 @@ from datetime import date, time
 from typing import Literal
 
 ActorKind = Literal["instructor", "admin"]
+ATTENDEES_MAX = (
+    10_000  # models.record.ATTENDEES_MAX 와 같다(rules 는 models 를 import 하지 않는다)
+)
 
 
 @dataclass(frozen=True)
@@ -86,7 +91,7 @@ def plan_fields(
         held_on=day_date,
         start_time=start,
         end_time=end,
-        attendees=enrolled,
+        attendees=enrolled if enrolled <= ATTENDEES_MAX else None,
         content=content,
         note=None,
     )

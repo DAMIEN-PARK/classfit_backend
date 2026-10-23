@@ -11,8 +11,10 @@ from datetime import date, time
 
 import pytest
 
+from classfit.models import record as record_model
 from classfit.service.rules.photo import download_name
 from classfit.service.rules.record import (
+    ATTENDEES_MAX,
     RecordFields,
     RecordRejected,
     after_confirm,
@@ -96,6 +98,16 @@ def test_record_rules_plan_fields() -> None:
             None,
             0,
         ), times
+    # 등록 수가 참석 상한(CHECK attendees 0..10000)을 넘으면 참석은 모름(None)
+    assert ATTENDEES_MAX == record_model.ATTENDEES_MAX
+    for enrolled, attendees in [
+        (ATTENDEES_MAX, ATTENDEES_MAX),
+        (ATTENDEES_MAX + 1, None),
+    ]:
+        r = plan_fields(
+            day_date=DAY, times=None, title="교육", description=None, enrolled=enrolled
+        )
+        assert r.attendees == attendees, enrolled
 
 
 def test_record_rules_changed_fields() -> None:

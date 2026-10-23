@@ -1,10 +1,14 @@
 """교육 사진 응답 조립 · 관리자 모아보기 · 내려받기 목록 · 확인 표시(T7 결정 xi ②③④·xiii·xxi). 확인 표시만 쓴다.
 
 - 모아보기 gallery: 평평한 키셋 목록((created_at, id) 내림차순, crud.page.keyset_page). 첫 WHERE 는 course_scope 다
-  (crud.photo_list.gallery_stmt). 항목에 고객사·강의·세션·일차·교육일을 실어 화면이 회사 → 강의 → 교육일로 묶는다.
-  깨진 커서는 keyset_page 의 ValueError 그대로다(끝점이 422 로).
+  (crud.photo_list.gallery_stmt). 항목에 고객사·강의·세션·일차(세션의 지금 일차)·교육일을 실어 화면이 회사 → 강의 →
+  교육일로 묶는다.
 - 내려받기 목록 download_list: 준 id 차례(겹친 id 는 하나로)대로 {id, href, filename}. 바이트는 GET /v1/files/{key}
-  로만 준다(ADR-003). 이름은 rules.photo.download_name 이고 차례 번호는 목록 안에서 1부터다. 범위 밖·없는 id 는 missing.
+  로만 준다(ADR-003). 이름은 rules.photo.download_name 이고 차례 번호는 목록 안에서 1부터다. 이름의 일차는 사진
+  교육일(taken_on)과 같은 날짜인 그 강의의 일차다(세션을 옮겨도 찍은 날의 일차, 그런 일차가 없으면 일차 마디 없음).
+  범위 밖·없는 id 는 missing.
+- 깨진 커서는 keyset_page 호출만 감싸 InvalidCursor(ValueError)로 바꾼다 — 끝점은 그것만 422 loc ["query","cursor"]
+  로 바꾼다(T6 service/courses/my_views.py 꼴. 구성요소가 달라 그 이름을 들이지 않고 따로 둔다).
 - 확인 표시 mark_seen 은 강의를 잠그지 않는다(여러 강의에 걸치고 seen_at 한 칸만 바꾼다). 대신 crud.photo.mark_seen 이
   대상 사진 행을 id 오름차순으로 잡는다 — 세션·섹션·강의 삭제의 사진 지우기와 같은 순서라 교착 고리가 없다(결정 xiii).
   audit 은 없다(결정 xii).
@@ -27,6 +31,10 @@ from classfit.crud.scope import Subject
 from classfit.models import Photo
 from classfit.service.files.store import href_for
 from classfit.service.rules.photo import download_name
+
+
+class InvalidCursor(ValueError):
+    """깨진 키셋 커서. 끝점은 이 예외만 422 loc ["query","cursor"] 로 바꾼다."""
 
 
 @dataclass(frozen=True)
@@ -121,13 +129,16 @@ async def gallery(
     cursor: str | None,
     limit: int,
 ) -> GalleryPage:
-    """관리자 사진 모아보기 한 쪽."""
+    """관리자 사진 모아보기 한 쪽. 깨진 커서는 InvalidCursor."""
     stmt = crud_photo_list.gallery_stmt(
         subject, company=company, course_id=course_id, q=q, new_only=new_only
     )
-    photos, next_cursor, has_more = await crud_page.keyset_page(
-        session, stmt, cursor, limit
-    )
+    try:
+        photos, next_cursor, has_more = await crud_page.keyset_page(
+            session, stmt, cursor, limit
+        )
+    except ValueError as exc:
+        raise InvalidCursor(str(exc)) from exc
     context = await crud_photo_list.gallery_context(session, photos)
     names = await _names(session, photos)
     items = []
@@ -161,7 +172,7 @@ async def download_list(
             missing.append(pid)
             continue
         name = download_name(
-            c.client_name, c.taken_on, c.day_no, len(items) + 1, c.content_type
+            c.client_name, c.taken_on, c.taken_day_no, len(items) + 1, c.content_type
         )
         items.append(DownloadItem(id=pid, href=href_for(c.key), filename=name))
     return items, missing

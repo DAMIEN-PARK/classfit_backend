@@ -7,6 +7,7 @@
   같은 계산 — siblings 는 그 세션이 든 섹션의 그 일차 세션이라 섹션마다 따로 잰다) · 진행 내용 = 설명 또는 제목 ·
   참석 = 그 강의 등록 수 · 비고 없음.
 - 일괄 확인은 그 일차의 done → ok 만이다(R13 — none·ok 는 빠진다 R14). 날짜는 보지 않는다(예정 차시도 저장될 수 있다).
+- 새 상태는 rules.record 한 곳이 정한다(결정 iii): 계획대로는 after_save("none", 주체 종류, 바뀜), 일괄 확인은 after_confirm.
 - 강사 판정은 mine.course_for(없음 404 → 배정 세션 없는 강의 403)다. 그 강의에 내 세션이 있으면 남의 세션은 대상에서
   빠질 뿐이다(R15). 일차가 없으면(그 강의가 없어도) 404.
 - 쓰기 둘은 첫 DB 쓰기 전에 강의 행을 잠그고, 잠근 뒤 일차(fresh=True)와 그 일차 세션·기록(day_sessions — 늘
@@ -30,7 +31,13 @@ from classfit.crud import record as crud_record
 from classfit.crud.scope import Subject
 from classfit.models import CourseDay, CourseSession
 from classfit.service.courses import mine
-from classfit.service.rules.record import is_past, plan_fields
+from classfit.service.rules.record import (
+    ActorKind,
+    after_confirm,
+    after_save,
+    is_past,
+    plan_fields,
+)
 from classfit.service.rules.schedule import session_time
 
 NO_DAY = "그 일차가 없습니다"
@@ -88,7 +95,9 @@ async def record_day_as_planned(
         for row, record in rows
         if record is None and (not instructor or row.instructor_id == subject.id)
     ]
-    status = "done" if instructor else "ok"
+    by: ActorKind = "instructor" if instructor else "admin"
+    # 대상은 기록 없는 세션이라 늘 none 에서 저장한다(R9 강사 done · R11 관리자 ok)
+    status = after_save("none", by, True)
     if not targets:
         return DayResult(day_no, status, [])
     enrolled = await crud_enrollment.count_enrollments(session, course_id)
@@ -108,9 +117,9 @@ async def record_day_as_planned(
             session_id=row.id,
             status=status,
             values=asdict(fields),
-            by_kind=subject.type,
+            by_kind=by,
             by_id=subject.id,
-            confirmed_by_id=None if instructor else subject.id,
+            confirmed_by_id=subject.id if status == "ok" else None,
         )
     session_ids = [row.id for row in targets]
     await crud_audit.insert_audit(
@@ -135,11 +144,15 @@ async def confirm_day(
     if await crud_record.course_day(session, course_id, day_no, fresh=True) is None:
         raise NotFound(NO_DAY)
     rows = await crud_record.day_sessions(session, course_id, day_no)
+    # 확인으로 상태가 바뀌는 기록만(R13 done → ok · R14 ok 그대로 · none 은 기록이 없어 빠진다)
     targets = [
-        record for _, record in rows if record is not None and record.status == "done"
+        record
+        for _, record in rows
+        if record is not None and after_confirm(record.status) != record.status
     ]
+    status = after_confirm("done")
     if not targets:
-        return DayResult(day_no, "ok", [])
+        return DayResult(day_no, status, [])
     for record in targets:
         await crud_record.confirm_row(session, record, admin_id=admin_id)
     session_ids = [record.session_id for record in targets]
@@ -149,6 +162,6 @@ async def confirm_day(
         action="course_day.confirm_all",
         target_type="course",
         target_id=str(course_id),
-        detail={"day_no": day_no, "status": "ok", "session_ids": session_ids},
+        detail={"day_no": day_no, "status": status, "session_ids": session_ids},
     )
-    return DayResult(day_no, "ok", session_ids)
+    return DayResult(day_no, status, session_ids)

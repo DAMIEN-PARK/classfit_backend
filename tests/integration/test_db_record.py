@@ -20,7 +20,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,11 +49,13 @@ from classfit.models import (
 from classfit.schemas.course import SessionPatchIn
 from classfit.service.auth.sessions import Principal
 from classfit.service.courses import remove, sections
+from classfit.service.files import photo_views
 from tests.fixtures.assign import approved
 from tests.fixtures.instructors import count
 from tests.fixtures.records import assigned
 
 DAY = dt.date(2026, 11, 2)
+ADMIN = Principal("admin", 1)
 SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
 # 기록·사진 쓰기 아홉(T7 결정 xiii). 세 파일의 공개 async def 중 쓰기를 부르는 것은 이 아홉뿐이어야 한다
 WRITERS = {
@@ -296,6 +298,128 @@ async def test_photo_removed_with_session_section_course(
         await tx.rollback()
         assert await _left(db, s1, photos[s1]) == full, name
         assert await _left(db, s2, photos[s2]) == second_full, name
+
+
+async def test_photo_order_created_at_then_id(db_session: AsyncSession) -> None:
+    """기록 화면은 (created_at, id) 오름차순 · 세션마다 per_session + 1 장, 모아보기는 (created_at, id) 내림차순 키셋.
+
+    한 트랜잭션 안이라 created_at 이 다 같다 — id 차례와 엇갈리게 직접 고친다(같은 시각 둘은 id 로 가른다).
+    """
+    db = db_session
+    x = await assigned(db, _settings(), email="photo-order-x@example.com")
+    other = await crud_schedule.insert_session(
+        db, x.section_id, title="둘째 교육", day_no=1, slot=2, keywords=[]
+    )
+    await sections.patch_session(
+        db, other.id, SessionPatchIn(instructor_id=x.instructor_id), actor="admin:1"
+    )
+    p0, p1, p2, p3 = [
+        (
+            await _photo(
+                db,
+                course_id=x.course_id,
+                session_id=x.session_id,
+                by_id=x.instructor_id,
+                tag=f"order-{i}",
+            )
+        )[0]
+        for i in range(4)
+    ]
+    q0, _ = await _photo(
+        db,
+        course_id=x.course_id,
+        session_id=other.id,
+        by_id=x.instructor_id,
+        tag="order-q",
+    )
+    assert p0 < p1 < p2 < p3 < q0
+    base = dt.datetime(2026, 11, 2, 13, tzinfo=dt.UTC)
+    minutes = {p0: 20, p1: 0, p2: 20, p3: 10, q0: 15}
+    for pid, offset in minutes.items():
+        await db.execute(
+            update(Photo)
+            .where(Photo.id == pid)
+            .values(created_at=base + dt.timedelta(minutes=offset))
+        )
+
+    mine = Principal("instructor", x.instructor_id)
+    cut = await crud_photo.for_sessions(
+        db, mine, [x.session_id, other.id], per_session=2
+    )
+    assert [p.id for p, _, _ in cut[x.session_id]] == [p1, p3, p0]  # 세션마다 2 + 1 장
+    assert [p.id for p, _, _ in cut[other.id]] == [q0]
+    full = await crud_photo.for_sessions(db, mine, [x.session_id], per_session=10)
+    assert [p.id for p, _, _ in full[x.session_id]] == [p1, p3, p0, p2]
+
+    pages: list[list[int]] = []
+    cursor: str | None = None
+    while True:
+        page = await photo_views.gallery(
+            db,
+            ADMIN,
+            company=None,
+            course_id=x.course_id,
+            q=None,
+            new_only=False,
+            cursor=cursor,
+            limit=2,
+        )
+        pages.append([item.id for item in page.items])
+        if not page.has_more:
+            assert page.next_cursor is None
+            break
+        assert page.next_cursor is not None
+        cursor = page.next_cursor
+    assert pages == [[p2, p0], [q0, p3], [p1]]  # 겹침·빠짐 없음
+    with pytest.raises(photo_views.InvalidCursor):
+        await photo_views.gallery(
+            db,
+            ADMIN,
+            company=None,
+            course_id=x.course_id,
+            q=None,
+            new_only=False,
+            cursor="!!",
+            limit=2,
+        )
+
+
+async def test_photo_download_name_uses_taken_on_day(db_session: AsyncSession) -> None:
+    """내려받기 이름의 일차는 교육일(taken_on)과 같은 날짜인 그 강의의 일차다 — 세션을 옮겨도 찍은 날의 일차."""
+    db = db_session
+    x = await assigned(db, _settings(), email="photo-name-x@example.com")
+    pid, _ = await _photo(
+        db,
+        course_id=x.course_id,
+        session_id=x.session_id,
+        by_id=x.instructor_id,
+        tag="name",
+    )  # taken_on = 2026-11-02 = 1일차
+
+    async def listed() -> tuple[str, int | None]:
+        items, missing = await photo_views.download_list(db, ADMIN, ids=[pid])
+        assert missing == []
+        page = await photo_views.gallery(
+            db,
+            ADMIN,
+            company=None,
+            course_id=x.course_id,
+            q=None,
+            new_only=False,
+            cursor=None,
+            limit=10,
+        )
+        (item,) = page.items
+        return items[0].filename, item.day_no
+
+    assert await listed() == ("A사_20261102_1일차_01.png", 1)
+    await sections.patch_session(
+        db, x.session_id, SessionPatchIn(day_no=2, slot=1), actor="admin:1"
+    )
+    # 이름은 찍은 날의 일차, 모아보기 항목의 day_no 는 세션의 지금 일차
+    assert await listed() == ("A사_20261102_1일차_01.png", 2)
+    assert await crud_schedule.delete_day(db, x.course_id, 1) is True
+    assert await listed() == ("A사_20261102_01.png", 2)  # 그 날짜의 일차가 없다
 
 
 async def _violates(
