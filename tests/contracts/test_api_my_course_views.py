@@ -70,6 +70,8 @@ HOME_KEYS = {
     "courses_more",
     "todo",
     "todo_more",
+    "records_todo",
+    "records_todo_more",
     "documents_missing",
     "capable",
 }
@@ -482,6 +484,8 @@ async def test_instructor_view_home_pending_empty(
         "courses_more": False,
         "todo": [],
         "todo_more": False,
+        "records_todo": [],
+        "records_todo_more": False,
         "documents_missing": REQUIRED_DOCUMENTS,
         "capable": 0,
     }
