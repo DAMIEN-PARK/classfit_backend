@@ -41,7 +41,7 @@ POLL_SECONDS = 0.02
 Factory = async_sessionmaker[AsyncSession]
 # 마이그레이션이 넣는 시드 표는 비우지 않는다(0005 document_type, 뒤에 도는 시드 시험이 잰다).
 # CASCADE 는 참조하는 쪽으로만 번지므로 이 표를 빼도 TRUNCATE 는 성립한다(T3 계획 착수 조건 ⑩)
-SEED_TABLES = frozenset({"document_type"})
+SEED_TABLES = frozenset({"document_type", "survey_template"})
 
 
 @pytest_asyncio.fixture

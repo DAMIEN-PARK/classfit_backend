@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     document_pdf_max_mb: int = 10  # 강사 서류 PDF 상한(T3 결정 ix)
     # 약관 판본. 제품 상수에 가까워 기본값을 둔다 — "미구성은 실패" 규칙의 예외(T3 결정 iii). 빈 글자는 막는다
     terms_version: str = "2026-10-22"
+    # 만족도(T8 결정 xxi). Design 1절 값이 기본값이라 missing() 대상이 아니다
+    survey_min_responses: int = 5  # 강사 결과(I7)를 보이는 최소 응답 수(마감 뒤)
+    survey_close_days: int = 14  # 배포 기본 닫힘일 = 강의 종료일 + 이 일수
 
     @field_validator("file_store_root", "file_signing_key", mode="before")
     @classmethod
@@ -117,6 +120,8 @@ class Settings(BaseSettings):
         "email_code_minutes",
         "email_code_max_tries",
         "document_pdf_max_mb",
+        "survey_min_responses",
+        "survey_close_days",
     )
     @classmethod
     def _positive(cls, v: int) -> int:
