@@ -77,6 +77,17 @@ async def get_with_context(
     return (found[0], found[1], found[2]) if found is not None else None
 
 
+async def get_row(session: AsyncSession, photo_id: int) -> PhotoRow | None:
+    """(사진, 파일 key, 크기). 파일이 이어지지 않은 사진·없는 사진은 None. 범위 없는 getter 다(쓰기 응답용)."""
+    stmt = (
+        select(Photo, StoredFile.key, StoredFile.size)
+        .join(StoredFile, StoredFile.id == Photo.file_id)
+        .where(Photo.id == photo_id)
+    )
+    found = (await session.execute(stmt)).first()
+    return (found[0], found[1], found[2]) if found is not None else None
+
+
 async def set_caption(session: AsyncSession, row: Photo, caption: str | None) -> bool:
     """설명을 바꾸면 True, 같은 값이면 쓰지 않고 False."""
     if row.caption == caption:

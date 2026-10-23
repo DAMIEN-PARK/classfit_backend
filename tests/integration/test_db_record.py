@@ -1,14 +1,22 @@
-"""교육 기록·사진 표와 crud(T7 결정 iv·vii·ix·xvi): 사진 열람 판정표 · 소유자 삭제가 사진·파일 행·기록을 지움 · 표 제약.
-라이브 PG.
+"""교육 기록·사진 표와 crud(T7 결정 iv·vii·ix·xiii·xvi): 사진 열람 판정표 · 소유자 삭제가 사진·파일 행·기록을 지움 · 표 제약 ·
+잠금 호출 자리. 라이브 PG.
 
 행은 crud·service 로 직접 만든다(HTTP 없음). 배정은 운영 경로 sections.patch_session 이다(tests/fixtures/records.py).
 시험 안에서 행 id·시퀀스 번호를 단언하지 않는다(T4 대조 실험 13). 표본 sha 는 시험마다 다르다.
+잠금 호출 자리 시험은 src 를 ast 로 읽는다(T6 tests/integration/test_db_my_attachment.py 의 _Call·_function·_calls 를
+복사했다 — 호출마다 키워드 이름·값도 담는다). 잠금이 실제로 줄 세우는지는 tests/integration/test_db_record_race.py 가 잰다.
 """
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import hashlib
+import importlib
+import inspect
+from dataclasses import dataclass, field
+from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -18,9 +26,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.core.config import Settings
 from classfit.crud import attachment as crud_attachment
+from classfit.crud import audit as crud_audit
+from classfit.crud import course as crud_course
+from classfit.crud import enrollment as crud_enrollment
+from classfit.crud import instructor as crud_instructor
 from classfit.crud import photo as crud_photo
+from classfit.crud import photo_list as crud_photo_list
 from classfit.crud import record as crud_record
 from classfit.crud import schedule as crud_schedule
+from classfit.crud import scope as crud_scope
+from classfit.crud import stored_file as crud_stored_file
 from classfit.crud.scope import OWNER_KINDS
 from classfit.crud.stored_file import insert_stored_file
 from classfit.models import (
@@ -39,6 +54,65 @@ from tests.fixtures.instructors import count
 from tests.fixtures.records import assigned
 
 DAY = dt.date(2026, 11, 2)
+SRC = Path(__file__).resolve().parents[2] / "src" / "classfit"
+# 기록·사진 쓰기 아홉(T7 결정 xiii). 세 파일의 공개 async def 중 쓰기를 부르는 것은 이 아홉뿐이어야 한다
+WRITERS = {
+    "service/courses/records.py": (
+        "save_my_record",
+        "save_admin_record",
+        "confirm_record",
+    ),
+    "service/courses/record_days.py": ("record_day_as_planned", "confirm_day"),
+    "service/files/photos.py": (
+        "add_my_photo",
+        "patch_my_photo",
+        "delete_my_photo",
+        "delete_photo_as_admin",
+    ),
+}
+WRITE_CALLS = {
+    "insert_record",
+    "apply_record",
+    "confirm_row",
+    "insert_photo",
+    "insert_stored_file",
+    "set_photo_file",
+    "set_caption",
+    "delete_photo",
+    "insert_audit",
+}
+# 잠근 뒤 fresh=True 로 다시 읽는 getter(③)
+REREAD = {
+    "save_my_record": "session_context",
+    "save_admin_record": "session_context",
+    "confirm_record": "session_context",
+    "add_my_photo": "session_context",
+    "patch_my_photo": "get_with_context",
+    "delete_my_photo": "get_with_context",
+    "delete_photo_as_admin": "get_with_context",
+    "record_day_as_planned": "course_day",
+    "confirm_day": "course_day",
+}
+SAVES = {"save_my_record", "save_admin_record", "confirm_record"}
+DAYS = {"record_day_as_planned", "confirm_day"}
+# 소유자 삭제 셋: 사진 지우기는 잠금 뒤 · 소유자 행 지우기 앞(⑤)
+OWNER_DELETES = (
+    ("service/courses/sections.py", "remove_section", "delete_section"),
+    ("service/courses/sections.py", "remove_session", "delete_session"),
+    ("service/courses/remove.py", "remove_course", "delete_course"),
+)
+CRUD_MODULES: tuple[ModuleType, ...] = (
+    crud_audit,
+    crud_course,
+    crud_enrollment,
+    crud_instructor,
+    crud_photo,
+    crud_photo_list,
+    crud_record,
+    crud_schedule,
+    crud_scope,
+    crud_stored_file,
+)
 
 
 def _settings() -> Settings:
@@ -320,3 +394,169 @@ async def test_record_table_checks(db_session: AsyncSession) -> None:
     assert await count(db, StoredFile, StoredFile.id == file_id) == 0
     await crud_schedule.delete_session(db, x.session_id)
     assert await count(db, SessionRecord, SessionRecord.session_id == x.session_id) == 0
+
+
+@dataclass(frozen=True)
+class _Call:
+    owner: str | None  # 받는 이름(crud_record.insert_record 면 crud_record)
+    name: str
+    at: tuple[int, int]  # (줄, 칸)
+    keywords: dict[str, str] = field(
+        default_factory=dict
+    )  # 키워드 이름 → 값 글자(ast.unparse)
+
+
+def _tree(relpath: str) -> ast.Module:
+    return ast.parse((SRC / relpath).read_text(encoding="utf-8"))
+
+
+def _function(relpath: str, function: str) -> ast.AsyncFunctionDef | ast.FunctionDef:
+    (body,) = [
+        node
+        for node in ast.walk(_tree(relpath))
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name == function
+    ]
+    return body
+
+
+def _calls(node: ast.AST) -> list[_Call]:
+    """node 안의 호출을 소스 순서(줄, 칸)로. ast.walk 는 소스 순서를 보장하지 않는다."""
+    found: list[_Call] = []
+    for sub in ast.walk(node):
+        if not isinstance(sub, ast.Call):
+            continue
+        keywords = {k.arg: ast.unparse(k.value) for k in sub.keywords if k.arg}
+        func = sub.func
+        if isinstance(func, ast.Attribute):
+            owner = func.value.id if isinstance(func.value, ast.Name) else None
+            found.append(
+                _Call(owner, func.attr, (sub.lineno, sub.col_offset), keywords)
+            )
+        elif isinstance(func, ast.Name):
+            found.append(_Call(None, func.id, (sub.lineno, sub.col_offset), keywords))
+    return sorted(found, key=lambda c: c.at)
+
+
+def _awaited(node: ast.AST) -> list[str]:
+    """node 안에서 await 하는 호출의 이름(소스 순서) — DB 를 치는 호출이다."""
+    hits = [
+        (sub.lineno, sub.col_offset, _calls(sub.value)[0].name)
+        for sub in ast.walk(node)
+        if isinstance(sub, ast.Await) and isinstance(sub.value, ast.Call)
+    ]
+    return [name for *_, name in sorted(hits)]
+
+
+def _first(calls: list[_Call], name: str, where: str) -> tuple[int, int]:
+    hits = [c.at for c in calls if c.name == name]
+    assert hits, f"{where}: {name}( 호출이 없다"
+    return hits[0]
+
+
+def _crud_names() -> set[str]:
+    return {
+        name
+        for module in CRUD_MODULES
+        for name, value in vars(module).items()
+        if inspect.isfunction(value) and value.__module__ == module.__name__
+    }
+
+
+def test_record_lock_call_sites() -> None:
+    crud_names = _crud_names()
+    for relpath, functions in WRITERS.items():
+        for fn in functions:
+            where = f"{relpath}::{fn}"
+            calls = _calls(_function(relpath, fn))
+            lock = _first(calls, "lock_course", where)
+            # ① 잠금이 첫 쓰기 앞
+            writes = [c.at for c in calls if c.name in WRITE_CALLS]
+            assert writes and lock < min(writes), f"{where}: 쓰기가 잠금 앞이다"
+            # ② 바이트 쓰기는 잠금 앞
+            if fn == "add_my_photo":
+                assert _first(calls, "to_thread", where) < lock, where
+            # ③ 잠근 뒤 fresh=True 다시 읽기(저장·확인은 기록도)
+            reread = REREAD[fn]
+            assert any(
+                c.name == reread and c.at > lock and c.keywords.get("fresh") == "True"
+                for c in calls
+            ), f"{where}: 잠근 뒤 {reread}(fresh=True) 가 없다"
+            if fn in SAVES:
+                assert any(
+                    c.name == "get_record"
+                    and lock < c.at < min(writes)
+                    and c.keywords.get("fresh") == "True"
+                    for c in calls
+                ), f"{where}: 잠근 뒤 get_record(fresh=True) 가 없다"
+            # ④ 일차 둘은 잠근 뒤 그 일차 세션·기록을 다시 읽고 나서 쓴다
+            if fn in DAYS:
+                rows = _first(calls, "day_sessions", where)
+                assert lock < rows < min(writes), where
+            # ⑥ 잠근 뒤 session.get 판 getter 로 판정하지 않는다
+            assert not any(c.name == "get_course" and c.at > lock for c in calls), where
+            assert not any(c.owner == "session" and c.name == "get" for c in calls)
+            # ⑦ crud 는 모듈 별칭 속성으로 부른다(감싸개가 먹는 꼴)
+            bare = [
+                c.name
+                for c in calls
+                if c.name in crud_names and not (c.owner or "").startswith("crud_")
+            ]
+            assert bare == [], f"{where}: crud 를 별칭 밖에서 부른다 — {bare}"
+
+    for relpath, functions in WRITERS.items():
+        tree = _tree(relpath)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            module = node.module or ""
+            if module == "classfit.crud":
+                assert all(a.asname == f"crud_{a.name}" for a in node.names), relpath
+            elif module.startswith("classfit.crud."):
+                # 형(SessionContext·Subject 등)만 들인다 — 함수는 별칭 속성으로
+                loaded = importlib.import_module(module)
+                for alias in node.names:
+                    assert not inspect.isfunction(getattr(loaded, alias.name)), (
+                        relpath,
+                        alias.name,
+                    )
+        # ⑧ 쓰기를 부르는 공개 async def 는 위 아홉뿐(규약 밖 새 쓰기 함수를 막는다)
+        writers = {
+            node.name
+            for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef)
+            and not node.name.startswith("_")
+            and any(c.name in WRITE_CALLS for c in _calls(node))
+        }
+        assert writers == set(functions), (relpath, writers)
+
+    # ⑤ 소유자 삭제 셋: 잠금 → 첨부 → 사진 → 소유자 행
+    for relpath, fn, owner_delete in OWNER_DELETES:
+        where = f"{relpath}::{fn}"
+        calls = _calls(_function(relpath, fn))
+        lock = _first(calls, "lock_course", where)
+        attachments = _first(calls, "delete_attachments_under", where)
+        photos = _first(calls, "delete_photos_under", where)
+        assert lock < attachments < photos < _first(calls, owner_delete, where), where
+        assert [c.owner for c in calls if c.name == "delete_photos_under"] == [
+            "crud_photo"
+        ], where
+
+    # ⑨ 확인 표시는 강의를 잠그지 않고, 사진 여러 행을 잡는 crud 둘은 같은 id 순 잠금을 먼저 부른다
+    marks = _calls(_function("service/files/photo_views.py", "mark_seen"))
+    assert all(c.name != "lock_course" for c in marks)
+    assert any(c.owner == "crud_photo" and c.name == "mark_seen" for c in marks)
+    for fn in ("mark_seen", "delete_photos_under"):
+        awaited = _awaited(_function("crud/photo.py", fn))
+        assert awaited and awaited[0] == "_lock_in_id_order", (fn, awaited)
+    lock_source = inspect.getsource(crud_photo._lock_in_id_order)
+    assert "with_for_update(" in lock_source and "order_by(Photo.id" in lock_source
+    for_update = [
+        c for c in _calls(_tree("crud/photo.py")) if c.name == "with_for_update"
+    ]
+    assert len(for_update) == 1
+    assert for_update[0].at[0] in range(
+        crud_photo._lock_in_id_order.__code__.co_firstlineno,
+        crud_photo._lock_in_id_order.__code__.co_firstlineno
+        + len(lock_source.splitlines()),
+    )

@@ -138,3 +138,6 @@ def test_photo_rules_download_name() -> None:
     assert download_name("A 사/x:y\t", DAY, 2, 3, "image/jpeg") == (
         "A_사_x_y__20261102_2일차_03.jpg"
     )
+    assert download_name('B  사//<"C">', DAY, 1, 100, "image/webp") == (
+        "B_사_C__20261102_1일차_100.webp"
+    )  # 이어진 금지 글자는 _ 하나 · 세 자리 차례는 그대로
