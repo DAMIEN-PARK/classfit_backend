@@ -6,6 +6,8 @@
 - ANSWERS_OK 는 기본 양식 24문항 가운데 안내문 말고 전부, ANSWERS_REQUIRED_ONLY 는 필수 17문항만 채운 답이다.
 - submit 은 본 설문판(survey_id · questions_hash)을 받아 보낸다. submit_current 는 수강생 조회로 그 둘을 읽어 보낸다.
 - 키 집합은 응답 모양의 정확한 키(==)다(T8 결정 xxv). 분포(distribution)의 키는 "1"~"5" 다(DISTRIBUTION_KEYS).
+  RESULTS_KEYS·MY_RESULTS_KEYS 는 재귀 허용 집합(tests/fixtures/enter.py json_keys 와 ==)이고, 맨 위 키는
+  RESULTS_TOP_KEYS·MY_RESULTS_TOP_KEYS 다.
   RESULT_FORBIDDEN_KEYS 는 결과(A5·I7)에 있으면 안 되는 키다. tests/fixtures/enter.py 의 PERSONAL_KEYS 는 바꾸지 않는다.
 """
 
@@ -133,12 +135,25 @@ QUESTION_RESULT_KEYS = frozenset(
     {"key", "text", "type", "area", "star", "is_overall", "stat"}
 )
 TEXT_RESULT_KEYS = frozenset({"key", "text", "items"})
-RESULTS_KEYS = frozenset(
-    {"head", "response_rate", "overall", "areas", "questions", "texts"}
-)
 RESULTS_BODY_KEYS = frozenset({"overall", "areas", "questions", "texts"})
-MY_RESULTS_KEYS = frozenset(
+RESULTS_TOP_KEYS = RESULTS_BODY_KEYS | {"head", "response_rate"}
+MY_RESULTS_TOP_KEYS = frozenset(
     {"head", "response_rate", "visible", "reason", "min_responses", "results"}
+)
+# 결과 안쪽(척도·선택형·영역·문항·주관식)에 나오는 키
+_STAT_KEYS = (
+    SCALE_STAT_KEYS
+    | DISTRIBUTION_KEYS
+    | CHOICE_STAT_KEYS
+    | VALUE_COUNT_KEYS
+    | AREA_KEYS
+    | QUESTION_RESULT_KEYS
+    | TEXT_RESULT_KEYS
+)
+# 재귀 허용 집합(json_keys == 로 잰다): A5 전체 · I7 공개(visible)일 때 전체. 숨김이면 results 가 null 이라 이 집합의 부분이다
+RESULTS_KEYS = RESULTS_TOP_KEYS | HEAD_KEYS | RESPONSE_RATE_KEYS | _STAT_KEYS
+MY_RESULTS_KEYS = (
+    MY_RESULTS_TOP_KEYS | RESULTS_BODY_KEYS | HEAD_KEYS | RESPONSE_RATE_KEYS | _STAT_KEYS
 )
 PORTAL_SURVEY_KEYS = frozenset({"id", "status", "open_on", "close_on"})
 HOME_SURVEY_KEYS = frozenset(

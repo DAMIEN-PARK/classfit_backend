@@ -6,8 +6,10 @@
 그대로 복사했다(그 파일은 고치지 않는다). 장벽 도우미 _pause_after·_race_paused 는 복사하지 않았다 — ①~⑦·⑨·⑩ 은 A 가
 함수를 끝내고 커밋 전에 서는 _race 꼴이고, ⑧ 은 B 세션의 execute·scalars·scalar 를 감싸 B 의 첫 survey 문장 직후 A 를
 커밋시킨다(_commit_on_first_survey — 잠금 대기가 없어 _race 의 during 을 못 쓴다).
-committing 은 끝에 SEED_TABLES 밖의 ORM 표를 TRUNCATE 한 뒤, 이 파일의 시험이 만든 양식을 지우고 시드 양식(가장 작은
-id)을 다시 기본으로 둔다 — survey_template 은 SEED_TABLES 라 TRUNCATE 가 비우지 않고, 기본 지정 시험이 기본을 옮긴다.
+committing 은 끝에 SEED_TABLES 밖의 ORM 표를 TRUNCATE 한 뒤 survey_template 을 마이그레이션 직후 상태로 되돌린다 — 표를
+비우고(RESTART IDENTITY) 0009 의 시드 상수 DEFAULT_TEMPLATE 한 행을 다시 넣는다(행 하나 · 기본 · 이름·비고·문항이 시드 값).
+survey_template 은 SEED_TABLES 라 첫 TRUNCATE 가 비우지 않는데, 이 파일의 시험은 양식을 만들고 기본 지정이 기본을 옮긴다.
+시험은 시드 행 자체를 고치지 않고(기본 표시만 옮겨진다) 새 양식을 만들어 쓴다.
 A·B 는 운영 경로(service.surveys)로 부른다. 기다렸는지와 무엇을 기다렸는지(survey · course · survey_template)를 함께
 단언하고, 결과 단언(행 수·칸 값)을 따로 둔다. 순서는 _waits_on_lock 폴링과 PG 의 잠금 줄이 정한다(sleep 없음).
 """
@@ -15,13 +17,15 @@ A·B 는 운영 경로(service.surveys)로 부른다. 기다렸는지와 무엇�
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import pytest_asyncio
-from sqlalchemy import func, select, text
+from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -50,11 +54,24 @@ SEED_TABLES = frozenset({"document_type", "survey_template"})
 ADMIN = "admin:1"
 TODAY = TODAY_RUNNING
 SURVEY_SQL = re.compile(r"\bFROM survey\b")
+MIGRATION_0009 = (
+    Path(__file__).resolve().parents[2] / "alembic" / "versions" / "0009_surveys.py"
+)
+
+
+def _seed_template() -> dict[str, Any]:
+    """0009 의 시드 한 행(DEFAULT_TEMPLATE) — 그 글자의 유일한 자리는 마이그레이션 파일이다."""
+    spec = importlib.util.spec_from_file_location("migration_0009", MIGRATION_0009)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return dict(module.DEFAULT_TEMPLATE)
 
 
 @pytest_asyncio.fixture
 async def committing(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
-    """커밋하는 엔진. 끝에 ORM 표를 비운다(sorted_tables, CASCADE). 시드 표 SEED_TABLES 는 남기고 시드 양식만 되돌린다."""
+    """커밋하는 엔진. 끝에 ORM 표를 비운다(sorted_tables, CASCADE). 시드 표 SEED_TABLES 는 남기고, survey_template 은
+    마이그레이션 직후 상태(시드 한 행)로 되돌린다."""
     engine = make_engine(migrated_db_url, poolclass=NullPool)
     try:
         yield engine
@@ -69,15 +86,10 @@ async def committing(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
                 )
                 await conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
                 await conn.execute(
-                    text(
-                        "DELETE FROM survey_template"
-                        " WHERE id <> (SELECT min(id) FROM survey_template)"
-                    )
+                    text("TRUNCATE survey_template RESTART IDENTITY CASCADE")
                 )
                 await conn.execute(
-                    text(
-                        "UPDATE survey_template SET is_default = true WHERE NOT is_default"
-                    )
+                    insert(SurveyTemplate.__table__).values(**_seed_template())
                 )
         finally:
             await engine.dispose()
