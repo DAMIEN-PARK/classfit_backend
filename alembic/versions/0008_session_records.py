@@ -1,7 +1,7 @@
 """교육 기록·사진: session_record · photo
 
 - session_record 는 세션당 1행(session_id 유일)이다. status done·ok(none 은 행 없음), 실시일 · 실제 시작·끝(둘 다 있거나
-  둘 다 없고 시작 < 끝) · 참석 인원 0..10000 · 진행 내용(공백뿐 금지) · 비고 · 기록자 종류·id · 기록 시각 · 확인자·확인 시각
+  둘 다 없고 시작 < 끝) · 참석 인원 0..10000 · 진행 내용(공백류뿐 금지) · 비고 · 기록자 종류·id · 기록 시각 · 확인자·확인 시각
   (ok 일 때만, 둘이 같이). 세션 FK 는 CASCADE 다(파일이 없다, T7 결정 iv).
 - photo 는 course·session FK 기본 NO ACTION(세션·섹션·강의 삭제가 crud 로 먼저 지운다, 결정 xvi) · file_id 유일 ·
   올린 사람 종류 CHECK · 설명 · 교육일 · 확인 표시 seen_at. 색인은 course_id · session_id · (created_at, id)(모아보기 키셋).
@@ -29,7 +29,8 @@ RECORD_CHECKS = (
     ("time_pair", "(start_time IS NULL) = (end_time IS NULL)"),
     ("time_order", "start_time IS NULL OR start_time < end_time"),
     ("attendees", "attendees IS NULL OR attendees BETWEEN 0 AND 10000"),
-    ("content", "length(btrim(content)) >= 1"),
+    # 공백류(스페이스·탭·줄바꿈)가 아닌 글자가 하나는 있다 — btrim 은 스페이스만 지운다
+    ("content", "content ~ '[^[:space:]]'"),
     ("recorded_by_kind", "recorded_by_kind IN ('instructor', 'admin')"),
     ("confirmed_status", "(status = 'ok') = (confirmed_at IS NOT NULL)"),
     ("confirmed_pair", "(confirmed_at IS NULL) = (confirmed_by_id IS NULL)"),

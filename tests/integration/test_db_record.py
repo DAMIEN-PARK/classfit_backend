@@ -49,10 +49,13 @@ from classfit.models import (
 from classfit.schemas.course import SessionPatchIn
 from classfit.service.auth.sessions import Principal
 from classfit.service.courses import remove, sections
-from classfit.service.files import photo_views
+from classfit.service.files import photo_views, photos
+from classfit.service.files.store import path_for
+from classfit.service.rules.attachment import FileRejected
 from tests.fixtures.assign import approved
+from tests.fixtures.enter import PDF
 from tests.fixtures.instructors import count
-from tests.fixtures.records import assigned
+from tests.fixtures.records import IMAGES, PAST, assigned
 
 DAY = dt.date(2026, 11, 2)
 ADMIN = Principal("admin", 1)
@@ -422,6 +425,40 @@ async def test_photo_download_name_uses_taken_on_day(db_session: AsyncSession) -
     assert await listed() == ("A사_20261102_01.png", 2)  # 그 날짜의 일차가 없다
 
 
+async def test_photo_add_non_image_service(
+    db_session: AsyncSession, tmp_path: Path
+) -> None:
+    """이미지가 아닌 종류를 service 에서 직접 잰다(끝점의 머리 판정과 따로, 대조 실험 26). 바이트를 쓰기 전에 거절한다.
+
+    확장자·첫 바이트가 맞는 비이미지(.pdf · zip 머리 .pptx)는 사진 자리의 종류 검사가 unknown_type 으로 막고,
+    확장자만 비이미지인 것(png 바이트 .pptx)은 그 앞의 classify 가 mismatch 로 막는다.
+    """
+    db = db_session
+    x = await assigned(db, _settings(), email="photo-kind-x@example.com")
+    for filename, data, reason, kind in [
+        ("강의안.pdf", PDF + b"%t7-kind-pdf", "unknown_type", "pdf"),
+        ("발표.pptx", b"PK\x03\x04%t7-kind-pptx", "unknown_type", "office"),
+        ("사진.pptx", IMAGES[".png"] + b"-kind-pptx", "mismatch", "office"),
+    ]:
+        with pytest.raises(FileRejected) as caught:
+            await photos.add_my_photo(
+                db,
+                root=tmp_path,
+                max_bytes=1024 * 1024,
+                instructor_id=x.instructor_id,
+                session_id=x.session_id,
+                caption=None,
+                filename=filename,
+                data=data,
+                today=PAST,
+                actor=f"instructor:{x.instructor_id}",
+            )
+        assert (caught.value.reason, caught.value.kind) == (reason, kind), filename
+        assert not path_for(tmp_path, hashlib.sha256(data).hexdigest()).exists()
+    assert await count(db, Photo, Photo.session_id == x.session_id) == 0
+    assert await count(db, StoredFile, StoredFile.owner_kind == "photo") == 0
+
+
 async def _violates(
     db: AsyncSession, stmt: Any, sqlstate: str, constraint: str | None = None
 ) -> None:
@@ -456,6 +493,7 @@ async def test_record_table_checks(db_session: AsyncSession) -> None:
         ({"attendees": -1}, "attendees"),
         ({"attendees": 10_001}, "attendees"),
         ({"content": "   "}, "content"),
+        ({"content": "\n\t"}, "content"),  # 공백류만(btrim 은 스페이스만 지운다)
         ({"status": "ok"}, "confirmed_status"),  # ok 인데 확인 시각 없음
         ({"status": "ok", "confirmed_at": confirmed}, "confirmed_pair"),  # 확인자 없음
         ({"recorded_by_kind": "learner"}, "recorded_by_kind"),

@@ -49,7 +49,8 @@ class SessionRecord(BigIdMixin, TimestampMixin, Base):
         CheckConstraint(
             "attendees IS NULL OR attendees BETWEEN 0 AND 10000", name="attendees"
         ),
-        CheckConstraint("length(btrim(content)) >= 1", name="content"),
+        # 공백류(스페이스·탭·줄바꿈)가 아닌 글자가 하나는 있다(0008 과 같은 글자)
+        CheckConstraint("content ~ '[^[:space:]]'", name="content"),
         CheckConstraint(
             "recorded_by_kind IN ('instructor', 'admin')", name="recorded_by_kind"
         ),
