@@ -2,7 +2,9 @@
 
 - 홈은 화면 단위 조립이다: 강사 상태 · 강의 셈 · 배정 강의 표(courses_more) · 강의안 없는 내 세션 할 일(todo_more) ·
   안 낸 필수 서류 종류 id · 가능 과정 수. 강의는 보관 안 한 배정 강의이고 상태는 오늘 기준 계산값이다.
-  수강생 개인 칸은 없다. 만족도 알림(T8)·미기록(T7) 칸은 아직 없다.
+  수강생 개인 칸은 없다. 만족도 알림(T8) 칸은 아직 없다.
+- 미기록(T7 결정 xv)은 종료·보관 아닌 범위 강의의 내 세션 가운데 일차 날짜 ≤ 오늘 ∧ 기록 없음이다(records_todo ·
+  records_todo_more). 항목 모양은 할 일과 같은 MyTodoOut 이다.
 - 초대코드는 관리자 InviteCodeOut 칸 + enrolled(등록 수)다. 강사는 읽기만 한다(재발급·정지·정원 경로 없음).
 """
 
@@ -41,7 +43,7 @@ class MyHomeCourseOut(BaseModel):
 
 
 class MyTodoOut(BaseModel):
-    """첨부가 0개인 내 세션 하나."""
+    """내 세션 하나 — 할 일(첨부 0개)과 미기록(T7) 항목이 같은 모양이다."""
 
     course_id: int
     course_title: str
@@ -60,6 +62,8 @@ class MyHomeOut(BaseModel):
     courses_more: bool
     todo: list[MyTodoOut]  # 강의 시작일, 강의 id, 일차(미정은 뒤), 교시, 세션 id
     todo_more: bool
+    records_todo: list[MyTodoOut]  # 일차 날짜, 강의 id, 교시(미정은 뒤), 세션 id
+    records_todo_more: bool
     documents_missing: list[str]  # 안 낸 필수 서류 종류 id, 종류 (sort, id) 순
     capable: int  # 내 역량 + 활성 고유 과정 + 활성 커리큘럼
 

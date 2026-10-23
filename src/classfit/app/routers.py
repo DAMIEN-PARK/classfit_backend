@@ -22,9 +22,11 @@ from classfit.app.endpoints import (
     my_course_views,
     my_courses,
     own_courses,
+    photos,
     pool,
     pool_files,
     portal,
+    records,
     schedule,
     tags,
 )
@@ -56,4 +58,6 @@ ROUTERS = (
     my_courses.router,
     my_attachments.router,
     my_course_views.router,
+    records.router,
+    photos.router,
 )

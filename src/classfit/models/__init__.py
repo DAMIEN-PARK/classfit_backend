@@ -18,6 +18,7 @@ from classfit.models.invite_code import InviteCode
 from classfit.models.learner import Enrollment, Learner
 from classfit.models.outbox import MailOutbox
 from classfit.models.pool import Capability, CapabilityFile, PoolCourse, PoolCourseFile
+from classfit.models.record import Photo, SessionRecord
 from classfit.models.stored_file import StoredFile
 from classfit.models.tag import Tag
 
@@ -46,10 +47,12 @@ __all__ = [
     "InviteCode",
     "Learner",
     "MailOutbox",
+    "Photo",
     "PoolCourse",
     "PoolCourseFile",
     "Section",
     "SessionAttachment",
+    "SessionRecord",
     "StoredFile",
     "Tag",
     "TimestampMixin",

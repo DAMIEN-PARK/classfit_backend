@@ -3,8 +3,10 @@
 - T6 까지의 표로 되는 칸만 준다: 강사 상태 · 셈(보관 안 한 범위 강의 · 상태별 · 내 세션 · 자료 있는 내 세션) ·
   강의 표(진행 → 준비 → 종료, 시작일, id — 산 코드와 코드 상태 포함) · 할 일(종료·보관 아닌 강의에서 첨부 0개인 내
   세션) · 안 낸 필수 서류 종류 · 가능 과정 셈(역량 + 활성 고유 과정 + 활성 커리큘럼).
+- 미기록(T7 결정 xv): 종료·보관 아닌 범위 강의의 내 세션 가운데 일차 날짜 ≤ 오늘 ∧ 기록 없음(crud.record.record_todo_rows).
+  항목 모양은 할 일과 같은 TodoRow, 상한도 HOME_TODO_MAX 다. 순서는 일차 날짜 → 강의 id → 교시(미정 뒤) → 세션 id.
 - 목록·셈의 첫 WHERE 는 주체 범위다(crud.my_home). 수강생 개인 칸은 없다. 대기 강사도 같은 모양이다(빈 목록).
-- 만족도 알림(T8)·미기록(T7)·시수(1차 제외)는 칸이 없다.
+- 만족도 알림(T8)·시수(1차 제외)는 칸이 없다.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from classfit.crud import instructor as crud_instructor
 from classfit.crud import instructor_document as crud_instructor_document
 from classfit.crud import invite_code as crud_code
 from classfit.crud import my_home as crud_my_home
+from classfit.crud import record as crud_record
 from classfit.crud.scope import Subject
 from classfit.service.courses.codes import code_state_of
 from classfit.service.rules.status import CodeState
@@ -54,6 +57,8 @@ class MyHome:
     todo_more: bool
     documents_missing: list[str]  # 안 낸 필수 서류 종류 id, 종류 (sort, id) 순
     capable: int
+    records_todo: list[crud_my_home.TodoRow]  # 지난 일차의 기록 없는 내 세션(T7)
+    records_todo_more: bool
 
 
 async def home_of(session: AsyncSession, subject: Subject, *, today: dt.date) -> MyHome:
@@ -65,6 +70,9 @@ async def home_of(session: AsyncSession, subject: Subject, *, today: dt.date) ->
         session, subject, today=today, limit=HOME_COURSES_MAX
     )
     todo, todo_more = await crud_my_home.todo_rows(
+        session, subject, today=today, limit=HOME_TODO_MAX
+    )
+    records_todo, records_todo_more = await crud_record.record_todo_rows(
         session, subject, today=today, limit=HOME_TODO_MAX
     )
     codes = await crud_code.live_codes(session, [r.course.id for r in rows])
@@ -100,4 +108,6 @@ async def home_of(session: AsyncSession, subject: Subject, *, today: dt.date) ->
             t.id for t, doc, _ in documents if t.required and doc is None
         ],
         capable=await crud_my_home.capable_count(session, subject),
+        records_todo=records_todo,
+        records_todo_more=records_todo_more,
     )
