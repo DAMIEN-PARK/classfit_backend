@@ -23,15 +23,25 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
 from classfit.core.config import Settings
+from classfit.core.errors import Conflict
 from classfit.core.passwords import hash_password
 from classfit.crud import auth as crud_auth
 from classfit.crud.admin import insert_admin
 from classfit.crud.invite_code import update_code
 from classfit.database.session import make_engine, make_session_factory
-from classfit.models import AuthAttempt, Base, Enrollment, InviteCode
+from classfit.models import (
+    AuthAttempt,
+    Base,
+    Enrollment,
+    InviteCode,
+    MailOutbox,
+    Survey,
+    SurveyTemplate,
+)
 from classfit.service.auth.login import ATTEMPT_KIND, admin_login, subject_hash
 from classfit.service.courses.codes import reissue_invite_code
 from classfit.service.enroll.enter import enter_course
+from classfit.service.surveys.deploy import deploy
 from tests.fixtures.courses import open_test_course
 
 TODAY = date(2026, 11, 3)  # 시험 강의(2026-11-02~05) 진행 중, 코드 만료 전
@@ -248,3 +258,38 @@ async def test_concurrent_login_failures_serialized(
         AuthAttempt.ok.is_(False),
     )
     assert await _count(factory, AuthAttempt, *failures) == 11
+
+
+async def test_concurrent_survey_deploy_one_open(
+    factory: Factory, committing: AsyncEngine
+) -> None:
+    """같은 강의 배포 둘. A 가 열린 설문을 넣고 커밋 전에 멈춘 사이 B 가 오면, B 는 잠금을 기다렸다 A 의 열린 설문을 보고
+    Conflict(23505·500 아님). 설문 1행 · 알림 survey_opened 는 A 몫만(T8 결정 xix, 열린 설문 동시성 1개)."""
+    course_id, code = await _seed_course(factory)
+    async with factory() as s, s.begin():
+        entered = await _enter(code, "a@example.com", "김가명")(s)  # 알림 받을 수강생 하나
+        template_id = await s.scalar(
+            select(SurveyTemplate.id).where(SurveyTemplate.is_default.is_(True))
+        )
+    assert (entered.outcome, template_id is not None) == ("created", True)
+
+    async def run(s: AsyncSession) -> Any:
+        try:
+            return await deploy(
+                s,
+                course_ids=[course_id],
+                template_id=template_id,
+                open={"mode": "now"},
+                close={"mode": "end_plus_14"},
+                today=TODAY,
+                close_days=14,
+                actor="admin:1",
+            )
+        except Conflict as exc:
+            return exc
+
+    first, second, waited = await _race(factory, committing, run, run)
+    assert [row.course_id for row in first] == [course_id]
+    assert (isinstance(second, Conflict), waited) == (True, True)
+    assert await _count(factory, Survey, Survey.course_id == course_id) == 1
+    assert await _count(factory, MailOutbox, MailOutbox.kind == "survey_opened") == 1
