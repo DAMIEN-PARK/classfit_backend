@@ -2,7 +2,8 @@
 
 - 저장 본문 RecordIn 은 여섯 칸이다: held_on(실시일, 필수) · start_time·end_time(시간대 없는 "HH:MM", 둘 다 있거나 둘 다
   없음, 시작 < 끝) · attendees(0..10000, 숫자만 — 개인 출석부가 아니다) · content(앞뒤 공백을 지운 뒤 1..5000자, NUL 금지,
-  줄바꿈 허용) · note. 그 밖의 키는 422 extra_forbidden 이다. 모양 밖은 DB CHECK 에 닿기 전에 422 다.
+  줄바꿈 허용) · note(앞뒤 공백을 지운 뒤 5000자까지, 비면 null). 그 밖의 키는 422 extra_forbidden 이다. 모양 밖은
+  DB CHECK 에 닿기 전에 422 다. 둘 다 다듬은 값으로 바뀐 칸을 비교한다(공백만 다른 본문은 바뀐 칸이 아니다, R4).
 - 상태 none(기록 없음) · done(강사 저장) · ok(관리자 확인·저장)와 주체 종류는 service.rules.record 와 같은 글자를 여기에
   다시 선언한다(schemas 는 service 를 import 하지 않는다 — 계약 ①). 끝점이 RecordFields(**body.model_dump()) 로 바꾼다.
 - 사람 칸은 강사 이름 하나(recorded_by_name — 관리자가 쓴 기록은 null 이고 역할만 recorded_by, 결정 xxi).
@@ -26,7 +27,7 @@ from pydantic import (
 )
 
 from classfit.models.record import ATTENDEES_MAX
-from classfit.schemas.course import Clock, LongText, _no_nul, _ordered
+from classfit.schemas.course import Clock, _no_nul, _ordered
 from classfit.schemas.photo import ActorKind, AdminPhotoOut, MyPhotoOut
 
 RecordStatus = Literal["none", "done", "ok"]
@@ -36,6 +37,18 @@ Content = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=CONTENT_MAX),
     AfterValidator(_no_nul),
+]
+
+
+def _no_nul_or_none(value: str) -> str | None:
+    return _no_nul(value) or None
+
+
+# 비고: Content 와 같은 strip 꼴, 다듬어 비면 None
+Note = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, max_length=CONTENT_MAX),
+    AfterValidator(_no_nul_or_none),
 ]
 
 
@@ -49,7 +62,7 @@ class RecordIn(BaseModel):
     end_time: Clock | None = None
     attendees: int | None = Field(default=None, ge=0, le=ATTENDEES_MAX)
     content: Content
-    note: LongText | None = None
+    note: Note | None = None
 
     @model_validator(mode="after")
     def _times(self) -> RecordIn:

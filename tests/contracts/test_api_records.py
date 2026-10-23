@@ -281,12 +281,15 @@ async def test_record_instructor_put_creates_done(
         client, admin, me, me.instructor_id, title="2일차", day_no=2, slot=1
     )
     undated = await _session(client, admin, me, me.instructor_id, title="미정")
-    for sid in (future, undated):
-        body = _ok(await put_record(client, me.headers, sid, held_on="2026-11-20"))
-        assert (body["session_id"], body["status"], body["held_on"]) == (
+    for sid in (future, undated):  # 공백뿐인 비고는 null 이다
+        body = _ok(
+            await put_record(client, me.headers, sid, held_on="2026-11-20", note="  ")
+        )
+        assert (body["session_id"], body["status"], body["held_on"], body["note"]) == (
             sid,
             "done",
             "2026-11-20",
+            None,
         )
 
 
@@ -296,15 +299,16 @@ async def test_record_identical_put_keeps_status(
     set_today(app)
     _, admin = await admin_headers(db_session)
     me = await assigned(db_session, app.state.settings, email="x@example.com")
-    _ok(await put_record(client, me.headers, me.session_id))
-    # 같은 값 — 진행 내용은 앞뒤 공백만, 시각은 초까지 쓴 글자만 다르다
-    same = {"content": "  실제 진행 \n", "start_time": "13:00:00"}
+    _ok(await put_record(client, me.headers, me.session_id, note="비고"))
+    # 같은 값 — 진행 내용·비고는 앞뒤 공백만, 시각은 초까지 쓴 글자만 다르다
+    same = {"content": "  실제 진행 \n", "start_time": "13:00:00", "note": " 비고\t"}
 
     body = _ok(await put_record(client, me.headers, me.session_id, **same))  # R4 done
-    assert (body["status"], body["content"], body["start_time"]) == (
+    assert (body["status"], body["content"], body["start_time"], body["note"]) == (
         "done",
         "실제 진행",
         "13:00:00",
+        "비고",
     )
     assert len(await _audits(db_session, "session_record.save")) == 1
 

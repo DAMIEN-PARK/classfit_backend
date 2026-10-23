@@ -18,7 +18,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from classfit.models.record import CAPTION_MAX
 from classfit.schemas.auth import no_control_chars
-from classfit.schemas.course import DbId, _Patch
+from classfit.schemas.course import DbId
 
 ActorKind = Literal["instructor", "admin"]
 DOWNLOAD_IDS_MAX = 100
@@ -62,7 +62,7 @@ class PhotoFormIn(BaseModel):
     caption: Caption = None
 
 
-class PhotoPatchIn(_Patch):
+class PhotoPatchIn(BaseModel):
     """caption 키는 있어야 한다(없으면 422 missing). null 은 설명을 지운다."""
 
     model_config = ConfigDict(extra="forbid")

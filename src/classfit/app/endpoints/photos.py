@@ -10,7 +10,8 @@
   200 · audit 없음. 지우면 그 파일 행도 지운다(바이트는 gc 몫).
 - GET /v1/admin/photos: 모아보기. 키셋 커서 {items, next_cursor, has_more}, 올린 시각(created_at, id) 내림차순 하나다
   (sort 없음, 결정 xi). 필터 company(강의 고객사와 같음) · course_id · q(설명 · 세션 제목 · 강의 제목 · 고객사 · 올린 강사
-  이름, % _ 는 글자) · new_only(확인 표시 없음). 깨진 커서는 422 loc ["query", "cursor"].
+  이름, % _ 는 글자) · new_only(확인 표시 없음). 깨진 커서(photo_views.InvalidCursor)만 422 loc
+  ["query", "cursor"] 다 — 다른 ValueError 는 커서 422 로 가리지 않는다(T6 my_course_views 꼴).
 - POST /v1/admin/photos:download {ids}: 바이트가 아니라 {items:[{id, href, filename}], missing} 이다. 바이트는 파일 끝점
   으로만 준다. POST /v1/admin/photos:mark-seen {ids}: 준 사진 가운데 확인 표시 없는 것만 표시한다(audit 없음).
 - DELETE /v1/admin/photos/{photo_id}: 관리자는 전부 지운다. 관리자 올리기·설명 고치기는 1차에 없다(결정 viii).
@@ -83,12 +84,17 @@ _MINE = {
 }
 
 
+NOT_IMAGE = "이미지 파일이 아닙니다(png·jpg·jpeg·webp 만 받습니다)"
+
+
 def _rejected(exc: FileRejected) -> Exception:
+    """too_large → 413. 이미지 확장자인데 첫 바이트가 틀리면 mismatch 문구, 그 밖(모르는 확장자 · 이미지가 아닌 종류 —
+    그 종류의 첫 바이트가 틀린 경우도)은 사진 자리에서 받지 않는 종류다(결정 vii, reason unknown_type 꼴)."""
     if exc.reason == "too_large":
         return AppError(413, f"사진은 {exc.limit_mb}MB 까지입니다")
-    if exc.reason == "mismatch":
+    if exc.reason == "mismatch" and exc.kind == _IMAGE:
         return _invalid("file", "파일 내용이 확장자와 맞지 않습니다")
-    return _invalid("file", "사진은 png·jpg·jpeg·webp 만 받습니다")
+    return _invalid("file", NOT_IMAGE)
 
 
 def _form_fields(form: FormData) -> PhotoFormIn:
@@ -234,7 +240,7 @@ async def list_photos(
             cursor=cursor,
             limit=limit,
         )
-    except ValueError:
+    except photo_views.InvalidCursor:
         raise RequestValidationError(
             [
                 {

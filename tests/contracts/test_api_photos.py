@@ -55,6 +55,8 @@ CONTENT_TYPES = {
 PUBLIC_KEYS = {"public", "is_public", "published"}
 PRIVATE_KEYS = {"email", "phone", "learner_id", "enrollment_id", "public"}
 PAGE_KEYS = {"items", "next_cursor", "has_more"}
+# 사진 자리에서 받지 않는 종류의 문구(끝점 글자를 시험이 따로 적는다)
+NOT_IMAGE = "이미지 파일이 아닙니다(png·jpg·jpeg·webp 만 받습니다)"
 _SEQ = itertools.count(1)
 
 
@@ -283,6 +285,19 @@ async def test_photo_upload_rejections(
             422,
             loc=["body", "file"],
         )
+    # 사진이 아닌 확장자는 첫 바이트와 상관없이 "이미지가 아님" 이고, 이미지 확장자에 틀린 바이트만 "맞지 않음" 이다
+    for name, data, msg in (
+        ("강의안.pdf", PDF, NOT_IMAGE),
+        ("강의안.pdf", png, NOT_IMAGE),  # pdf 확장자에 pdf 가 아닌 바이트
+        ("발표.pptx", png, NOT_IMAGE),
+        ("그림.png", PDF, "파일 내용이 확장자와 맞지 않습니다"),
+    ):
+        body = await rejected(
+            await upload_photo(client, me.headers, me.session_id, name, data),
+            422,
+            loc=["body", "file"],
+        )
+        assert [v["msg"] for v in body["violations"]] == [msg], name
     for caption in ("가" * 201, "줄\n바꿈"):
         await rejected(
             await upload_photo(client, me.headers, me.session_id, caption=caption),
