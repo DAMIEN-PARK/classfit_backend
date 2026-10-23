@@ -20,6 +20,8 @@ service 가 범위 없는 getter 로 읽어 404 → 403(owned_by) → 409 순으
 - capability_file(T4) — owner_id = 파일 행 id. 관리자 ∨ 그 역량의 강사(owned_by).
 - curriculum_file(T4) — owner_id = 파일 행 id. 관리자 ∨ 그 커리큘럼의 강사(owned_by).
   셋 다 관리자 열람에 audit 이 없다(강의안은 서류가 아니다, T4 결정 ix).
+- photo(T7) — owner_id = 사진 id. 관리자 ∨ 그 사진 세션의 지금 담당 강사(session_scope). 수강생·그 밖 거짓 —
+  공개 표시가 없다(r3 §7-7). 재배정되면 옛 담당은 거짓이다. 관리자 열람에 audit 은 없다(T7 결정 ix).
 """
 
 from __future__ import annotations
@@ -38,6 +40,7 @@ from classfit.models import (
     Curriculum,
     CurriculumFile,
     Instructor,
+    Photo,
     PoolCourse,
     PoolCourseFile,
     Section,
@@ -227,6 +230,20 @@ async def _curriculum_file(
     return owned_by(subject, owner)
 
 
+async def _photo(session: AsyncSession, subject: Subject, owner_id: int) -> bool:
+    """owner_id = photo.id. 관리자 ∨ 그 사진 세션의 지금 담당 강사(첫 WHERE session_scope). 그 밖 종류는 거짓."""
+    if subject.type == "admin":
+        return True
+    if subject.type != "instructor":
+        return False
+    found = (
+        select(Photo.id)
+        .join(CourseSession, CourseSession.id == Photo.session_id)
+        .where(session_scope(subject), Photo.id == owner_id)
+    )
+    return bool(await session.scalar(select(found.exists())))
+
+
 OWNER_KINDS: dict[str, OwnerCheck] = {
     "session_attachment": _session_attachment,
     "instructor_document": _instructor_document,
@@ -234,4 +251,5 @@ OWNER_KINDS: dict[str, OwnerCheck] = {
     "pool_course_file": _pool_course_file,
     "capability_file": _capability_file,
     "curriculum_file": _curriculum_file,
+    "photo": _photo,
 }

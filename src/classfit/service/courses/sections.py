@@ -3,8 +3,9 @@
 - 다른 강의의 섹션은 404 다(없는 섹션과 같다). 그 강의에 없는 일차를 세션에 주면 409 다(T2a 계획 결정 v).
 - 교시(slot)는 일차가 있어야 한다. 일차만 비우면 교시도 같이 비운다.
 - 예외 시각(time_start·time_end)은 둘 다 있거나 둘 다 없고, 시작이 앞이다.
-- 섹션·세션을 지우기 전에 그 아래 첨부와 파일 행을 같은 트랜잭션에서 지운다(T2b 계획 결정 ix).
-  session_attachment.session_id 는 NO ACTION 이라 남기면 23503 이다. 바이트는 gc 몫이다.
+- 섹션·세션을 지우기 전에 그 아래 첨부와 파일 행, 사진 행과 그 파일 행(T7)을 같은 트랜잭션에서 지운다(T2b 계획 결정 ix).
+  session_attachment.session_id · photo.session_id 는 NO ACTION 이라 남기면 23503 이다. 바이트는 gc 몫이다.
+  교육 기록(T7)은 세션 FK CASCADE 로 같이 지워진다.
 - 쓰기 함수 여섯 전부가 맨 앞에서 강의 행을 잠그고(crud.course.lock_course), 판정에 쓰는 섹션·일차·세션은 잠근 뒤
   읽는다(T5 결정 xviii). 그래서 이 파일의 잠금 순서는 전부 course → 섹션·일차·세션 행이고, 배정·풀 배치·일차 바꾸기와
   같은 강의 행 하나로 줄 선다. 세션 id 만 받는 함수는 강의 id 를 얻으려 한 번 읽은 뒤 잠그고 다시 읽는다.
@@ -23,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from classfit.core.errors import Conflict, NotFound
 from classfit.crud import attachment as crud_attachment
 from classfit.crud import course as crud_course
+from classfit.crud import photo as crud_photo
 from classfit.crud import schedule as crud_schedule
 from classfit.models import CourseSession, Section
 from classfit.schemas.course import SectionIn, SectionPatchIn, SessionIn, SessionPatchIn
@@ -72,6 +74,7 @@ async def remove_section(
         raise NotFound(_NO_SECTION)
     await section_in_course(session, course_id, section_id)
     await crud_attachment.delete_attachments_under(session, section_id=section_id)
+    await crud_photo.delete_photos_under(session, section_id=section_id)
     await crud_schedule.delete_section(session, section_id)
 
 
@@ -140,4 +143,5 @@ async def remove_session(session: AsyncSession, session_id: int) -> None:
     ):
         raise NotFound(_NO_SESSION)
     await crud_attachment.delete_attachments_under(session, session_id=session_id)
+    await crud_photo.delete_photos_under(session, session_id=session_id)
     await crud_schedule.delete_session(session, session_id)
