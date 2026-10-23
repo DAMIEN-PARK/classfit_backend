@@ -8,7 +8,9 @@
   대기 강사도 200 이다(빈 목록).
 - GET …/invite-code: 산 코드(없으면 404) + 등록 수. 강사는 읽기만 한다. …/invite-code/notice: 관리자와 같은 안내문 글자.
 - GET …/enrollments: 이름·부서·등록일만이다(이메일·전화·id 없음, 결정 xxi). 키셋 커서 {items, next_cursor, has_more},
-  (created_at, id) 내림차순, 깨진 커서는 422 loc ["query", "cursor"].
+  (created_at, id) 내림차순, 깨진 커서는 422 loc ["query", "cursor"]. survey_responded 는 그 강의 현재 설문의 응답
+  여부(없으면 null)이고 답과는 잇지 않는다(T8 결정 xiv — 관리자 명단과 같은 survey_responders).
+- 홈의 만족도 알림(surveys · surveys_more, T8 결정 xvi)은 service.courses.home 이 싣는다(이 끝점은 from_attributes).
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from fastapi.exceptions import RequestValidationError
 from classfit.app.deps import DbSession, InstructorCaller, Today
 from classfit.app.endpoints.assign import IdPath
 from classfit.app.endpoints.courses import code_out
+from classfit.app.endpoints.enrollments import survey_responders
 from classfit.app.endpoints.portal import portal_out
 from classfit.schemas.invite_code import NoticeOut
 from classfit.schemas.my_home import MyHomeOut, MyInviteCodeOut, MyRosterOut
@@ -107,9 +110,15 @@ async def my_roster(
                 }
             ]
         ) from None
+    responded = await survey_responders(session, course_id, [r.id for r in items])
     return Page[MyRosterOut](
         items=[
-            MyRosterOut(name=r.name, dept=r.dept, enrolled_at=r.created_at)
+            MyRosterOut(
+                name=r.name,
+                dept=r.dept,
+                enrolled_at=r.created_at,
+                survey_responded=None if responded is None else r.id in responded,
+            )
             for r in items
         ],
         next_cursor=next_cursor,

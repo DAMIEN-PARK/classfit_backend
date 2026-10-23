@@ -27,7 +27,7 @@ from tests.fixtures.assign import approved, course_with_section
 from tests.fixtures.enter import PDF
 
 ME = "/v1/me"
-ROSTER_KEYS = frozenset({"name", "dept", "enrolled_at"})
+ROSTER_KEYS = frozenset({"name", "dept", "enrolled_at", "survey_responded"})
 MY_ATTACHMENT_KEYS = frozenset(
     {"id", "kind", "title", "description", "href", "size", "origin"}
 )

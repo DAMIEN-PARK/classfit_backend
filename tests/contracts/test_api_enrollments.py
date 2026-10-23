@@ -59,7 +59,14 @@ async def test_admin_enrollments_list_keyset(
         ("다", "c@example.com", "교육팀"),
         ("나", "b@example.com", "교육팀"),
     ]
-    assert set(page["items"][0]) == {"id", "name", "dept", "email", "enrolled_at"}
+    assert set(page["items"][0]) == {
+        "id",
+        "name",
+        "dept",
+        "email",
+        "enrolled_at",
+        "survey_responded",
+    }
     rest = (
         await client.get(
             url, headers=auth, params={"limit": 2, "cursor": page["next_cursor"]}

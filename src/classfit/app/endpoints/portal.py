@@ -5,6 +5,8 @@
 - 종료 강의도 등록자는 200 이다(L1). 강의 status 는 오늘(Today) 기준 계산값이다.
 - 잠긴 카드는 제목·일차·날짜·시각만 준다. 첨부의 href 는 여기서 단다(pdf 는 href_for, link 는 url).
 - 응답에 개인 칸(이름·이메일·부서)이 없다(원칙 10, E-14).
+- survey 는 그 강의 현재 설문의 머리이고 상태는 오늘(Today) 기준 계산값이다(T8 결정 xv). 주체와 무관해 수강생 포털과
+  관리자·강사 미리 보기가 같다. 응답 여부는 수강생 설문 GET 의 responded 다.
 """
 
 from __future__ import annotations
@@ -16,14 +18,17 @@ from fastapi import APIRouter
 from classfit.app.deps import AdminCaller, DbSession, LearnerCaller, Today
 from classfit.app.endpoints.attachments import attachment_out
 from classfit.app.errors import forbidden
+from classfit.models import Survey
 from classfit.schemas.portal import (
     PortalCourseOut,
     PortalOut,
     PortalSectionOut,
     PortalSessionOut,
+    PortalSurveyOut,
 )
 from classfit.service.courses.codes import course_status_of
 from classfit.service.courses.portal import Portal, PortalCard, build_portal
+from classfit.service.rules.survey import status_at
 
 router = APIRouter(prefix="/v1", tags=["portal"])
 
@@ -43,6 +48,22 @@ def _card_out(card: PortalCard) -> PortalSessionOut:
         keywords=list(row.keywords) if opened else None,
         attachments=[attachment_out(a) for a in card.attachments],
         instructor_name=card.instructor_name,
+    )
+
+
+def _survey_out(survey: Survey | None, today: date) -> PortalSurveyOut | None:
+    if survey is None:
+        return None
+    return PortalSurveyOut(
+        id=survey.id,
+        status=status_at(
+            open_on=survey.open_on,
+            close_on=survey.close_on,
+            closed_at=survey.closed_at,
+            today=today,
+        ),
+        open_on=survey.open_on,
+        close_on=survey.close_on,
     )
 
 
@@ -67,6 +88,7 @@ def portal_out(portal: Portal, today: date) -> PortalOut:
             )
             for sec in portal.sections
         ],
+        survey=_survey_out(portal.survey, today),
     )
 
 

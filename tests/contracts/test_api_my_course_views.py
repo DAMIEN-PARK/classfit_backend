@@ -36,7 +36,7 @@ RUNNING = date(2026, 11, 3)
 LARGEST = 2**63 - 1  # BIGINT 로 표현되는 가장 큰 id — 없으면 404
 OVERFLOW = 2**63  # BIGINT 밖 — DB 를 치기 전에 422
 # 포털 응답의 허용 키(T5 test_assign_portal_instructor_name 과 같은 집합)
-TOP_KEYS = {"course", "sections"}
+TOP_KEYS = {"course", "sections", "survey"}
 COURSE_KEYS = {"id", "title", "start_on", "end_on", "status", "intro", "notice"}
 SECTION_KEYS = {"id", "title", "description", "sessions"}
 CARD_KEYS = {
@@ -72,6 +72,8 @@ HOME_KEYS = {
     "todo_more",
     "records_todo",
     "records_todo_more",
+    "surveys",
+    "surveys_more",
     "documents_missing",
     "capable",
 }
@@ -486,6 +488,8 @@ async def test_instructor_view_home_pending_empty(
         "todo_more": False,
         "records_todo": [],
         "records_todo_more": False,
+        "surveys": [],
+        "surveys_more": False,
         "documents_missing": REQUIRED_DOCUMENTS,
         "capable": 0,
     }

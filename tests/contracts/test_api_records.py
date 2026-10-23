@@ -70,7 +70,7 @@ RECORD_ACTIONS = (
 PRIVATE_KEYS = {"email", "phone", "learner_id", "enrollment_id", "dept", "public"}
 LIST_KEYS = {"course_id", "summary", "sessions"}
 # 포털 응답의 허용 키(T5 test_assign_portal_instructor_name 과 같은 집합)
-TOP_KEYS = {"course", "sections"}
+TOP_KEYS = {"course", "sections", "survey"}
 COURSE_KEYS = {"id", "title", "start_on", "end_on", "status", "intro", "notice"}
 SECTION_KEYS = {"id", "title", "description", "sessions"}
 CARD_KEYS = {
