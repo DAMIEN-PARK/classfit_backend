@@ -551,6 +551,8 @@ def test_record_lock_call_sites() -> None:
         assert awaited and awaited[0] == "_lock_in_id_order", (fn, awaited)
     lock_source = inspect.getsource(crud_photo._lock_in_id_order)
     assert "with_for_update(" in lock_source and "order_by(Photo.id" in lock_source
+    # 오름차순이다 — 확인 표시와 사진 여러 행 지우기가 같은 차례로 잡는다
+    assert "desc(" not in lock_source
     for_update = [
         c for c in _calls(_tree("crud/photo.py")) if c.name == "with_for_update"
     ]
