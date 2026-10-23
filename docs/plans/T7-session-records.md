@@ -228,7 +228,7 @@ test "$(.venv/bin/alembic heads)" = "0008 (head)" && echo heads-ok          # E-
 test "$(.venv/bin/pytest tests -q --co -k 'no_personal_keys or gc_' | grep -cE '::test_(no_personal_keys|gc)_')" -eq 4 && .venv/bin/pytest tests -q -k 'no_personal_keys or gc_'   # E-14 T7 변화 없음 → 셈 4 · failed·error 0(T6 병합 판 이름 그대로면 "7 passed" — T1 test_file_gc_ 2 · T5 …_then_gc_keeps_bytes 1 포함)
 test "$(.venv/bin/pytest tests -q --co -k golden | grep -c '::test_golden_')" -eq 3 && .venv/bin/pytest tests -q -k golden   # E-12 변화 없음 → "3 passed"
 .venv/bin/pytest tests/contracts/test_api_records.py tests/contracts/test_api_photos.py -q   # → "18 passed"
-.venv/bin/pytest tests/integration/test_db_record.py tests/integration/test_db_record_race.py tests/unit/test_record_rules.py -q   # → "15 passed"(4 + 7 + 4)
+.venv/bin/pytest tests/integration/test_db_record.py tests/integration/test_db_record_race.py tests/unit/test_record_rules.py -q   # → "18 passed"(7 + 7 + 4 — 리뷰 반영 `8ede143` 이 정렬·내려받기 일차 둘, `0efa726` 이 사진 종류 service 하나를 더했다. 계획 시점 15)
 .venv/bin/pytest tests/integration/test_db_record_race.py -q            # 행동 일곱 → "7 passed"(23503·23505·lock_timeout·40P01 없음, 대기 관계 단언 포함)
 .venv/bin/pytest tests/integration/test_db_concurrency.py -q            # E-11 → "4 passed"(무수정)
 .venv/bin/pytest tests/integration/test_db_assign_race.py tests/integration/test_db_attachment_race.py -q   # T5 8 + T6 7 무수정 → "15 passed"
@@ -300,7 +300,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X PUT "localhost:8000/v1/me/sessions/9
 SA=$(shasum -a 256 "$tmp/a.png" | cut -d' ' -f1); CLASSFIT_FILE_STORE_ROOT="$NB" .venv/bin/python -m dotenv --file .env run --no-override -- .venv/bin/python -m scripts.file_gc | .venv/bin/python -c 'import json,sys; print(sys.argv[1] in json.load(sys.stdin)["candidates"])' "$SA"   # False · stderr "미리 보기"(참조 있고 mtime 새로움)
 curl -s -o /dev/null -w '%{http_code}\n' -X DELETE "localhost:8000/v1/admin/courses/$CID" -H "$H"   # 204(수강생 없음 — 첨부 → 사진·파일 행 → 강의, 기록은 CASCADE)
 /opt/homebrew/opt/postgresql@17/bin/psql -d classfit_dev -v ON_ERROR_STOP=1 -c "select count(*) from session_record where session_id = $SID; select count(*) from photo where session_id = $SID; delete from mail_outbox where kind = 'session_assigned' and params->>'audit_id' in (select id::text from audit_log where action = 'session.assign' and target_type = 'course' and target_id = '$CID'); delete from audit_log where target_type = 'course' and target_id = '$CID'; delete from audit_log where target_type = 'session' and target_id = '$SID'; delete from audit_log where target_type = 'photo' and detail->>'session_id' = '$SID'"   # 앞 두 셈 0 · 0(강의 삭제가 지웠다) · 정리 — 이 흐름의 배정 알림 → 그 audit → 이 세션 기록·사진 audit 순. X 의 다른 알림·audit 은 건드리지 않는다. 강사 둘은 T3 정리 줄을 따로 돌린다
-pkill -f 'uvicorn classfit.main:app'; case "$NB" in var.nosync/t7-nb.?*) test -d "$NB" && rm -rf -- "$NB" ;; *) echo "NB 가 격리 저장소가 아니라 지우지 않는다: $NB" >&2 ;; esac; rm -rf -- "$tmp"; /usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTEN || echo port-free   # 서버를 멈춘 뒤 격리 저장소 통째(지우기 직전에 경로를 다시 확인) · 임시 폴더 → "port-free"
+pkill -f 'uvicorn classfit.main:app'; case "$NB" in var.nosync/t7-nb.?*) test -d "$NB" && rm -rf -- "$NB" ;; *) echo "NB 가 격리 저장소가 아니라 지우지 않는다: $NB" >&2 ;; esac; rm -rf -- "$tmp"; for i in 1 2 3 4 5 6 7 8 9 10; do /usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTEN >/dev/null || break; sleep 1; done; /usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTEN || echo port-free   # 서버를 멈춘 뒤 격리 저장소 통째(지우기 직전에 경로를 다시 확인) · 임시 폴더 → "port-free"
 ```
 
 **대조 실험**(커밋 뒤 임시 clone 에서만, CLAUDE.md). 실험마다 `tmp=$(mktemp -d)` 뒤 `git clone -q --no-hardlinks . "$tmp/cN"` 사본을 따로 만든다. 사본을 고치고, 원본 `.venv` 와 `PYTHONPATH="$tmp/cN/src"` 로 그 시험만 `--rootdir "$tmp/cN"` 으로 돌려 빨간지 본다. 사본에는 `.env` 가 없으니 `CLASSFIT_TEST_DATABASE_URL` 을 셸 환경 변수로 넘긴다(tests/conftest.py). 마이그레이션을 바꾸는 실험은 없다. **실험은 시험 DB 와 시험이 만든 `tmp_path` 저장소만 쓴다** — dev DB·공유 저장소를 건드리는 명령을 넣지 않는다. 각각 **빨강이어야 함**이고, 기록에는 빨개진 시험 이름과 **처음 실패한 단언**을 남긴다. 한 사본에 변이 하나다(첫 실패 단언에서 멈춰 둘째를 못 잰다 — T5 실험 11 교훈). 행동 시험 실험은 정적 시험만 빨개지면 실패다 — 행동 시험의 **결과 단언**(행 수·칸 값·audit 수)이나 대기 관계가 빨개져야 한다. **예외는 실험 35·37 두 개뿐이다:** 두 실험은 id 순 선행 잠금이라는 구성 규약을 없애는 변이이므로 정적 ⑨가 반드시 빨개져야 하고 행동 ⑦은 DB 스캔 순서에 따라 녹색이어도 된다. 행동 결과를 그대로 기록하며 녹색을 행동 검증 성공이라고 쓰지 않는다. 잠금 순서의 행동 검증은 내림차순 변이인 실험 36의 40P01로 별도 입증한다.
@@ -346,25 +346,80 @@ pkill -f 'uvicorn classfit.main:app'; case "$NB" in var.nosync/t7-nb.?*) test -d
 
 | 기록 칸 | 값 |
 |---|---|
-| 착수 조건 결정 (i)~(xxii) 변경 여부 · 선택 항목 선택(특히 iii R4 · viii 관리자 올리기 · x 강사 열람 범위 · xi sort · xiii 확인 표시 잠금 · xv 홈 미기록) (approve 커밋 해시) | |
+| 착수 조건 결정 (i)~(xxii) 변경 여부 · 선택 항목 선택(특히 iii R4 · viii 관리자 올리기 · x 강사 열람 범위 · xi sort · xiii 확인 표시 잠금 · xv 홈 미기록) (approve 커밋 해시) | 변경 없음 — (i)~(xxii) 기본값 그대로. `be75a9a approve: T7`(2026-10-23, 사용자 지시로 Codex 세션이 빈 커밋을 만들었다 · `Approved-by: DAMIEN-PARK`). 승인 전 v2 는 verifier-t7-plan 델타 PASS(차단 0) 뒤 권고를 반영했다 — 이 계획에서 작업 순서 6 의 `my_course_views` 무수정 · 사진 `uploaded_by_kind` CHECK · `for_sessions(…, per_session=)` 를 확인했다 |
 | T6 대조 세 줄 출력 · 분기 시점 master 해시(`merge: T6`) · `check_task_order` 출력 · 기획안 내려받기 여부와 sha256(spec 1절 :24 와 같은지) · 기록·사진 절 대조 결과 |`t6-names-ok` / `85` / `0007 (head)`; 분기 `3769d21`(T6 병합); 커밋 순서 검사는 계획·승인 커밋 뒤 실행. 외부 기획안은 기존 미측정 상태 유지; 이번 작업에서 다운로드하지 않음 |
 | 작업 순서 2 ⓐ(T6 홈 단언 두 곳의 줄) · ⓑ(잠금 자리 grep 줄 수) · ⓒ(병합 판 코드·docs 줄 번호 차이) · ⓓ(〔T6〕 서명 차이) |2026-10-23, `3769d21`: ⓐ records_todo 0줄, HOME_KEYS :66-75·pending 응답 dict :478-487 그대로. ⓑ 잠금 검색 52줄(정의·주석 포함), d9485a2 이후 잠금 소스 변화 없음. ⓒ d9485a2 이후 바뀐 파일은 T6 계획·store.py·file_gc.py·test_db_gc.py·test_file_store.py 다섯뿐. GC 줄 변화는 머리 참조에 반영; 나머지 T6 코드·공통 문서는 그대로. ⓓ classify·FileRejected·session_scope·MyHome·home_of·MyHomeOut·MyTodoOut·TodoRow 서명 일치. store_bytes(root, data) → sha256·mtime 갱신 유지, GC candidates 유지·restored 추가. 병합 트리 = 7274cc0 |
-| `make verify` 끝 20줄 | |
-| `alembic heads` · dev `alembic check` · 시험 세션 준비(downgrade base → upgrade head) 통과 | |
-| E-13(99) · E-14(셈 4 · passed 수) · E-12(3) · 계약 18 · 통합+행동+단위 15 · race 7(세 번) · E-11 4 · T5·T6 race 15 · `규약 이름 없음` · `tests/integration` 전체 · T1~T6 회귀 · table-ok · owner_kind 글자 두 파일 · `공개 칸 없음` · check_docs | |
-| 증명 표 30항목 출력 | |
-| 이웃 흐름 응답(200 · done instructor · 403 · 422 · ok True · ok · "done None" · stderr 교육일·editable · "200 403" · 모아보기 · summary · 200 · 422 · gc 후보 False · 204 · 셈 0·0) · 격리 저장소 경로(`$NB`) · 정리 psql(지운 알림·audit 행 수 — 이 흐름 것만) · `$NB` 통째 삭제 · `port-free` | |
-| 대조 실험 37개(빨개진 시험 이름 · 처음 실패한 단언 · 행동 시험 실험(8·10·11·12·13·16·23·24·35~37)은 결과 단언·대기 관계 집합·예외 종류까지 · 8 은 계약 시험이 녹색으로 남은 것 · 30 은 T5 시험도 빨개진 것 · 35·37 은 행동 ⑦ 결과를 그대로 · 36 은 40P01) · 정리 뒤 `git status --short` · 실험이 시험 DB·`tmp_path` 밖을 건드리지 않았음 | |
-| verifier 세션 · 날짜 · 판정 · 권한 검사(남의 세션 기록 403 · 재배정 뒤 기록·사진 403 · 남의 사진 403 · 수강생 사진 403 · 포털 셋에 기록·사진 칸 없음 · 강사 기록 목록은 내 세션만 · 응답 사람 칸은 강사 이름 하나) · 이웃 흐름을 다시 돌렸다면 격리 저장소 경로와 "이 흐름 행만" 지운 정리 줄 | |
-| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | |
+| `make verify` 끝 20줄 | 리드 2026-10-23 13:12 · HEAD `5113137` · classfit_test: exit 0 · `gate: OK` · `All checks passed!` · `Contracts: 3 kept, 0 broken.` · `427 passed in 56.91s`(failed·error·skipped 0) · 끝 줄 `OKF guard OK`. 리뷰 반영 전 `e959411` 은 `424 passed`(리드·verifier 둘 다) |
+| `alembic heads` · dev `alembic check` · 시험 세션 준비(downgrade base → upgrade head) 통과 | `0008 (head)` · dev `alembic check` → `No new upgrade operations detected.`(`0bf85f0` 뒤 · `0efa726` 뒤 dev 를 0007 로 내렸다 다시 올려서) · 시험 세션 준비(downgrade base → upgrade head)는 `make verify`·각 레인 시험이 매번 통과 |
+| E-13(99) · E-14(셈 4 · passed 수) · E-12(3) · 계약 18 · 통합+행동+단위 15 · race 7(세 번) · E-11 4 · T5·T6 race 15 · `규약 이름 없음` · `tests/integration` 전체 · T1~T6 회귀 · table-ok · owner_kind 글자 두 파일 · `공개 칸 없음` · check_docs | 리드(`5113137`): E-13 `1 passed`(99줄) · E-14 셈 4 → `7 passed` · E-12 `3 passed` · 계약 `18 passed` · 통합+행동+단위 `18 passed`(7 + 7 + 4 — 계획 시점 15, 리뷰 반영이 통합 셋을 더함) · race `7 passed`(worker-a·verifier 각 세 번) · E-11 `4 passed` · T5·T6 race `15 passed`(무수정) · `규약 이름 없음` · `tests/integration` `114 passed` · T1~T6 회귀 `116 passed` · `table-ok` · `crud/photo.py`·`crud/scope.py` · `공개 칸 없음` · `CLASSFIT_REQUIRE_EXTERNAL=1 check_docs` → `docs check: FAIL (위반 1건)` — spec.md:24 기획안 sha 실제 `e3b0c442…`(빈 입력 — iCloud 에 내용이 비어 있음, 환경 실패), 외부 없이 `docs check: OK` · ④ `T0a~T6 · 대응표 44행 중 대상 34행` |
+| 증명 표 30항목 출력 | verifier-t7(`e959411`): 30행의 노드 36개를 행마다 따로 돌려 전부 녹색(10행 3 · 13행 3 · 19행 2 · 나머지 1). 리뷰 반영 뒤 `5113137` 은 리드 `make verify` 427 passed 로 같은 노드가 녹색 |
+| 이웃 흐름 응답(200 · done instructor · 403 · 422 · ok True · ok · "done None" · stderr 교육일·editable · "200 403" · 모아보기 · summary · 200 · 422 · gc 후보 False · 204 · 셈 0·0) · 격리 저장소 경로(`$NB`) · 정리 psql(지운 알림·audit 행 수 — 이 흐름 것만) · `$NB` 통째 삭제 · `port-free` | worker-c(`e959411`, `var.nosync/t7-nb.8nxN`)·verifier-t7(`var.nosync/t7-nb.aata`) 둘 다 줄마다 기대값과 같다: 200 · `done instructor` · `403 /problems/forbidden` · `422 [(['body', 'content'], 'string_too_short')]` · `ok True` · `ok` · `done None` · stderr `2026-10-19 True` · `200 403` · `['has_more', 'items', 'next_cursor'] 1 False A사` · `{'sessions': 1, 'recorded': 1, 'confirmed': 0, 'missing': 0, 'photos': 1}` · 200 · 422 · `False`(미리 보기 후보 0) · 204 · 셈 0·0. 정리 psql `DELETE 1·3·3·1`(이 흐름 것만, 알림 → audit) · 각자 만든 관리자·강사 행 · `$NB` 통째 삭제 · 공유 `var.nosync/files` 무변경 · worker-c dev 31표 기준선 같음 · uvicorn 5xx·Traceback 0. 끝 줄 lsof 는 pkill 직후라 LISTEN 1줄 → 1초 뒤 `port-free`(이 갱신이 대기 루프를 넣었다) |
+| 대조 실험 37개(빨개진 시험 이름 · 처음 실패한 단언 · 행동 시험 실험(8·10·11·12·13·16·23·24·35~37)은 결과 단언·대기 관계 집합·예외 종류까지 · 8 은 계약 시험이 녹색으로 남은 것 · 30 은 T5 시험도 빨개진 것 · 35·37 은 행동 ⑦ 결과를 그대로 · 36 은 40P01) · 정리 뒤 `git status --short` · 실험이 시험 DB·`tmp_path` 밖을 건드리지 않았음 | worker-c(`e959411`, classfit_b_test, 임시 clone 40개를 차례로 · 전부 지움 · 마이그레이션 변이 없음): **빨강 36 · 공백 1(26)**. 26 — `image_checked` 의 kind 검사를 빼도 녹색(끝점이 먼저 거름) → `0efa726` 의 `test_photo_add_non_image_service` 가 메웠다(다시 빼면 그 시험만 `DID NOT RAISE FileRejected`). 계획이 허용한 녹색: 8(계약 `permissions_403` 녹색 · 행동 결과 단언 빨강) · 35·37(행동 ⑦ 녹색 · 정적 ⑨ 빨강). 행동 실험: 8·10·24 B 가 성공(Forbidden 아님) · 대기 `{'course'}` / 11 대기 `set()` · B `IntegrityError` 23505 `uq_session_record_session_id` / 12·13·16 결과 단언 / 23 B `IntegrityError` 23503 `fk_photo_session_id_session` ≠ `NotFound` · 대기 `{'course'}` / 36 M `DeadlockDetected` 40P01 · 대기 `{"photo"}` 녹색. 30 은 T5 `test_assign_portal_instructor_name` 도 빨강. 17 은 빨강이지만 까닭이 다르다 — `"  \n "` 가 200 으로 저장(CHECK `btrim` 이 스페이스만 지움) → `0efa726` 이 CHECK 를 공백류로(옛 판이면 `test_record_table_checks` 빨강). 첫 실패 단언이 계획 글자와 다른 것: 4(`ck_session_record_confirmed_pair`) · 19(10_001 이 먼저) · 21(day 0 이 먼저) · 12·24·29·31(앞 줄 단언). 정리 뒤 `git status --short` 같음 |
+| verifier 세션 · 날짜 · 판정 · 권한 검사(남의 세션 기록 403 · 재배정 뒤 기록·사진 403 · 남의 사진 403 · 수강생 사진 403 · 포털 셋에 기록·사진 칸 없음 · 강사 기록 목록은 내 세션만 · 응답 사람 칸은 강사 이름 하나) · 이웃 흐름을 다시 돌렸다면 격리 저장소 경로와 "이 흐름 행만" 지운 정리 줄 | verifier-t7(다른 세션) · 2026-10-23 · **PASS**(`e959411`, classfit_c_test). 증명 블록 줄마다 기대대로(REQUIRE_EXTERNAL check_docs 만 환경 FAIL) · race 세 번 · 표 30행 · 평문 검사(`git diff 3769d21..HEAD` 더한 줄 6394 — IP·URL·실명·비밀 0, 이메일 example.com, 고객사 A사·B사). 권한: 남의 세션 기록 403 · 다른 강사가 사진 href 403 · 포털 키 집합에 기록·사진 칸 없음 · 강사 기록 목록은 내 세션만 · 응답 사람 칸은 강사 이름 하나. 이웃 흐름은 `var.nosync/t7-nb.aata` 로 다시 돌렸고 이 흐름 id(강의 13 · 세션 10 · 관리자 22 · 강사 15·16)로만 지웠다(사후 셈 0). Nit 셋(photo_list 편차 기록 · 끝 줄 lsof 타이밍 · 기록 칸) → 이 갱신 |
+| 병합 뒤 `check_docs.sh` ④ 대상 행 수 | 병합 뒤 T8 문서 커밋이 채운다(병합 전 ④ 는 `T0a~T6 · 대응표 44행 중 대상 34행`) |
 
 ## 리뷰
 
-(다른 세션의 reviewer 가 쓴다. Important n건 · Nit n건, 소견과 고친 커밋. Important 0 이 될 때까지 고친다 — r3 §5.1-3)
+reviewer-t7(다른 세션) · 2026-10-23 · 범위 `git diff 3769d21...e959411`(7커밋). REVIEW.md 3패스 + CLAUDE.md Rules + 결정 (i)~(xxii)·바뀌는 파일·증명 표·위험 표 대조. 시험은 돌리지 않았다(verifier 몫). **Important 1건(절차) · Nit 9건(표시 5)**. 코드 동작·보안 Important 는 0건이다.
+
+확인한 것(문제 없음): 잠금(결정 xiii) — 쓰기 아홉이 첫 쓰기 앞에 `lock_course`, 사진 올리기는 `to_thread(store_bytes)` 뒤에 잠그고, 잠근 뒤 `session_context`·`get_with_context`·`course_day`·`get_record` 를 `fresh=True`, `day_sessions` 를 `populate_existing` 으로 다시 읽는다. `session.get` 없음. `_lock_in_id_order`(ORDER BY id FOR UPDATE)를 `mark_seen`·`delete_photos_under` 가 첫 DB 호출로 부르고 고리 없음 · 전이 R1~R17·audit(R4·R5 같은 값이면 쓰지 않음, `fields: []`, R7 audit 없음, R8 409, detail 에 내용·비고·바이트·파일 이름 없음) · 사진 권한(`_photo` 관리자 참 · 강사 `session_scope` · 그 밖 거짓, 고치기·지우기는 지금 담당 ∧ 내가 올린 사진) · 포털 무변경·수강생 사진 403 · 응답 키 집합 == · 0008↔models(CHECK 9 · 이름 · FK 동작 · 유일 · 색인 셋 · downgrade) · 300줄/끝점 290·267 · service·crud commit 없음 · problem+json · 평문 · 앞 태스크 단언은 `HOME_KEYS` 두 키와 pending dict 두 칸뿐 · 알려진 편차 9개 문제 없음.
+
+- **Important 1 · Compliance · 기록 칸(:352-358)·"계획과 다르게 한 것"(:365-367) 비어 있음** — 작업 순서 8 이 리뷰 전에 기록하라고 한다. → **반영**: 이 계획 갱신 커밋(기록 칸 9행 · 리뷰 절 · 편차 절).
+- **Nit 1 · Compliance · `service/courses/record_days.py:91`·`:138-139`** — 계획대로·일괄 확인이 상태를 박아 두고 `after_save`·`after_confirm` 을 부르지 않아 결정 iii "판정은 rules 한 곳" 과 다르고 단위 R9·R11·R13·R14 가 실제 경로를 재지 않는다. → **반영** `8ede143`: `after_save("none", 주체 종류, True)` · 일괄 확인은 `after_confirm(status) != status` 인 기록만(관리자 갈래 변이로 단위·통합·계약 4 failed).
+- **Nit 2 · Bugs · `record_days.py:94` → `rules/record.py` `plan_fields`** — 등록 수 > 10_000 이면 참석 CHECK 23514 → 500. → **반영** `8ede143`: 넘으면 참석 None(결정 vi 대안 ② 꼴) + 단위 한 행.
+- **Nit 3 · Compliance · 계약 시험 `created_at` 동률** — 정렬이 id 순으로만 재진다. → **반영** `8ede143`: 통합 `test_photo_order_created_at_then_id`(created_at 을 id 와 엇갈리게 고친 뒤 `for_sessions` 오름차순 · 모아보기 키셋 세 쪽 겹침·빠짐 없음 · 깨진 커서).
+- **Nit 4 · Bugs · `photo_views.py:163-164`·`crud/photo_list.py:34`** — 내려받기 이름의 날짜는 `taken_on`, 일차는 세션의 지금 `day_no` 라 세션을 옮기면 어긋난다. → **반영** `8ede143`: 일차를 `taken_on` 과 같은 날짜의 그 강의 일차(`GalleryContext.taken_day_no`)로 + 통합 `test_photo_download_name_uses_taken_on_day`. 모아보기 항목 `day_no` 는 지금 배치(리드 결정, 편차).
+- **Nit 5 · Bugs · `app/endpoints/photos.py:226-246`** — `except ValueError` 가 모아보기 전체를 감싼다. → **반영** `8ede143` `photo_views.InvalidCursor(ValueError)`(keyset_page 만 감쌈) · `5113137` 끝점이 그것만 422.
+- (표시 안 한 Nit 6) `PhotoPatchIn` 이 caption 필수라 `_Patch` 상속이 뜻을 잃음 → **반영** `5113137`: `_Patch` 를 잇지 않는 `extra="forbid"` 모델.
+- (Nit 7) 사진 아닌 확장자(`.pdf` 등)에 바이트가 틀리면 "확장자와 맞지 않습니다" → **반영** `5113137`: 이미지 종류가 아니면 바이트와 상관없이 "이미지 파일이 아닙니다(png·jpg·jpeg·webp 만 받습니다)" + 거절 사례 넷(문구까지).
+- (Nit 8) `note` 앞뒤 공백을 지우지 않아 공백만 다른 비고가 확인을 푼다 → **반영** `5113137`: strip · 빈 값 None + 계약 두 곳.
+- (Nit 9) `MIB` 가 `service/files/photos.py:38` 에 따로 → **반영** `8ede143`: `my_attachments.MIB`.
+
+대조 실험 반영(worker-c): 공백 26 → `0efa726` `test_photo_add_non_image_service` · 판단거리 17(CHECK `btrim` 이 스페이스만) → `0efa726` `ck_session_record_content` 를 `content ~ '[^[:space:]]'` 로 + `test_record_table_checks` 에 `"\n\t"` 사례.
+
+리뷰 반영 뒤 리드 재실행(`5113137`, classfit_test): `make verify` exit 0 `427 passed in 56.91s` · 증명 블록 같음(통합+행동+단위 18 · integration 114, 외부 정본만 환경 FAIL).
 
 ## 계획과 다르게 한 것
 
-(구현 중 채운다. 비어 있으면 계획대로다.)
+리드 · worker-a · worker-b · worker-c·verifier 순. 번호는 기록용이다.
+
+**리드**
+1. 작업 순서 1~3 과 4 의 첫 판은 Codex(사용자의 다른 에이전트 세션)가 했다. T7 v2 에 verifier-t7-plan 권고를 반영 → 사용자 요청("병합과 계획승인")으로 T6 병합 `3769d21`(트리 = `7274cc0`, make verify 391) · `bcc639a plan: T7 session-records` · `be75a9a approve: T7`(사용자 지시) → 작업 순서 4 를 미커밋으로 끝냄(단위+통합 164 passed) → 5단계 초안 셋(`records`·`record_days`·`photos`)을 쓰다 10:16 사용량 한도로 멈춤. Claude 리드가 이어받아 worker-a 가 4단계 파일을 계획과 대조해 고친 뒤 `0bf85f0` 으로 커밋했고, 초안 셋은 계획 서명대로 다시 썼다.
+2. T6 은 codex 구현 리뷰 1차 BLOCK(gc 확인과 지우기 사이 재업로드 바이트 유실) 반영 `7274cc0` 뒤 2차 리뷰 없이 병합됐다(T6 계획에 codex 기록 없음). origin 은 아직 `78806ec` 이다.
+3. 외부 정본 `기획/BCTONE_기획안_v3.html`(미추적)은 iCloud 에 내용이 비어 있어(`compressed,dataless`) `CLASSFIT_REQUIRE_EXTERNAL=1 check_docs` ② 가 FAIL 이고 pre-push(`.githooks/pre-push:23`)가 push 를 막는다. T6·T7 push 전에 사용자가 Finder 에서 내려받아야 한다. 결정 iii·vi·viii·x·xi 의 기획안 대조(작업 순서 1)도 그래서 하지 못했다.
+4. 이웃 흐름 블록 끝 줄의 `lsof` 가 `pkill` 직후라 LISTEN 을 찍었다(worker-c·verifier 둘 다, T6 와 같음) — 포트가 빌 때까지 기다리는 루프를 넣었다(이 커밋).
+5. 증명 블록 통합+행동+단위 줄을 `15 passed(4 + 7 + 4)` 에서 `18 passed(7 + 7 + 4)` 로 고쳤다. 착수 조건·바뀌는 파일 절의 시험 수(새 시험 33 · 통합 4)는 계획 시점 값으로 두며, 실제는 36 · 7 이다.
+6. 시험 DB: worker-a classfit_test·dev · worker-b classfit_b_test(리뷰 반영은 대조 실험과 겹치지 않게 classfit_c_test) · worker-c classfit_b_test · verifier classfit_c_test · 리드 classfit_test.
+7. 리드가 대조 실험 반영 지시(공백 26·CHECK)를 두 번 보내 메시지가 엇갈렸고, worker-a 가 미푸시 HEAD `f201d41` 을 amend 해 `0efa726`(사례 `.pptx` 둘을 더함)으로 바꿨다. 그 사이 worker-b 는 자기 파일 다섯만 지정해 `5113137` 을 커밋했다(섞이지 않음을 리드가 확인).
+
+**worker-a**(`0bf85f0`·`342067d`·`4c5d551`·`8ede143`·`0efa726`)
+8. `crud/photo_list.py`(`gallery_stmt`·`gallery_context`·`by_ids`, 119줄)를 나눴다 — 합치면 약 305줄, 위험 표(:212)가 정한 분할.
+9. 기록 목록의 `RecordPhoto` 는 href 대신 파일 key 를 싣고 끝점이 `href_for` 로 단다 — `service/courses` 가 `service/files.store` 를 부르면 계약 ② 에 걸린다(T2b portal 꼴). `photo_views`(files 쪽)는 href 를 직접 단다.
+10. 응답 조립용 공개 이름: `RecordView` 의 응답 칸 읽기 속성 · `DayResult.changed` · `crud_photo.get_row` · `photo_views.photo_view`·`PhotoView`·`GalleryItem`·`GalleryPage`·`DownloadItem`·`InvalidCursor` · `photos.image_checked` · `records.fields_of`·`view_of`. 계획 서명(이름·인자·반환형)은 그대로다.
+11. `rules.photo.download_name` 이 이어진 금지 글자를 `_` 하나로 바꾼다(시안 phFname 정규식 `[...\s]+` 와 같게).
+12. 관리자 `record_day_as_planned` 는 강의 존재를 따로 보지 않는다(없으면 `course_day` None → 404). 끝점이 `course_or_404` 를 앞에 둔다(아래 21).
+13. `plan_fields` 는 `session_time` 이 시작을 24시 넘겨 내면(한 일차에 교시가 많을 때 "24:10") 시작 시각을 None 으로 둔다.
+14. 0008 을 0006 꼴(명시 이름 PK·FK·UQ·CK, downgrade 에서 색인 먼저)로 다시 썼다(Codex 초안 대비).
+15. `4c5d551`: 공유 도우미를 내림차순으로 바꾸는 변이에서 행동 ⑦ 이 녹색이라 정적 ⑨ 에 "`desc(` 없음" 단언을 더했다.
+16. `8ede143`(리뷰 반영): 판정 한 곳 · 참석 > 10_000 → None(결정 vi 는 상한 초과를 정하지 않았다. rules 는 models 를 못 들여 `rules.record.ATTENDEES_MAX` 를 따로 두고 단위가 models 값과 같음을 잰다) · 내려받기 일차 = `taken_on` 의 일차, 모아보기 항목 `day_no` 는 세션의 지금 일차(리드 결정) · `InvalidCursor` · `my_attachments.MIB` · 통합 둘.
+17. `0efa726`(대조 실험 반영): `test_photo_add_non_image_service`(공백 26) · `ck_session_record_content` 를 `content ~ '[^[:space:]]'` 로 — 결정 iv(:62)의 글자 `length(btrim(content)) >= 1` 과 다르다(`btrim` 은 스페이스만 지워 `"\n\t"` 가 DB 를 지났다).
+
+**worker-b**(`21fa84b`·`e959411`·`5113137`)
+18. `PhotoPatchIn` 은 caption 키 필수(빈 `{}` 이 설명 지우기로 읽히지 않게), `5113137` 에서 `_Patch` 를 잇지 않는 `extra="forbid"` 모델로.
+19. `AdminRecordSessionOut(RecordSessionOut)` 은 photos 칸 타입만 `list[AdminPhotoOut]`(seen 칸).
+20. Design 부록 A 근거 칸은 기록 행에 결정 iii, 사진 행에 결정 viii 로 나눠 달았다.
+21. 관리자 일차 두 끝점(`:record-as-planned`·`:confirm-all`) 앞에 `course_or_404`(결정 i) — 없는 강의 "강의가 없습니다", 없는 일차 "그 일차가 없습니다".
+22. 사진 올리기 끝점은 머리 8KiB 로 classify 해 이미지가 아니면 422 를 먼저 내고, service `image_checked` 가 받은 바이트로 다시 본다.
+23. `test_record_lists_scope_and_keys` 의 관리자 사진 셈은 Y 세션 사진 1장이 더해져 43 → 42(강사 42 → 41 은 계획대로).
+24. `5113137`: 사진 아닌 확장자 문구 "이미지 파일이 아닙니다(png·jpg·jpeg·webp 만 받습니다)"(계획엔 reason `unknown_type` 만 있고 글자는 없다) · `note` strip·빈 값 None(결정 xxii 의 `note: LongText | None` 과 다름 — 리뷰 Nit 8).
+25. T6 계획 기록 칸(:331)에 "④ T0a~T6 · 대응표 44행 중 대상 34행 · docs check: OK"(REQUIRE_EXTERNAL 없이)를 넣었다. T6 push·CI 결과는 아직 없어 적지 않았다.
+
+**worker-c · verifier**
+26. verifier 는 이웃 흐름 준비에서 강사 인증 코드를 `outbox_preview --apply` 대신 같은 렌더러로 이 흐름의 두 행만 처리했다(그 명령은 dev 의 안 보낸 행을 전부 처리한다 — 그때 다른 안 보낸 행은 0이라 결과가 같다).
+
+**승인자 판단 후보**(이번에 고치지 않음)
+- 병합된 마이그레이션의 `btrim` CHECK 셋 — 0004 `ck_enrollment_name` · 0005 `ck_instructor_name` · 0006 `TITLE_CHECK`(풀 과정 제목) — 도 스페이스만 지운다(스키마 strip 이 먼저 막아 API 로는 들어오지 않는다).
+- `rules.schedule.session_time` 이 한 일차의 교시가 많으면 "24:xx" 를 낸다(T2a DEC-002 시안 그대로) — T7 은 그 시작 시각을 기록에 쓰지 않는다(13).
 
 
 
