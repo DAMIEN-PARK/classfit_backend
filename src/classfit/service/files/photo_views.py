@@ -7,6 +7,9 @@
   로만 준다(ADR-003). 이름은 rules.photo.download_name 이고 차례 번호는 목록 안에서 1부터다. 이름의 일차는 사진
   교육일(taken_on)과 같은 날짜인 그 강의의 일차다(세션을 옮겨도 찍은 날의 일차, 그런 일차가 없으면 일차 마디 없음).
   범위 밖·없는 id 는 missing.
+- 쪽(keyset_page)과 그 쪽의 파일·강의·세션 칸(gallery_context)은 두 문장이다. READ COMMITTED 라 그 사이 지워져 커밋된
+  사진은 두 번째 문장에 없으므로 목록에서 뺀다 — next_cursor·has_more 는 keyset_page 가 준 원래 쪽 값 그대로라 다음 쪽이
+  어긋나지 않는다(한 쪽이 limit 보다 짧을 수 있다). 내려받기 목록은 같은 경우를 missing 에 담는다.
 - 깨진 커서는 keyset_page 호출만 감싸 InvalidCursor(ValueError)로 바꾼다 — 끝점은 그것만 422 loc ["query","cursor"]
   로 바꾼다(T6 service/courses/my_views.py 꼴. 구성요소가 달라 그 이름을 들이지 않고 따로 둔다).
 - 확인 표시 mark_seen 은 강의를 잠그지 않는다(여러 강의에 걸치고 seen_at 한 칸만 바꾼다). 대신 crud.photo.mark_seen 이
@@ -143,7 +146,9 @@ async def gallery(
     names = await _names(session, photos)
     items = []
     for photo in photos:
-        c = context[photo.id]
+        c = context.get(photo.id)
+        if c is None:
+            continue  # 두 질의 사이에 지워졌다(READ COMMITTED) — 빼고, 커서는 원래 쪽 그대로
         items.append(
             GalleryItem(
                 **asdict(_view(photo, c.key, c.size, subject, names)),

@@ -14,17 +14,21 @@ import datetime as dt
 import hashlib
 import importlib
 import inspect
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
-from sqlalchemy import insert, update
+import pytest_asyncio
+from sqlalchemy import insert, select, text, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.pool import NullPool
 
 from classfit.core.config import Settings
+from classfit.core.cursor import encode_cursor
 from classfit.crud import attachment as crud_attachment
 from classfit.crud import audit as crud_audit
 from classfit.crud import course as crud_course
@@ -38,7 +42,9 @@ from classfit.crud import scope as crud_scope
 from classfit.crud import stored_file as crud_stored_file
 from classfit.crud.scope import OWNER_KINDS
 from classfit.crud.stored_file import insert_stored_file
+from classfit.database.session import make_engine, make_session_factory
 from classfit.models import (
+    Base,
     CourseSession,
     Photo,
     Section,
@@ -457,6 +463,102 @@ async def test_photo_add_non_image_service(
         assert not path_for(tmp_path, hashlib.sha256(data).hexdigest()).exists()
     assert await count(db, Photo, Photo.session_id == x.session_id) == 0
     assert await count(db, StoredFile, StoredFile.owner_kind == "photo") == 0
+
+
+@pytest_asyncio.fixture
+async def committing(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
+    """커밋하는 엔진(T5 tests/integration/test_db_assign_race.py 의 committing 꼴). 끝에 ORM 표를 비운다(시드 표 빼고)."""
+    engine = make_engine(migrated_db_url, poolclass=NullPool)
+    try:
+        yield engine
+    finally:
+        try:
+            async with engine.begin() as conn:
+                quote = conn.dialect.identifier_preparer.format_table
+                names = ", ".join(
+                    quote(t)
+                    for t in Base.metadata.sorted_tables
+                    if t.name != "document_type"
+                )
+                await conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+        finally:
+            await engine.dispose()
+
+
+async def test_photo_gallery_skips_deleted_between_queries(
+    committing: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """모아보기의 두 문장(쪽 · 그 쪽의 칸) 사이에 다른 연결이 쪽의 마지막 사진을 지우고 커밋해도 500 이 아니다.
+
+    빠진 사진은 목록에서 빼고, next_cursor·has_more 는 원래 쪽(지워진 사진의 키) 그대로라 다음 쪽이 어긋나지 않는다.
+    """
+    factory = make_session_factory(committing)
+    async with factory() as s, s.begin():
+        x = await assigned(s, _settings(), email="photo-gone-x@example.com")
+        ids = [
+            (
+                await _photo(
+                    s,
+                    course_id=x.course_id,
+                    session_id=x.session_id,
+                    by_id=x.instructor_id,
+                    tag=f"gone-{i}",
+                )
+            )[0]
+            for i in range(3)
+        ]
+    p0, p1, p2 = (
+        ids  # 같은 트랜잭션이라 created_at 이 같아 쪽 차례는 id 내림차순: [p2, p1] · [p0]
+    )
+    async with factory() as s:
+        gone_at = await s.scalar(select(Photo.created_at).where(Photo.id == p1))
+    assert gone_at is not None
+
+    real = crud_photo_list.gallery_context
+    calls = 0
+
+    async def delete_then_read(session: AsyncSession, page: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        if calls == 1:  # 첫 문장(keyset_page) 뒤 · 두 번째 문장 앞
+            async with committing.begin() as conn:
+                await conn.execute(text("DELETE FROM photo WHERE id = :p"), {"p": p1})
+                await conn.execute(
+                    text(
+                        "DELETE FROM stored_file WHERE owner_kind = 'photo' AND owner_id = :p"
+                    ),
+                    {"p": p1},
+                )
+        return await real(session, page)
+
+    monkeypatch.setattr(crud_photo_list, "gallery_context", delete_then_read)
+    async with factory() as s:
+        page = await photo_views.gallery(
+            s,
+            ADMIN,
+            company=None,
+            course_id=x.course_id,
+            q=None,
+            new_only=False,
+            cursor=None,
+            limit=2,
+        )
+        assert calls == 1
+        assert [item.id for item in page.items] == [p2]  # limit − 1, 지워진 p1 은 없다
+        assert page.has_more is True
+        assert page.next_cursor == encode_cursor(gone_at, p1)  # 원래 쪽의 마지막 키
+        rest = await photo_views.gallery(
+            s,
+            ADMIN,
+            company=None,
+            course_id=x.course_id,
+            q=None,
+            new_only=False,
+            cursor=page.next_cursor,
+            limit=2,
+        )
+        assert [item.id for item in rest.items] == [p0]
+        assert rest.has_more is False and rest.next_cursor is None
 
 
 async def _violates(
