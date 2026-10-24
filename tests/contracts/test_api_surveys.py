@@ -541,6 +541,16 @@ async def test_survey_close_reopen_patch(
         )
     )
     assert (got["status"], got["open_on"]) == ("scheduled", "2026-11-12")
+    # 열림일만 저장된 닫힘일(11-19) 뒤로 — 오류 위치는 보낸 칸 open_on(리뷰 Nit)
+    body = problem_of(
+        await client.patch(
+            f"{SURVEYS}/{s4['id']}", headers=admin, json={"open_on": "2026-11-25"}
+        ),
+        422,
+    )
+    assert [(v["loc"], v["type"]) for v in body["violations"]] == [
+        (["body", "open_on"], "close_before_open")
+    ]
     for empty in ({}, {"close_on": None}, {"current": False}):
         problem_of(
             await client.patch(f"{SURVEYS}/{sid}", headers=admin, json=empty), 422
@@ -559,6 +569,24 @@ async def test_survey_close_reopen_patch(
             409,
             "/problems/conflict",
         )
+
+    # 열린 설문의 닫힘일을 오늘보다 앞(열림일 이상)으로 PATCH → 422 · 행 그대로(리뷰 Nit)
+    set_today(app, date(2026, 11, 5))
+    body = problem_of(
+        await client.patch(
+            f"{SURVEYS}/{s2['id']}", headers=admin, json={"close_on": "2026-11-04"}
+        ),
+        422,
+    )
+    assert [(v["loc"], v["type"]) for v in body["violations"]] == [
+        (["body", "close_on"], "close_before_today")
+    ]
+    (item,) = await _listed(client, admin, course_id=short.id)
+    assert (item["status"], item["open_on"], item["close_on"]) == (
+        "open",
+        "2026-11-03",
+        "2026-11-10",
+    )
 
 
 async def test_survey_questions_locked_after_response(

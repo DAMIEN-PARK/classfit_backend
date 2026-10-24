@@ -241,6 +241,18 @@ async def test_survey_submit_body_limits(
         )
         assert locs(body) == [["body"]], raw[:10]
         assert [v["type"] for v in body["violations"]] == ["json_invalid"]
+    # ASCII 가 아닌 숫자 Content-Length("²" — isdigit 은 참)도 500 이 아니다: 선언 길이를 버리고 스트림으로 잰다
+    weird = await client.post(
+        url,
+        headers=[
+            *learner.items(),
+            ("content-type", "application/json"),
+            (b"content-length", b"\xb2"),
+        ],
+        content=b"{",
+    )
+    body = problem_of(weird, 422)
+    assert [v["type"] for v in body["violations"]] == ["json_invalid"]
     # 모양 밖은 loc body 접두
     view = (await _view(client, learner, course.id))["survey"]
     body = problem_of(

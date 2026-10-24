@@ -170,14 +170,24 @@ def results_body(
 _DATES = {
     "open_before_today": "열림일이 오늘보다 앞입니다",
     "close_before_open": "닫힘일이 열림일보다 앞입니다",
+    "close_before_today": "닫힘일이 오늘보다 앞입니다",
 }
 
 
-def _dates_invalid(
-    exc: DatesRejected, open_loc: tuple[str, ...], close_loc: tuple[str, ...]
-) -> RequestValidationError:
-    """강의마다 푼 날짜가 어긋남 → 422. 배포는 그 강의 id 를 msg 에 담는다."""
-    loc = open_loc if exc.reason.startswith("open") else close_loc
+def _deploy_loc(reason: str) -> tuple[str, ...]:
+    return ("open" if reason.startswith("open") else "close", "date")
+
+
+def _patch_loc(reason: str, sent: set[str]) -> tuple[str, ...]:
+    """문제 칸이 본문에 없으면(open_on 만 늦춰 저장된 닫힘일보다 뒤가 됨) 보낸 날짜 칸을 가리킨다."""
+    field = "open_on" if reason.startswith("open") else "close_on"
+    if field not in sent:
+        field = next((f for f in ("open_on", "close_on") if f in sent), field)
+    return (field,)
+
+
+def _dates_invalid(exc: DatesRejected, loc: tuple[str, ...]) -> RequestValidationError:
+    """강의마다 푼 날짜 · PATCH 결과 날짜가 어긋남 → 422. 배포는 그 강의 id 를 msg 에 담는다."""
     msg = _DATES.get(exc.reason, exc.reason)
     if exc.course_id is not None:
         msg = f"강의 {exc.course_id}: {msg}"
@@ -256,7 +266,7 @@ async def deploy_surveys(
             actor=f"admin:{caller.id}",
         )
     except DatesRejected as exc:
-        raise _dates_invalid(exc, ("open", "date"), ("close", "date")) from None
+        raise _dates_invalid(exc, _deploy_loc(exc.reason)) from None
     return DeployOut(
         items=[survey_out(h) for h in await views.heads_of(session, rows, today=today)]
     )
@@ -285,7 +295,7 @@ async def patch_survey(
     except QuestionsRejected as exc:
         raise questions_invalid(exc) from None
     except DatesRejected as exc:
-        raise _dates_invalid(exc, ("open_on",), ("close_on",)) from None
+        raise _dates_invalid(exc, _patch_loc(exc.reason, body.model_fields_set)) from None
     return survey_out(await views.head_of(session, row, today=today))
 
 

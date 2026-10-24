@@ -122,7 +122,8 @@ def limited_json[M: BaseModel](
 
     async def _read(request: Request) -> M:
         declared = request.headers.get("content-length", "").strip()
-        if declared.isdigit() and int(declared) > max_bytes:
+        # isdigit 은 '²' 같은 비 ASCII 숫자도 참이라 int() 가 ValueError 다 — ASCII 숫자만 믿고 나머지는 스트림 가드에 맡긴다
+        if declared.isascii() and declared.isdigit() and int(declared) > max_bytes:
             raise _too_large(max_bytes)
         buf = bytearray()
         async for chunk in request.stream():
