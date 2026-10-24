@@ -49,7 +49,7 @@ from classfit.models import (
 )
 from classfit.service.auth.sessions import Principal
 from classfit.service.courses import remove
-from classfit.service.rules.survey import status_at
+from classfit.service.rules.survey import DatesRejected, status_at
 from classfit.service.surveys import close, results
 from scripts import outbox_preview
 from tests.fixtures.courses import open_test_course
@@ -512,6 +512,49 @@ async def test_survey_course_delete_cascades(db_session: AsyncSession) -> None:
     )
     assert await count(db, AuditLog, *deployed) == 2
 
+
+async def test_survey_patch_close_on_not_before_today(db_session: AsyncSession) -> None:
+    """PATCH 의 닫힘일은 오늘 이상이다(리뷰 반영) — 열린 설문의 닫힘일을 지난날로 당겨 날짜로 닫으면 closed_at·알림·audit 이
+    빈 채 닫히므로 막는다(닫으려면 :close). 예약 설문도 같다. 거절되면 칸·audit 이 그대로고, 오늘 당일은 받는다."""
+    db = db_session
+    course, _ = await open_test_course(db)
+    later, _ = await open_test_course(db, title="예약 강의")
+    (opened,) = await deploy_to(db, [course.id])  # 11-03 ~ 11-19
+    (scheduled,) = await deploy_to(
+        db, [later.id], open={"mode": "date", "date": dt.date(2026, 11, 25)}
+    )
+    today = dt.date(2026, 11, 10)
+    updates = (AuditLog.action == "survey.update",)
+    for row, status in ((opened, "open"), (scheduled, "scheduled")):
+        before = (row.open_on, row.close_on)
+        assert status_at(
+            open_on=row.open_on, close_on=row.close_on, closed_at=None, today=today
+        ) == status
+        with pytest.raises(DatesRejected) as caught:
+            await close.patch_survey(
+                db,
+                survey_id=row.id,
+                changes={"close_on": today - DAY},
+                today=today,
+                actor=ADMIN,
+            )
+        assert (caught.value.reason, caught.value.course_id) == (
+            "close_before_today",
+            None,
+        ), status
+        fresh = await crud_survey.get_survey(db, row.id, fresh=True)
+        assert fresh is not None
+        assert ((fresh.open_on, fresh.close_on), fresh.closed_at) == (before, None)
+    assert await count(db, AuditLog, *updates) == 0
+    # 오늘 당일은 받는다 — 오늘까지 열려 있다
+    patched = await close.patch_survey(
+        db, survey_id=opened.id, changes={"close_on": today}, today=today, actor=ADMIN
+    )
+    assert patched.close_on == today
+    assert status_at(
+        open_on=patched.open_on, close_on=today, closed_at=None, today=today
+    ) == "open"
+    assert await count(db, AuditLog, *updates) == 1
 
 async def test_survey_instructor_results_single_statement(
     db_connection: AsyncConnection, db_session: AsyncSession

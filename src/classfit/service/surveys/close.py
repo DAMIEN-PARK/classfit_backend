@@ -6,7 +6,8 @@
 - 다시 열기: 닫힘 ∧ 현재 설문 → closed_at 없앰 · 열림일 = min(열림일, 오늘)(열리기 전에 닫은 설문은 바로 연다) ·
   닫힘일 = max(닫힘일, 오늘 + REOPEN_DAYS) · reopened_at = 지금. 열림·예약 409 · 밀려난 설문 409. 기존 응답자는 다시 못 낸다.
 - 고치기(PATCH): questions 는 응답이 1건이라도 있으면 409(잠근 뒤 센다) · open_on 은 예약일 때만 · 오늘 이상 · close_on 은
-  예약·열림일 때만(닫힘은 다시 열기) · open_on 이상. 밀려난 설문은 409. 바뀐 칸이 없으면 쓰지 않는다(audit 없음).
+  예약·열림일 때만(닫힘은 다시 열기) · 오늘 이상(지난날로 당겨 날짜로 닫으면 closed_at·알림·audit 이 비니, 닫으려면 :close —
+  리뷰 반영) · open_on 이상. 밀려난 설문은 409. 바뀐 칸이 없으면 쓰지 않는다(audit 없음).
 - 날짜로 닫힌 설문은 알림이 없다(워커 없음). 알림 params 는 본문에 쓸 값의 스냅샷이다(닫은 날 closed_on = 오늘).
 """
 
@@ -132,8 +133,11 @@ async def patch_survey(
             raise Conflict("열림일은 예약 상태에서만 바꿀 수 있습니다")
         if changes["open_on"] < today:
             raise DatesRejected("open_before_today")
-    if "close_on" in changes and status == "closed":
-        raise Conflict("닫힌 설문은 다시 열기로 엽니다")
+    if "close_on" in changes:
+        if status == "closed":
+            raise Conflict("닫힌 설문은 다시 열기로 엽니다")
+        if changes["close_on"] < today:
+            raise DatesRejected("close_before_today")  # 닫으려면 :close
     if changes.get("close_on", row.close_on) < changes.get("open_on", row.open_on):
         raise DatesRejected("close_before_open")
     changed = [f for f in PATCHABLE if f in changes and getattr(row, f) != changes[f]]

@@ -38,7 +38,11 @@ _TEXT_CONTROL = re.compile(
 
 
 class DatesRejected(ValueError):
-    """풀린 열림·닫힘일이 규칙에 어긋난다(끝점이 422 로). course_id 는 service 가 채운다."""
+    """풀린 열림·닫힘일이 규칙에 어긋난다(끝점이 422 로). course_id 는 service 가 채운다.
+
+    reason: open_before_today · close_before_open · date_required · open_mode · close_mode(배포 모드 풀기) ·
+    close_before_today(배포 설문 PATCH 의 닫힘일이 오늘보다 앞 — service.surveys.close.patch_survey).
+    """
 
     def __init__(self, reason: str, course_id: int | None = None) -> None:
         super().__init__(reason)
