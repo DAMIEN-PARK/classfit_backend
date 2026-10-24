@@ -1,7 +1,7 @@
 ---
 type: Plan
 title: "Plan: ClassFit 마스터 구현 계획"
-description: 태스크 한 바퀴 규칙, 1인 레인 A 의 단계, T0a~T10 14개 태스크의 선행·마이그레이션·착수 조건·증명 요약·상태를 담은 순서표
+description: 태스크 한 바퀴 규칙, 1인 레인 A 의 단계, T0a~T11 15개 태스크의 선행·마이그레이션·착수 조건·증명 요약·상태를 담은 순서표
 date: 2026-10-21
 tags: [plan, classfit, tasks, sdlc, phase1]
 Archives: false
@@ -24,7 +24,7 @@ r3 §5.1 "태스크 한 바퀴"다. 커밋 제목 규약은 [태스크 계획 �
 6. 가지에 master 를 들일 때는 에이전트가 `bash scripts/sync_task.sh` 만 쓴다(제목 `sync: T<n> …`).
 7. 계획과 다르게 한 것은 계획 파일의 마지막 절에 이유와 함께 적는다.
 8. 원격 `origin` 이 있다. 원격 개통 관문(master 보호 · PR 필수, r3 §5.1 · §1.1 ③)은 아직 닫히지 않았다. 그전에는 5번 뒤 승인자가 master 를 push 한다(T0b 계획 작업 순서 14). 관문이 닫히면 5번이 PR(본문 첫 줄 = 계획 경로) + 승인자 병합으로 바뀐다.
-9. 선행 열의 태스크가 병합된 뒤 시작한다. 마이그레이션은 0002~0011 이 한 줄기이고 head 는 하나다(r3 부록 C · §6 E-8). 예외는 T0b 와 T1 이다. 둘은 겹쳐 진행할 수 있다(r3 §3 D2).
+9. 선행 열의 태스크가 병합된 뒤 시작한다. 마이그레이션은 0002~0012 가 한 줄기이고 head 는 하나다(r3 부록 C · §6 E-8 — 1차 끝은 0011, T11 이 0012 를 더했다). 예외는 T0b 와 T1 이다. 둘은 겹쳐 진행할 수 있다(r3 §3 D2).
 
 ## 2. 단계와 레인
 
@@ -33,6 +33,7 @@ r3 §5.1 "태스크 한 바퀴"다. 커밋 제목 규약은 [태스크 계획 �
 | 문서 | T0a · T0b | SDLC 1~3 + ADR-002·003(T0a), SDLC 4 + OKF 1~7(T0b) |
 | 구현 | T1 · T2a · T2b · T3 ~ T8 · T9a · T9b | 위험 순서 관통 슬라이스. 학습자 범위·파일 권한·정원 잠금이 T2b 에서 돌고, 개설 → 입장 → 열람이 T2a·T2b 에서 시연된다 |
 | 마감 | T10 | 1차 마감 문서(spec 1절 상태 · check_docs ④ · E-15). 코드 없음 |
+| 경화 | T11 | 1차가 남긴 엔지니어링 후보 — 전역 본문 상한 · 토큰 응답 no-store · 요청 기록 가림 · 정수 경로 상한 · 관리자 강사 403 전수 · 0012 · ruff format 관문. 새 끝점·응답 칸 없음. 제품 결정 후보는 4절 |
 | 미룸 | SDLC 5단계 | T4 병합 뒤 착수 가능. 스킬·evals. 배포 게이트·운영 지표는 운영 서버가 정해진 뒤(r3 부록 E 미룸 행) |
 
 - 레인은 **A 하나**다. 승인자 1인 · 저장소 하나 · 작업 트리 하나다(r3 §2 가정 3, §5.1). 승인자가 병합하는 동안 에이전트 세션은 멈춘다.
@@ -58,10 +59,35 @@ r3 §5.1 "태스크 한 바퀴"다. 커밋 제목 규약은 [태스크 계획 �
 | T8 | 만족도 | T7 | A | 0009 | 없음. 메모: [Design 부록 A](2026-10-21-phase1-backend-design.md) T8 행의 `test_concurrent_` 를 정확한 이름으로 좁힌다(T2b 가 같은 접두를 쓴다) · 강사 명단 `/v1/me/courses/{course_id}/enrollments`(`MyRosterOut`)와 관리자 명단에 응답 여부 칸 · 홈 만족도 알림은 T8 이 더한다 · T6 포털 미리 보기는 `LearnerView(id=0)` 로 `build_portal` 을 부른다 — T8 이 수강생별 칸(응답 여부 등)을 `subject.id` 로 읽게 되면 미리 보기가 id 0 으로 질의하니 함께 정한다(T6 리뷰 Nit 6) → T8: 포털 `survey` 칸은 강의 단위(현재 설문 머리)라 주체를 읽지 않고, 응답 여부는 수강생 설문 GET 의 `responded` 다(결정 xv) | [T8-survey.md](../plans/T8-survey.md) | 동시성 1(열린 설문) · 1인 1회 · I7 최소 응답 수 · I7·A5 결과에 개인 키·제출 시각 없음 | 완료. master `b869eaf merge: T8 survey` |
 | T9a | 진단·링크·개설 ③ | T8 | A | 0010 | 없음(새 의존성 없음). 결정 (i)~(xxv) · 승인자 질문 ①~⑪ 기본값 승인 = 이 가지의 approve 커밋(충족) | [T9a-diagnosis.md](../plans/T9a-diagnosis.md) | 회사당 open 1 · 제출 응답에 점수 없음 · score golden | 완료. master `59e3579 merge: T9a diagnosis` |
 | T9b | 교육 문의·관리자 홈 | T9a | A | 0011 | 없음(새 의존성 없음). 결정 (i)~(xxvii) 기본값 · 승인자 결정(415 · 기획안 대조 Q4 ⓑ · Q1~Q3 기본) 승인 = 이 가지의 approve 커밋(충족). 메모: 관리자 홈의 미기록·새 사진(요구정의서 COM-004 :147)은 T7 표로 센다 — 미기록 = 지난 일차 ∧ `session_record` 없음, 새 사진 = `photo.seen_at IS NULL`(T7 결정 xi ④) · 관리자 홈의 열린 설문(COM-004 :147)은 T8 표로 센다 — `survey.current ∧ survey_status_sql(today) = 'open'`(T8 결정 iii) · 관리자 홈의 진단 검토 대기(COM-004 :147)는 `GET /v1/admin/diagnoses?status=review` 와 같은 문장의 셈(T9b 결정 xxvii) · 진단 요약 줄과 최근 확정 회차는 홈에 싣지 않는다(T9b 결정 xiii — T9a 회사 목록 `latest_final_round` 몫) · 교육 문의는 Company 와 연결하지 않는다(Design 4절 0011 · T9a 결정 xxii) | [T9b-inquiry-home.md](../plans/T9b-inquiry-home.md) | honeypot 응답 동일 + 0행 · 1분 재제출 200 같은 영수증 · Company 0행 · 확인 메일에 내용 없음 | 완료. master `1643ebc merge: T9b inquiry-home` |
-| T10 | 1차 마감 문서 | T9b | A | 없음 | T9b 병합·push(충족 — `1643ebc` · CI success) | [T10-phase1-close.md](../plans/T10-phase1-close.md) | spec 1절 상태 "1차 완료" · ④ 행 수(T9b 3행 포함 — Q4 ⓑ) · E-15 `completed`·`success` | 완료(이 가지 — 병합하면 1차 끝) |
+| T10 | 1차 마감 문서 | T9b | A | 없음 | T9b 병합·push(충족 — `1643ebc` · CI success) | [T10-phase1-close.md](../plans/T10-phase1-close.md) | spec 1절 상태 "1차 완료" · ④ 행 수(T9b 3행 포함 — Q4 ⓑ) · E-15 `completed`·`success` | 완료. master `4c32046 merge: T10 phase1-close` |
+| T11 | 경화(1차 후보) | T10 | A | 0012 | 없음(새 의존성 없음). 결정 (i)~(xvii) · 승인자 질문 ①~⑦ 기본값 승인 = 이 가지의 approve 커밋(충족) | [T11-hardening.md](../plans/T11-hardening.md) | 선언 길이 413 이 인증보다 먼저 · 관리자 92연산 강사 403 · 데이터 있는 0011 → 0012 행 가드·왕복 · `ruff format --check` 0 | 진행 중. 가지 T11-hardening, 승인됨 bb4251c |
 
 - 규칙 ↔ 시험 이름의 대응은 [Design 부록 A](2026-10-21-phase1-backend-design.md) 에 있다. 병합된 T 의 행은 `scripts/check_docs.sh` ④ 가 잰다.
 - 1차 수용 기준은 r3 §6 E-1~E-15 이고 T9b 병합 뒤의 값으로 잰다. 1차 끝은 T10 병합이다. 개수 기준(E-10·E-12·E-14)은 T9b 기준이고, 태스크마다는 그 T 가 더한 시험만 잰다. T9b 계획 증명 블록이 E-1~E-15 최종값을 돌고, 병합 뒤 기록(spec 1절 "1차 완료" · ④ 행 수 · E-15)은 T10 이 쓴다.
+
+## 4. 2차 입력
+
+T11 계획 결정 xvii 가 T11 밖으로 둔 후보다. 출처는 그 태스크 계획의 줄이고, 2차 계획을 세울 때 여기서 고른다. 값이 필요한 것은 승인자 답이 먼저다.
+
+| 후보 | 출처 | 필요한 것 |
+|---|---|---|
+| T4 목록 500건 상한·커서 없음 vs 관리자 홈 카드 4 셈 | T4 결정 xii · T9b :471 | 글자 id 키셋 커서 + T4 계약 변경(승인자) |
+| 100점 환산식(지금 평균 × 20) | T8 :449 · spec 3절 DEC-001 | 승인자의 현행 식 |
+| 예약 배포 뒤 날짜를 바꾸면 쌓인 알림의 날짜가 낡음 | T8 :453 | 알림 정책(제품) |
+| 진단으로 강의를 열 때 세션 제목의 " (…)" 를 뗄지 | T9a :529 | 제품(시안 :1564) |
+| `session_time` 이 24:xx · 시작 > 끝을 낼 수 있음 | T7 :425 · DEC-002 | 제품 |
+| 첨부 설명이 한 줄만 됨 | T2b :318 | 제품 |
+| 공개홈 보유 고지 "처리 후 1년" ↔ 1차 규칙 "접수 후 1년" | T9b 질문 ⑥ · spec 3절 | 제품(프론트 문구) |
+| spec 3절 "결정 필요" 행들 | spec 3절 | 제품 |
+| `file_gc` 가 남은 `.tmp-*` 임시 파일을 지우지 않음 | T1 :241 · T11 결정 ix(codex 계획 1차 #7 — 무덤 복구 · 쓰는 쪽과의 조율이 먼저) | 엔지니어링 설계 |
+| 앱 시계 만료·발송 시각 · argon2 동시 상한 · auth_* 정리 잡 · 로그인 시간 차이 시험 | T1 :241·:243 | 엔지니어링(정리 잡은 DEC-014 와 함께) |
+| 끝점의 `# type: ignore` 6곳 | T3 :268 | 엔지니어링 |
+| my_courses PATCH 가 세션 하나를 돌려주려고 강의 보기 전체를 다시 만듦 | T5 :356·:394 | 엔지니어링 |
+| 입장 조회의 `_failure(…, "ok")` 방어 갈래 | T2b :279 | 엔지니어링 |
+| 점 세그먼트 경로(`/v1/%2e/ax/<토큰>`)의 응답 `instance` 와 no-store 판정 | T11 결정 iii | 엔지니어링(요청자 본인에게 돌아가는 404) |
+| 인증 없는 pydantic 본문 끝점의 JSON 아닌 Content-Type(지금 422) | T11 결정 i 대안 a | 엔지니어링 |
+| 저장소를 iCloud 밖으로 · `T8-survey` 가지의 `bfe571c` 정리(`git branch -f T8-survey 3b4c8c4`) | T5 :369 · T9a :533 | 운영(승인자) |
+| SDLC 5단계(스킬·evals) | 2절 미룸 행 | 운영 서버가 정해진 뒤 |
 
 
 

@@ -94,7 +94,7 @@ git diff --quiet 1643ebc..HEAD -- . ':!docs' && echo docs-only-ok      # → "do
 | `check_docs.sh` ④ — T10 커밋 전·뒤 | 커밋 전(`1643ebc`): 48행 중 대상 48행 · docs check: OK · 승인 뒤 `6bfb4df`(`CLASSFIT_REQUIRE_EXTERNAL=1`): `④ 병합된 T: T0a T0b T1 T2a T2b T3 T4 T5 T6 T7 T8 T9a T9b · 대응표 48행 중 대상 48행` · `docs check: OK` · 커밋 트리(커밋 직전 작업 트리, `CLASSFIT_REQUIRE_EXTERNAL=1`): 같은 두 줄 |
 | 증명 블록 출력(리뷰 반영 커밋 직전 작업 트리, 리뷰 N2) | 2026-10-24 리드: `task order: OK` · `e15-ok` · `④ 병합된 T: T0a T0b T1 T2a T2b T3 T4 T5 T6 T7 T8 T9a T9b · 대응표 48행 중 대상 48행` · `docs check: OK` · `위반 0건 — 통과` · `OKF guard OK` · `gate: OK` · `docs-only-ok`. reviewer-t10 도 `e5d335b` 에서 같은 값(옛 끝 줄 빈 출력) |
 | `make verify`(문서 전용이라 증명 밖 — P7) | 2026-10-24 리드(같은 작업 트리, 시험 DB `classfit_c_test`): `gate: OK` · `All checks passed!` · `Analyzed 224 files, 973 dependencies.` · `Contracts: 3 kept, 0 broken.` · `558 passed in 70.52s` · `OKF guard OK` — exit 0(T9b 최종 `a78c373` 과 같은 수) |
-| 병합 뒤 ④(`merge: T10` 뒤 master) | (P4 — 병합 뒤 리드가 재어 보고한다) |
+| 병합 뒤 ④(`merge: T10` 뒤 master) | T11 이 채웠다(2026-10-24 리드, master `4c32046 merge: T10 phase1-close` — 트리 = 가지 머리 `44f5a82`): `CLASSFIT_REQUIRE_EXTERNAL=1 bash scripts/check_docs.sh` → `④ 병합된 T: T0a T0b T1 T10 T2a T2b T3 T4 T5 T6 T7 T8 T9a T9b · 대응표 48행 중 대상 48행` · `docs check: OK`(P4 예상 글자 그대로) · 병합 커밋 CI(push) success — run 40083200691, 40자 SHA `4c320465ca09b9dc4d4b3fe653210ed4ef6d55cd` 로 `completed/success` |
 
 
 
