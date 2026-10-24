@@ -10,6 +10,8 @@
   제목이 되므로 섹션·세션 제목과 같은 한 줄 글자(1~200)다. 트랙 key 는 글자(≤ 50)일 뿐이다 — 직무군 키 8은 초안 생성만 쓴다.
 - 리포트 산식·레벨 경계는 service/rules/diagnosis.py 한 곳이다. level 은 17지표를 다 답하기 전이면 null 이다.
 - 상태·구분 글자는 models.diagnosis 상수와 같은 값을 여기에 다시 선언한다(schemas 는 service 를 import 하지 않는다 — 계약 ①).
+- 회차 목록 항목 DiagnosisListItemOut(T9b 결정 xxvii)은 회사 이름 · 응답자 이름 · 링크 제출 시각 · 총점·레벨까지다. 응답자
+  직함·이메일, 회사 연락처, 답·증빙·현장·역량·권장 구성은 싣지 않는다.
 """
 
 from __future__ import annotations
@@ -175,6 +177,24 @@ class DiagnosisOut(BaseModel):
     finalized_by_id: int | None
     created_at: dt.datetime
     updated_at: dt.datetime
+
+
+class DiagnosisListItemOut(BaseModel):
+    """회차 목록 한 줄(GET /v1/admin/diagnoses, T9b 결정 xxvii). respondent_name·submitted_at 은 링크 회차만(방문 null) ·
+    total·level 은 회사 상세 rounds(RoundSummaryOut)와 같은 계산이고 level 은 17지표 전이면 null 이다."""
+
+    id: int
+    company_id: int
+    company_name: str
+    round_no: int
+    phase: Phase
+    mode: DiagMode
+    status: DiagStatus
+    diagnosed_on: dt.date
+    respondent_name: str | None
+    submitted_at: dt.datetime | None
+    total: int
+    level: int | None
 
 
 # ── 권장 구성(시안 buildReco 모양)

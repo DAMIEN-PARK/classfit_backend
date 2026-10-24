@@ -99,6 +99,8 @@ _DOMAIN_STATUS: dict[str, int] = {
     "gone": 410,
     "not_configured": 501,
     "unavailable": 503,
+    # 하이픈 — T1·T3 로그인 잠김 429 의 기본 _slug 와 같은 철자(T9b 결정 xxiv)
+    "too-many-requests": 429,
 }
 
 

@@ -96,6 +96,7 @@ async def learner_survey(
             "description": "본 설문판이 바뀜(survey_changed) · 열리지 않음 · 이미 응답"
         },
         413: {"description": "본문이 256KiB 보다 큼"},
+        415: {"description": "JSON 이 아닌 Content-Type"},
         422: {"description": "본문 모양 · 답 모양(필수 누락 · 모르는 문항 · 값)"},
     },
 )

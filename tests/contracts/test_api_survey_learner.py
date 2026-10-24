@@ -7,6 +7,7 @@
 보인다. 픽스처 강의는 2026-11-02(월)부터 평일 4일이고 오늘은 2026-11-03 이 기본이다.
 """
 
+import json
 from collections.abc import AsyncIterator
 from datetime import date
 from typing import Any
@@ -285,6 +286,20 @@ async def test_survey_submit_body_limits(
     assert anonymous.headers["www-authenticate"] == "Bearer"
     problem_of(await client.post(url, headers={**admin, **json_type}, content=big), 403)
 
+    # JSON 이 아닌 Content-Type 은 맞는 본문이어도 읽기 전에 415(T9b 결정 xxiii ⑤ — 승인자 결정 2026-10-24)
+    valid = {
+        "survey_id": view["id"],
+        "questions_hash": view["questions_hash"],
+        "answers": ANSWERS_OK,
+    }
+    plain = await client.post(
+        url,
+        headers={**learner, "content-type": "text/plain"},
+        content=json.dumps(valid).encode(),
+    )
+    problem_of(plain, 415, "/problems/unsupported-media-type")
+    assert await count(db_session, SurveyResponse) == 0
+
     r = await _post(client, learner, course.id, view["id"], view["questions_hash"])
     assert r.status_code == 201, r.text
 
@@ -295,6 +310,7 @@ async def test_survey_submit_body_limits(
     schema = op["requestBody"]["content"]["application/json"]["schema"]
     assert schema == SubmitIn.model_json_schema()
     assert schema["required"] == ["survey_id", "questions_hash", "answers"]
+    assert "415" in op["responses"]
 
 
 async def test_survey_learner_view_states(
