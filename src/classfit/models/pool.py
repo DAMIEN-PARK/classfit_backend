@@ -80,7 +80,8 @@ POOL_CONTENT_FIELDS = (
     "schedule",
 )
 
-_TITLE_CHECK = "length(btrim(title)) BETWEEN 1 AND 200"
+# 공백류가 아닌 글자 하나 이상 · 앞뒤 스페이스를 뺀 200자 이하(0012 — 탭·줄바꿈만 있는 값도 막는다)
+_TITLE_CHECK = "title ~ '[^[:space:]]' AND length(btrim(title)) <= 200"
 _DIFFICULTY_CHECK = "difficulty IN ('하', '중', '상')"
 _JOB_GROUPS_CHECK = "cardinality(job_groups) >= 1"
 

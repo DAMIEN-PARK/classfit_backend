@@ -87,8 +87,8 @@ class Survey(BigIdMixin, TimestampMixin, Base):
         index=True,
     )
     template_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("survey_template.id", ondelete="SET NULL")
-    )
+        BigInteger, ForeignKey("survey_template.id", ondelete="SET NULL"), index=True
+    )  # 색인 0012 — 양식 삭제·배포 수 셈·양식별 잠금
     template_name: Mapped[str] = mapped_column(Text, nullable=False)  # 배포 시점 이름
     questions: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False
