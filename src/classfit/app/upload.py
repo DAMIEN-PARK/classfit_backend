@@ -20,6 +20,13 @@ def invalid(field: str, msg: str) -> RequestValidationError:
     )
 
 
+def length_over(digits: str, limit: int) -> bool:
+    """ASCII 숫자 글자(Content-Length)가 limit 을 넘는가. int() 는 4,300자리를 넘으면 ValueError(500)라 앞 0 을 떼고
+    자릿수가 limit 의 자릿수보다 길면 바꾸지 않고 넘는다고 본다."""
+    digits = digits.lstrip("0")
+    return len(digits) > len(str(limit)) or int(digits or "0") > limit
+
+
 def check_length(request: Request, max_bytes: int) -> None:
     """본문을 읽기 전에 Content-Length 로 거른다. 없거나 ASCII 숫자가 아니면 411, max_bytes + 1MiB 초과 413.
 
@@ -29,5 +36,5 @@ def check_length(request: Request, max_bytes: int) -> None:
     # isdigit 은 '²' 같은 비 ASCII 숫자도 참이라 int() 가 ValueError(500) 다 — ASCII 숫자만 길이로 믿는다
     if not (raw.isascii() and raw.isdigit()):
         raise AppError(411, "Content-Length 헤더가 필요합니다")
-    if int(raw) > max_bytes + MIB:
+    if length_over(raw, max_bytes + MIB):
         raise AppError(413, f"본문이 너무 큽니다({max_bytes // MIB}MiB 까지)")

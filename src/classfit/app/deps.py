@@ -28,6 +28,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.app.errors import AppError, forbidden, unauthorized
+from classfit.app.upload import length_over
 from classfit.core.clock import today_kst
 from classfit.schemas.course import DB_ID_LIMIT
 from classfit.service.auth.sessions import Principal, authenticate
@@ -148,7 +149,11 @@ def limited_json[M: BaseModel](
             raise AppError(415, "JSON 본문만 받습니다(Content-Type: application/json)")
         declared = request.headers.get("content-length", "").strip()
         # isdigit 은 '²' 같은 비 ASCII 숫자도 참이라 int() 가 ValueError 다 — ASCII 숫자만 믿고 나머지는 스트림 가드에 맡긴다
-        if declared.isascii() and declared.isdigit() and int(declared) > max_bytes:
+        if (
+            declared.isascii()
+            and declared.isdigit()
+            and length_over(declared, max_bytes)
+        ):
             raise _too_large(max_bytes)
         buf = bytearray()
         async for chunk in request.stream():

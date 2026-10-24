@@ -11,7 +11,7 @@ TokenRedactFilter 를 건다(T11 결정 iii — 32자 이상 풀 과정 id 도 �
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from time import perf_counter
 
 from fastapi import APIRouter, FastAPI, Request
@@ -31,7 +31,7 @@ from classfit.app.errors import (
     request_path,
 )
 from classfit.app.routers import ROUTERS
-from classfit.app.upload import MIB
+from classfit.app.upload import MIB, length_over
 from classfit.core.config import Settings
 
 log = logging.getLogger("classfit.request")
@@ -41,6 +41,11 @@ log.addFilter(TokenRedactFilter())
 BODY_MAX_BYTES = MIB
 # 업로드 연산 상한 = 업로드 상한 설정 중 가장 큰 값 + 이 여유. 끝점 check_length 의 상한 + 1MiB 보다 커서 끝점 413 이 먼저다
 UPLOAD_SLACK_MIB = 2
+# 칸 상한을 다 채운 정상 JSON 본문이 1MiB 를 넘는 연산의 상한(메서드 · 경로 틀 → 바이트, T11 codex 구현 1차 〔정함〕)
+ROUTE_MAX_BYTES: dict[tuple[str, str], int] = {
+    # 차시표 통째 교체: 200칸 × 제목 200 · 설명 5000자 — 이론 최대 4,169,703 B(4바이트 글자) · 한글 3,129,703 B
+    ("PUT", "/v1/me/curricula/{curriculum_id}/slots"): 5 * MIB,
+}
 
 
 class RequestLogMiddleware:
@@ -95,14 +100,31 @@ def upload_routes(routers: Iterable[APIRouter]) -> list[APIRoute]:
     ]
 
 
-def _declared_length(scope: Scope) -> int | None:
-    """Content-Length 가 ASCII 숫자면 그 값, 없거나 모양 밖이면 None(읽은 바이트 갈래가 잰다)."""
+def route_limits(
+    routers: Iterable[APIRouter], table: Mapping[tuple[str, str], int]
+) -> list[tuple[APIRoute, int]]:
+    """표의 (메서드, 경로 틀)마다 그 APIRoute 와 상한. 맞는 라우트가 하나가 아니면 앱을 만들 때 실패한다
+    (경로가 바뀌어 표 항목이 조용히 빠지지 않게)."""
+    routes = [r for router in routers for r in router.routes if isinstance(r, APIRoute)]
+    found = []
+    for (method, path), limit in table.items():
+        matched = [r for r in routes if r.path == path and method in r.methods]
+        if len(matched) != 1:
+            raise RuntimeError(
+                f"본문 상한 표의 {method} {path} 에 맞는 라우트가 {len(matched)}개입니다"
+            )
+        found.append((matched[0], limit))
+    return found
+
+
+def _declared_over(scope: Scope, limit: int) -> bool:
+    """Content-Length 가 ASCII 숫자이고 limit 을 넘는가. 없거나 모양 밖이면 거짓(읽은 바이트 갈래가 잰다)."""
     for name, value in scope["headers"]:
         if name == b"content-length":
             raw = value.strip()
             # bytes.isdigit 은 ASCII 숫자만 참이다
-            return int(raw) if raw.isdigit() else None
-    return None
+            return raw.isdigit() and length_over(raw.decode(), limit)
+    return False
 
 
 def _too_large(limit: int) -> str:
@@ -110,7 +132,8 @@ def _too_large(limit: int) -> str:
 
 
 class BodyLimitMiddleware:
-    """순수 ASGI. 요청 본문 상한(T11 결정 i): 업로드 연산(라우트가 Match.FULL)은 upload_max, 그 밖은 default_max.
+    """순수 ASGI. 요청 본문 상한(T11 결정 i): 라우트가 Match.FULL 로 맞으면 표의 상한(route_limits) · 업로드 연산은
+    upload_max, 그 밖은 default_max.
 
     상한은 Content-Type 이 아니라 라우트로 고른다 — JSON 끝점은 Content-Type 을 보기 전에 본문을 다 읽는다.
     ① 선언 길이: Content-Length 가 ASCII 숫자이고 상한을 넘으면 앱을 부르지 않고(인증 전) 413 problem 을 보낸다.
@@ -127,15 +150,20 @@ class BodyLimitMiddleware:
         upload_routes: Sequence[APIRoute],
         upload_max: int,
         default_max: int,
+        route_limits: Sequence[tuple[APIRoute, int]] = (),
     ) -> None:
         self.app = app
+        self.route_limits = tuple(route_limits)
         self.upload_routes = tuple(upload_routes)
         self.upload_max = upload_max
         self.default_max = default_max
 
     def _limit(self, scope: Scope) -> int:
+        # PARTIAL 은 경로만 맞고 메서드가 다른 경우다
+        for route, limit in self.route_limits:
+            if route.matches(scope)[0] == Match.FULL:
+                return limit
         for route in self.upload_routes:
-            # PARTIAL 은 경로만 맞고 메서드가 다른 경우다
             if route.matches(scope)[0] == Match.FULL:
                 return self.upload_max
         return self.default_max
@@ -145,8 +173,7 @@ class BodyLimitMiddleware:
             await self.app(scope, receive, send)
             return
         limit = self._limit(scope)
-        declared = _declared_length(scope)
-        if declared is not None and declared > limit:
+        if _declared_over(scope, limit):
             response = problem(Request(scope), status=413, detail=_too_large(limit))
             await response(scope, receive, send)
             return
@@ -178,6 +205,7 @@ def install_middleware(app: FastAPI, settings: Settings) -> None:
         upload_routes=upload_routes(ROUTERS),
         upload_max=(upload_mb + UPLOAD_SLACK_MIB) * MIB,
         default_max=BODY_MAX_BYTES,
+        route_limits=route_limits(ROUTERS, ROUTE_MAX_BYTES),
     )
     if settings.cors_origins:
         app.add_middleware(
