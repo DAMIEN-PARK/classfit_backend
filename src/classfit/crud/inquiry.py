@@ -47,7 +47,10 @@ def _within(window: timedelta) -> ColumnElement[bool]:
 async def find_recent_duplicate(
     session: AsyncSession, *, email: str, message: str | None, window: timedelta
 ) -> Inquiry | None:
-    """창 안의 같은 이메일 + 같은 내용(NULL 끼리도 같다) 가운데 가장 최근 행. 없으면 None."""
+    """창 안의 같은 이메일 + 같은 내용(NULL 끼리도 같다) 가운데 가장 최근 행. 없으면 None.
+
+    잠근 뒤 읽는 자리라 populate_existing 이다(identity map 의 옛 created_at 이 응답 시각을 가리지 않게).
+    """
     stmt = (
         select(Inquiry)
         .where(
@@ -57,6 +60,7 @@ async def find_recent_duplicate(
         )
         .order_by(Inquiry.created_at.desc(), Inquiry.id.desc())
         .limit(1)
+        .execution_options(populate_existing=True)
     )
     return await session.scalar(stmt)
 

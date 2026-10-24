@@ -1,4 +1,4 @@
-"""안 보낸 메일 outbox 를 본문으로 찍는다: python -m scripts.outbox_preview [--apply]
+"""안 보낸 메일 outbox 를 본문으로 찍는다: python -m scripts.outbox_preview [--apply] [--limit N]
 
 - 1차에는 메일을 보내지 않는다(ADR-003 결정 5). 본문은 이 명령으로 본다.
 - kind 마다 본문을 만든다. `email_code` 는 issue_email_code() 를 부른다(인증 코드를 만드는 곳은 그 함수 하나).
@@ -10,6 +10,10 @@
   detail 의 강사가 params 와 다르면 3 이다.
 - `survey_opened`·`survey_closed`(T8)는 params 스냅샷({survey_id, course_title, open_on, close_on} · {survey_id,
   course_title, closed_on})만으로 본문을 만들고 DB 를 읽지 않는다 — 강의·설문이 지워져도 본문은 같다. 칸이 빠지면 3 이다.
+- `inquiry_received`·`inquiry_notify`(T9b)는 params {inquiry_id} 로 문의 행을 읽는다. 확인 메일(→ 문의자)은 영수증 번호와
+  고정 문구만 찍고 회사명·이름·연락처·내용을 되비치지 않는다. 알림(→ INQUIRY_NOTIFY_TO)은 접수 칸 전부를 찍고 비어 있는
+  선택 칸은 "(없음)" 이다. 문의 행이 없으면(지웠으면) 3 이다.
+- `--limit N`(기본 200, 1 이상): 안 보낸 행을 앞(id 순) N 건만 읽는다 — 공개 문의가 쌓여도 전부를 메모리에 올리지 않는다.
 - 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 코드 자리는 `******` 로 가리고 "무효 코드(미리 보기)" 라고 찍는다.
   실제 숫자는 `--apply` 때만 stdout 에 나온다.
 - `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다.
@@ -31,13 +35,21 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from classfit.core.config import get_settings
 from classfit.core.errors import DomainError, NotFound
+from classfit.crud.inquiry import get_inquiry
 from classfit.crud.outbox import mark_sent, unsent
 from classfit.database.session import make_engine, make_session_factory
-from classfit.models import AuditLog, Instructor
+from classfit.models import AuditLog, Inquiry, Instructor
+from classfit.models.inquiry import INQUIRY_SIZE_LABELS
 from classfit.service.auth.email_code import issue_email_code
 
 PREVIEW_CODE = "무효 코드(미리 보기)"
 MASK = "******"
+DEFAULT_LIMIT = 200
+# 확인 메일 본문 — 제출 칸에 들어올 법한 낱말(이름·회사·내용)을 쓰지 않는다(T9b 결정 ix)
+RECEIVED_BODY = (
+    "교육 문의가 접수되었습니다. 접수 번호 {receipt_no}. 영업일 1일 안에 연락드립니다."
+)
+NONE_MARK = "(없음)"
 
 
 async def _email_code(
@@ -118,6 +130,37 @@ async def _survey_closed(
     )
 
 
+async def _inquiry(session: AsyncSession, params: dict[str, Any]) -> Inquiry:
+    row = await get_inquiry(session, int(params["inquiry_id"]))
+    if row is None:
+        raise NotFound("문의가 없습니다")
+    return row
+
+
+async def _inquiry_received(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
+    row = await _inquiry(session, params)
+    return RECEIVED_BODY.format(receipt_no=row.receipt_no)
+
+
+async def _inquiry_notify(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
+    row = await _inquiry(session, params)
+    size = INQUIRY_SIZE_LABELS.get(row.company_size or "", NONE_MARK)
+    message = f"문의 내용:\n{row.message}" if row.message else f"문의 내용: {NONE_MARK}"
+    return (
+        "교육 문의가 들어왔습니다.\n"
+        f"회사명: {row.company_name}\n"
+        f"담당자: {row.contact_name}\n"
+        f"부서 · 직함: {row.dept_title or NONE_MARK}\n"
+        f"이메일: {row.email}\n"
+        f"연락처: {row.phone}\n"
+        f"임직원 규모: {size}\n\n{message}"
+    )
+
+
 # (session, params, reveal) → 본문. reveal 은 --apply 일 때만 참이다(미리 보기의 코드는 무효라 가린다)
 RENDERERS: dict[str, Callable[[AsyncSession, dict[str, Any], bool], Awaitable[str]]] = {
     "email_code": _email_code,
@@ -126,6 +169,8 @@ RENDERERS: dict[str, Callable[[AsyncSession, dict[str, Any], bool], Awaitable[st
     "session_assigned": _session_assigned,
     "survey_opened": _survey_opened,
     "survey_closed": _survey_closed,
+    "inquiry_received": _inquiry_received,
+    "inquiry_notify": _inquiry_notify,
 }
 CODE_KINDS = frozenset({"email_code"})
 
@@ -139,7 +184,20 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--apply", action="store_true", help="해시 저장 + sent_at 을 커밋한다"
     )
+    p.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=DEFAULT_LIMIT,
+        help=f"안 보낸 행을 앞(id 순) N 건만(기본 {DEFAULT_LIMIT})",
+    )
     return p
+
+
+def _positive_int(value: str) -> int:
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError("1 이상이어야 합니다")
+    return n
 
 
 def _err(message: str) -> None:
@@ -155,7 +213,7 @@ async def run(
         return exc.code if isinstance(exc.code, int) else 2
     messages: list[dict[str, Any]] = []
     async with session_factory() as session:
-        for row in await unsent(session):
+        for row in await unsent(session, limit=args.limit):
             render = RENDERERS.get(row.kind)
             if render is None:
                 _err(
@@ -187,7 +245,8 @@ async def run(
     print(json.dumps({"applied": args.apply, "messages": messages}, ensure_ascii=False))
     if not args.apply:
         _err(
-            f"미리 보기: {len(messages)}건, 롤백했다. 찍힌 코드는 무효다. 보내려면 --apply"
+            f"미리 보기: {len(messages)}건(--limit {args.limit} 까지), 롤백했다."
+            " 찍힌 코드는 무효다. 보내려면 --apply"
         )
     return 0
 
