@@ -55,7 +55,7 @@ URL: ""
 ## 후속
 
 - r3 §7-1 의 답을 받으면 이 ADR 과 카탈로그 끝점을 다시 본다(r3 부록 G).
-- 2차: 요청 제한·캡차 뒤 공개 폼 발송, 관리자 문의 목록.
+- 2차: 요청 제한·캡차 뒤 공개 폼 발송, 관리자 문의 목록. T9b: 접수 끝점 `POST /v1/inquiries`(honeypot · 1분 재제출 · 본문 64KiB · JSON 이 아닌 Content-Type 415 · 이메일당 하루 20건 · outbox 2행) + 관리 명령 `inquiry_gc`. 관리자 문의 목록·주소 기준 요청 제한·캡차는 그대로 2차 — 그 전에는 끝점을 공개 인터넷에 노출하지 않는다.
 - T4: `published_catalog()` 의 공개 ∧ 활성·강사 이름 없음 시험(Design 부록 A `test_no_personal_keys_catalog`).
 
 
