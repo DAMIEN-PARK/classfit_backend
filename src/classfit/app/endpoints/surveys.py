@@ -299,7 +299,9 @@ async def patch_survey(
     except QuestionsRejected as exc:
         raise questions_invalid(exc) from None
     except DatesRejected as exc:
-        raise _dates_invalid(exc, _patch_loc(exc.reason, body.model_fields_set)) from None
+        raise _dates_invalid(
+            exc, _patch_loc(exc.reason, body.model_fields_set)
+        ) from None
     return survey_out(await views.head_of(session, row, today=today))
 
 

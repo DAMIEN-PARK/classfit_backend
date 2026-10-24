@@ -44,6 +44,7 @@ gate:
 
 lint:
 	$(BIN)/ruff check .
+	$(BIN)/ruff format --check .
 
 lint-imports: unhide
 	$(BIN)/lint-imports

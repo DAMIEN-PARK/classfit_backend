@@ -413,7 +413,11 @@ async def make_round(
     if status not in ("draft", "final"):
         raise ValueError("make_round 는 draft·final 만 — review 는 submit_via_service")
     row = await rounds.create_round(
-        session, company_id=company_id, phase=phase, diagnosed_on=diagnosed_on, actor=ACTOR
+        session,
+        company_id=company_id,
+        phase=phase,
+        diagnosed_on=diagnosed_on,
+        actor=ACTOR,
     )
     if answers:
         row = await rounds.patch_round(

@@ -118,7 +118,10 @@ async def patch_curriculum(
         clock = [n for n in ("start_time", "end_time") if n in content]
         raise GridViolation(
             "시작 시각이 끝 시각보다 앞이어야 합니다",
-            [violation(("body", n), "시작 < 끝이어야 합니다", "time_order") for n in clock],
+            [
+                violation(("body", n), "시작 < 끝이어야 합니다", "time_order")
+                for n in clock
+            ],
         )
     if touched:
         per_day = rules.slots_per_day(
@@ -132,7 +135,9 @@ async def patch_curriculum(
             raise GridViolation(
                 "기존 차시가 격자 밖이 됩니다. 먼저 차시표를 줄이세요",
                 [
-                    violation(("body", n), "기존 차시가 격자 밖이 됩니다", "slots_out_of_grid")
+                    violation(
+                        ("body", n), "기존 차시가 격자 밖이 됩니다", "slots_out_of_grid"
+                    )
                     for n in touched
                 ],
             )
@@ -170,14 +175,18 @@ async def replace_slots(
             "차시표가 격자 밖이거나 겹칩니다",
             [
                 violation(
-                    ("body", "slots", i) if why == "duplicate" else ("body", "slots", i, why),
+                    ("body", "slots", i)
+                    if why == "duplicate"
+                    else ("body", "slots", i, why),
                     _GRID_MSG[why],
                     "duplicate" if why == "duplicate" else "out_of_grid",
                 )
                 for i, why in errors
             ],
         )
-    before = sorted(_slot_key(s) for s in await crud_curriculum.list_slots(session, row.id))
+    before = sorted(
+        _slot_key(s) for s in await crud_curriculum.list_slots(session, row.id)
+    )
     if before == sorted(_slot_key(s) for s in slots):
         return len(slots)
     count = await crud_curriculum.replace_slots(session, row.id, slots)

@@ -41,7 +41,8 @@ class RequestLogMiddleware:
             if message["type"] == "http.response.start":
                 status = message["status"]
                 if no_store:
-                    MutableHeaders(scope=message)["cache-control"] = "no-store"  # 있으면 바꿔 끼운다
+                    # 있으면 바꿔 끼운다
+                    MutableHeaders(scope=message)["cache-control"] = "no-store"
             await send(message)
 
         try:
@@ -52,7 +53,13 @@ class RequestLogMiddleware:
             raise
         finally:
             ms = (perf_counter() - started) * 1000
-            log.info("%s %s -> %s %.1fms", scope.get("method"), request_path(scope), status, ms)
+            log.info(
+                "%s %s -> %s %.1fms",
+                scope.get("method"),
+                request_path(scope),
+                status,
+                ms,
+            )
 
 
 def install_middleware(app: FastAPI, settings: Settings) -> None:

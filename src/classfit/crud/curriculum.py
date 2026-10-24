@@ -144,4 +144,3 @@ async def replace_slots(
     if rows:
         await flush_or_conflict(session, "같은 일·교시의 차시가 둘입니다", *rows)
     return len(rows)
-

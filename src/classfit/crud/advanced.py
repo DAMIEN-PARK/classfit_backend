@@ -20,7 +20,9 @@ async def insert_advanced(session: AsyncSession, **fields: Any) -> AdvancedCours
     return row
 
 
-async def get_advanced(session: AsyncSession, advanced_id: str) -> AdvancedCourse | None:
+async def get_advanced(
+    session: AsyncSession, advanced_id: str
+) -> AdvancedCourse | None:
     return await session.get(AdvancedCourse, advanced_id)
 
 

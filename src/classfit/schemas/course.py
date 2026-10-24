@@ -136,7 +136,9 @@ class CourseOpenIn(BaseModel):
                 " curriculum 이면 curriculum_id 만, diagnosis 면 diagnosis_id 만 줍니다"
             )
         if self.start == "diagnosis" and self.company_id is not None:
-            raise ValueError("diagnosis 는 회사를 회차에서 가져오므로 company_id 를 주지 않습니다")
+            raise ValueError(
+                "diagnosis 는 회사를 회차에서 가져오므로 company_id 를 주지 않습니다"
+            )
         return self
 
     @model_validator(mode="after")

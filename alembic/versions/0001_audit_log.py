@@ -22,7 +22,10 @@ def upgrade() -> None:
         "audit_log",
         sa.Column("id", sa.BigInteger(), sa.Identity(always=True), nullable=False),
         sa.Column(
-            "at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.Column("actor", sa.Text(), nullable=False),
         sa.Column("action", sa.Text(), nullable=False),

@@ -340,14 +340,16 @@ def test_diagnosis_rules_build_reco() -> None:
     assert reco.clip("가" * 500, 500) == "가" * 500
     assert reco.clip("가" * 501, 500) == "가" * 499 + "…"
     assert reco.clip("  앞뒤 공백  ", 500) == "앞뒤 공백"
-    assert reco.clip("가" * 198 + "  나다", 200) == "가" * 198 + "…"  # 자른 끝의 공백은 뗀다
+    # 자른 끝의 공백은 뗀다
+    assert reco.clip("가" * 198 + "  나다", 200) == "가" * 198 + "…"
     long_field = {
         "work": "업" * 200,
         "wfreq": "빈" * 200,
         "whours": "시" * 200,
         "works": ["영" * 50] * 20,
     }  # 현장 활용 칸마다 스키마 상한(글자 200 · 항목 50 · 목록 20)
-    exact = {"work": "업" * 484, "wfreq": "매일", "whours": "40시간"}  # 이어 붙이면 정확히 500
+    # 이어 붙이면 정확히 500
+    exact = {"work": "업" * 484, "wfreq": "매일", "whours": "40시간"}
     over = {**exact, "work": "업" * 485}  # 501
     long_titles = {
         "cs": ["가" * 200, "나" * 201, "   ", " 앞뒤 공백 과정 "],
@@ -367,7 +369,8 @@ def test_diagnosis_rules_build_reco() -> None:
         )
         line_paths = {"common.items", "tracks.courses", "tracks.name"}
         for path, text in _strings(built):
-            bare = re.sub(r"\[\d+\]", "", path).lstrip(".")  # ".tracks[0].courses[1]" → "tracks.courses"
+            # ".tracks[0].courses[1]" → "tracks.courses"
+            bare = re.sub(r"\[\d+\]", "", path).lstrip(".")
             limit = reco.RECO_LINE_MAX if bare in line_paths else reco.RECO_TEXT_MAX
             assert len(text) <= limit, (path, len(text))
             if bare in line_paths:

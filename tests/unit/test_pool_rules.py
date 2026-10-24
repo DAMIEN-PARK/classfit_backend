@@ -65,6 +65,8 @@ def test_pool_rules_content_fingerprint() -> None:
     }
     assert content_fingerprint(base) == content_fingerprint(reordered)
     assert len(content_fingerprint(base)) == 64
-    assert content_fingerprint(base) != content_fingerprint({**base, "title": "시험 과정 나"})
+    assert content_fingerprint(base) != content_fingerprint(
+        {**base, "title": "시험 과정 나"}
+    )
     assert content_fingerprint(base) != content_fingerprint({**base, "minutes": 61})
     assert content_fingerprint(base) != content_fingerprint({**base, "goal": ""})

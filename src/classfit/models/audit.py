@@ -20,7 +20,9 @@ class AuditLog(BigIdMixin, Base):
     __tablename__ = "audit_log"
     __table_args__ = (Index("ix_audit_log_target", "target_type", "target_id"),)
 
-    at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False, index=True)
+    at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), nullable=False, index=True
+    )
     # 주체 표기: "admin:3" · "instructor:12" · "system"
     actor: Mapped[str] = mapped_column(Text, nullable=False)
     # 동작 표기: "instructor.approve" · "course.publish"

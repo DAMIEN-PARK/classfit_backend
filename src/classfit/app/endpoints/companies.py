@@ -111,7 +111,8 @@ async def list_companies(
 ) -> Page[CompanyOut]:
     try:
         if cursor is not None:
-            decode_cursor(cursor)  # 깨진 커서만 422 로 — 목록 읽기의 다른 ValueError 는 500 그대로
+            # 깨진 커서만 422 로 — 목록 읽기의 다른 ValueError 는 500 그대로
+            decode_cursor(cursor)
     except ValueError:
         raise RequestValidationError(
             [

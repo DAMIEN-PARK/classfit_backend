@@ -153,7 +153,11 @@ _STAT_KEYS = (
 # 재귀 허용 집합(json_keys == 로 잰다): A5 전체 · I7 공개(visible)일 때 전체. 숨김이면 results 가 null 이라 이 집합의 부분이다
 RESULTS_KEYS = RESULTS_TOP_KEYS | HEAD_KEYS | RESPONSE_RATE_KEYS | _STAT_KEYS
 MY_RESULTS_KEYS = (
-    MY_RESULTS_TOP_KEYS | RESULTS_BODY_KEYS | HEAD_KEYS | RESPONSE_RATE_KEYS | _STAT_KEYS
+    MY_RESULTS_TOP_KEYS
+    | RESULTS_BODY_KEYS
+    | HEAD_KEYS
+    | RESPONSE_RATE_KEYS
+    | _STAT_KEYS
 )
 PORTAL_SURVEY_KEYS = frozenset({"id", "status", "open_on", "close_on"})
 HOME_SURVEY_KEYS = frozenset(

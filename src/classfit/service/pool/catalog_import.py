@@ -65,7 +65,9 @@ class ImportResult:
         }
 
 
-def _classify(result: SectionResult, item_id: str, stored: dict[str, Any], given: dict[str, Any]) -> None:
+def _classify(
+    result: SectionResult, item_id: str, stored: dict[str, Any], given: dict[str, Any]
+) -> None:
     if content_fingerprint(stored) == content_fingerprint(given):
         result.unchanged.append(item_id)
     else:

@@ -94,7 +94,10 @@ class CurriculumSlot(BigIdMixin, Base):
     __tablename__ = "curriculum_slot"
     __table_args__ = (
         UniqueConstraint(
-            "curriculum_id", "day", "slot", name="uq_curriculum_slot_curriculum_id_day_slot"
+            "curriculum_id",
+            "day",
+            "slot",
+            name="uq_curriculum_slot_curriculum_id_day_slot",
         ),
         CheckConstraint("day >= 1", name="day"),
         CheckConstraint("slot >= 1", name="slot"),

@@ -31,7 +31,9 @@ target_metadata = Base.metadata
 def _database_url() -> str:
     url = os.environ.get(ENV_VAR)
     if not url:
-        raise RuntimeError(f"미구성: {ENV_VAR} 이 없습니다 (마이그레이션은 이 변수 하나만 읽습니다)")
+        raise RuntimeError(
+            f"미구성: {ENV_VAR} 이 없습니다 (마이그레이션은 이 변수 하나만 읽습니다)"
+        )
     return url
 
 
@@ -45,7 +47,9 @@ def _configure(**kwargs: object) -> None:
 
 
 def run_migrations_offline() -> None:
-    _configure(url=_database_url(), literal_binds=True, dialect_opts={"paramstyle": "named"})
+    _configure(
+        url=_database_url(), literal_binds=True, dialect_opts={"paramstyle": "named"}
+    )
     with context.begin_transaction():
         context.run_migrations()
 
@@ -70,8 +74,11 @@ def run_migrations_online() -> None:
         asyncio.get_running_loop()
     except RuntimeError:
         asyncio.run(_run_async())
-    else:  # 돌고 있는 루프 안에서 env.py 를 부르면 asyncio.run 이 죽는다 — 시험은 자식 프로세스로 돌린다
-        raise RuntimeError("alembic env.py 는 이벤트 루프 밖에서만 돈다 (자식 프로세스로 실행)")
+    else:
+        # 돌고 있는 루프 안에서 env.py 를 부르면 asyncio.run 이 죽는다 — 시험은 자식 프로세스로 돌린다
+        raise RuntimeError(
+            "alembic env.py 는 이벤트 루프 밖에서만 돈다 (자식 프로세스로 실행)"
+        )
 
 
 if context.is_offline_mode():

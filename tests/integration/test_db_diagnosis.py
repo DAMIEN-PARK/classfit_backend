@@ -141,7 +141,8 @@ async def test_diagnosis_table_checks(db_session: AsyncSession) -> None:
         "23505",
         "uq_diagnosis_company_id_round_no",
     )
-    other_round = await insert_round(db, other.id, round_no=1)  # 다른 회사는 같은 번호를 쓴다
+    # 다른 회사는 같은 번호를 쓴다
+    other_round = await insert_round(db, other.id, round_no=1)
     linked = await insert_round(
         db, company.id, round_no=2, mode="link", respondent={"name": "응답자 가"}
     )
@@ -294,7 +295,11 @@ async def test_diagnosis_round_numbers(db_session: AsyncSession) -> None:
     assert again.round_no == 4  # 마지막 번호를 지우면 다음 회차가 그 번호를 다시 받는다
     link = await make_link(db, company.id)
     submitted = await submit_via_service(db, link.token)
-    assert (submitted.round_no, submitted.mode, submitted.status) == (5, "link", "review")
+    assert (submitted.round_no, submitted.mode, submitted.status) == (
+        5,
+        "link",
+        "review",
+    )
     other = await make_company(db, name="B사")
     assert (await make_round(db, other.id)).round_no == 1  # 회사마다 따로
     numbers = [r.round_no for r in await crud_diagnosis.list_rounds(db, company.id)]
@@ -493,7 +498,8 @@ async def test_diagnosis_report_delta_is_live(db_session: AsyncSession) -> None:
     db = db_session
     company = await make_company(db)
     r1 = await make_round(db, company.id, answers=ANSWERS_ALL_1, status="final")
-    r2 = await make_round(db, company.id, answers=ANSWERS_ALL_5)  # draft — 비교 대상이 아니다
+    # draft — 비교 대상이 아니다
+    r2 = await make_round(db, company.id, answers=ANSWERS_ALL_5)
     link = await make_link(db, company.id)
     r3 = await submit_via_service(db, link.token, answers=ANSWERS_MIXED)
     r4 = await make_round(
@@ -506,7 +512,8 @@ async def test_diagnosis_report_delta_is_live(db_session: AsyncSession) -> None:
     assert (report.previous.total, report.previous.delta_total) == (450, 350)
     assert report.previous.delta_areas == [80, 100, 90, 80]
     early = await reports.report_of(db, diagnosis_id=r3.id)
-    assert early.previous is not None and early.previous.round_no == 1  # r2 draft 건너뜀
+    # r2 draft 건너뜀
+    assert early.previous is not None and early.previous.round_no == 1
     # 비교 대상(review)을 고치면 다음 읽기의 증감이 바뀐다 — 스냅샷이 없다
     await rounds.patch_round(
         db, diagnosis_id=r3.id, fields={"answers": ANSWERS_ALL_5}, actor=ACTOR
@@ -730,9 +737,9 @@ def test_diagnosis_lock_call_sites() -> None:
                 continue
             module = node.module or ""
             if module == "classfit.crud":
-                assert all(
-                    (a.asname or "").startswith("crud_") for a in node.names
-                ), relpath
+                assert all((a.asname or "").startswith("crud_") for a in node.names), (
+                    relpath
+                )
             elif module.startswith("classfit.crud."):
                 loaded = importlib.import_module(module)
                 for alias in node.names:
@@ -767,7 +774,9 @@ def test_diagnosis_lock_call_sites() -> None:
     assert hold < _first(load, "load_diagnosis", "starts.load")
     assert hold < _first(load, "load_clone", "starts.load")
     assert hold < _first(load, "load_curriculum", "starts.load")
-    assert not any(c.name == "hold_company" for c in _calls(_tree("service/courses/open.py")))
+    assert not any(
+        c.name == "hold_company" for c in _calls(_tree("service/courses/open.py"))
+    )
     source = _calls(_function("service/courses/start_diagnosis.py", "load_diagnosis"))
     hold = _first(source, "hold_company", "load_diagnosis")
     assert any(
@@ -776,12 +785,16 @@ def test_diagnosis_lock_call_sites() -> None:
     ), "load_diagnosis: hold_company 뒤 get_diagnosis(fresh=True) 가 없다"
     inserts = [
         c
-        for c in _calls(_function("service/courses/start_diagnosis.py", "apply_diagnosis"))
+        for c in _calls(
+            _function("service/courses/start_diagnosis.py", "apply_diagnosis")
+        )
         if c.name == "insert_session"
     ]
     assert inserts
     for c in inserts:
-        assert not {"instructor_id", "pool_course_id", "curriculum_id"} & set(c.keywords)
+        assert not {"instructor_id", "pool_course_id", "curriculum_id"} & set(
+            c.keywords
+        )
     # ⑥ crud/company.py 의 행 잠금은 lock_company(FOR UPDATE)·hold_company(FOR KEY SHARE)·lock_linked_courses(강의 id
     #    오름차순 FOR UPDATE) 세 자리뿐
     tree = _tree("crud/company.py")
@@ -811,7 +824,9 @@ def test_diagnosis_lock_call_sites() -> None:
         for node in ast.walk(_tree("service/rules/reco.py"))
         if isinstance(node, ast.ImportFrom)
     ]
-    assert not [m for m in reco_imports if m.startswith(("classfit.crud", "classfit.models"))]
+    assert not [
+        m for m in reco_imports if m.startswith(("classfit.crud", "classfit.models"))
+    ]
     build = _function("service/rules/reco.py", "build_reco")
     assert "candidates" in [a.arg for a in build.args.kwonlyargs]
     readers = [

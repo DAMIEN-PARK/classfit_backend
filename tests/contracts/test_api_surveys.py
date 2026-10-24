@@ -758,7 +758,8 @@ async def test_survey_admin_validation_422(
             {"open": last, "close": {"mode": "open_plus_7"}},
             (["body", "close"], "close_out_of_range"),
         ),
-        ({"open": last}, (["body", "close"], "close_out_of_range")),  # end_plus_14 → 열림 + 7
+        # end_plus_14 → 열림 + 7
+        ({"open": last}, (["body", "close"], "close_out_of_range")),
     ):
         problem = problem_of(await _deploy(client, admin, [cid], tid, **modes), 422)
         assert [(v["loc"], v["type"]) for v in problem["violations"]] == [expected], (

@@ -134,7 +134,9 @@ async def first_page[T](
     return rows[:limit], len(rows) > limit
 
 
-async def apply_changes(session: AsyncSession, row: Any, fields: dict[str, Any]) -> list[str]:
+async def apply_changes(
+    session: AsyncSession, row: Any, fields: dict[str, Any]
+) -> list[str]:
     """준 칸 중 현재 값과 다른 칸만 쓰고 flush 뒤 다시 읽는다. 바뀐 칸 이름(정렬)을 돌려준다(T2a 꼴).
 
     풀 과정·커리큘럼·심화가 같이 쓴다. 바뀐 칸이 없으면 아무것도 쓰지 않는다(같은 값 PATCH 는 audit 없음).
