@@ -3,6 +3,7 @@
 kind → 상태 (app 에서 매핑):
   not_found 404 · forbidden 403(남의 회사 자원도 404 대신 403) · conflict 409(상태 충돌)
   gone 410(파기됨) · not_configured 501(미구성) · unavailable 503(지금 확인 불가)
+  too-many-requests 429(하이픈 — 기존 로그인 잠김 429 의 slug 와 통일, T9b 결정 xxiv)
 """
 
 from __future__ import annotations
@@ -41,3 +42,7 @@ class NotConfigured(DomainError):
 
 class Unavailable(DomainError):
     kind = "unavailable"
+
+
+class TooManyRequests(DomainError):
+    kind = "too-many-requests"

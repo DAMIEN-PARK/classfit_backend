@@ -7,16 +7,21 @@
   (응답을 받지 않은 것으로 — 기획안 :832). submitted_at 은 이력으로 남는다.
 - 비교 대상 previous_complete 는 앞 회차 가운데 review ∨ final 이고 17지표를 전부 답한 가장 최근 회차다(기획안 :834).
   읽을 때마다 고른다(스냅샷 없음 — 결정 v).
+- 회차 목록 list_stmt(T9b 결정 xxvii)의 첫 WHERE 는 company_scope 이고 상태로 거른다. 관리자 홈의 진단 검토 대기 셈이 이
+  문장을 그대로 센다(crud.home_admin). 한 쪽의 회사 이름·링크 제출 시각은 list_heads 한 문장이다 — 그 사이 지워진 회차는
+  사전에 없다(부르는 쪽이 건너뛴다).
 """
 
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Collection
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import Select, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from classfit.crud.scope import Subject, company_scope
 from classfit.models import Company, DiagLink, Diagnosis
 from classfit.models.diagnosis import ANSWER_KEYS
 
@@ -100,6 +105,32 @@ async def list_rounds(session: AsyncSession, company_id: int) -> list[Diagnosis]
         .order_by(Diagnosis.round_no)
     )
     return list((await session.scalars(stmt)).all())
+
+
+def list_stmt(subject: Subject, status: str) -> Select[tuple[Diagnosis]]:
+    """회차 목록(crud.page.keyset_page 에 넘긴다). 첫 WHERE 는 주체 범위(company_scope)다."""
+    return (
+        select(Diagnosis)
+        .join(Company, Company.id == Diagnosis.company_id)
+        .where(company_scope(subject), Diagnosis.status == status)
+    )
+
+
+async def list_heads(
+    session: AsyncSession, diagnosis_ids: Collection[int]
+) -> dict[int, tuple[str, dt.datetime | None]]:
+    """회차 id → (회사 이름, 그 회차를 만든 링크의 제출 시각 — 방문 회차는 None). 한 문장."""
+    wanted = list(diagnosis_ids)
+    if not wanted:
+        return {}
+    stmt = (
+        select(Diagnosis.id, Company.name, DiagLink.submitted_at)
+        .join(Company, Company.id == Diagnosis.company_id)
+        .outerjoin(DiagLink, DiagLink.diagnosis_id == Diagnosis.id)
+        .where(Diagnosis.id.in_(wanted))
+    )
+    rows = (await session.execute(stmt)).all()
+    return {diagnosis_id: (name, at) for diagnosis_id, name, at in rows}
 
 
 async def previous_complete(

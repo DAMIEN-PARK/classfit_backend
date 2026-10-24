@@ -14,6 +14,7 @@ from classfit.models.course import Course, CourseDay, CourseSession, Section
 from classfit.models.curriculum import Curriculum, CurriculumFile, CurriculumSlot
 from classfit.models.diagnosis import Company, DiagLink, Diagnosis
 from classfit.models.document import DocumentType, InstructorDocument
+from classfit.models.inquiry import Inquiry
 from classfit.models.instructor import Instructor, InstructorTag
 from classfit.models.invite_code import InviteCode
 from classfit.models.learner import Enrollment, Learner
@@ -46,6 +47,7 @@ __all__ = [
     "DocumentType",
     "EmailVerification",
     "Enrollment",
+    "Inquiry",
     "Instructor",
     "InstructorDocument",
     "InstructorTag",

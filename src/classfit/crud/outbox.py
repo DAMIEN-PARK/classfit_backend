@@ -20,11 +20,15 @@ async def enqueue(
     return row
 
 
-async def unsent(session: AsyncSession) -> list[MailOutbox]:
-    """안 보낸 행, 넣은 순서대로."""
+async def unsent(
+    session: AsyncSession, *, limit: int | None = None
+) -> list[MailOutbox]:
+    """안 보낸 행, 넣은 순서대로. limit 이 있으면 앞 limit 행만(안 보낸 행 전부를 메모리에 올리지 않게, T9b 결정 xxiv)."""
     stmt = (
         select(MailOutbox).where(MailOutbox.sent_at.is_(None)).order_by(MailOutbox.id)
     )
+    if limit is not None:
+        stmt = stmt.limit(limit)
     return list((await session.scalars(stmt)).all())
 
 

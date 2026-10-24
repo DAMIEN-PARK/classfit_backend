@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import re
 from functools import cache
 from pathlib import Path
 from typing import Any, Literal
@@ -17,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_PREFIX = "CLASSFIT_"
 DRIVER_PREFIX = "postgresql+psycopg://"
+EMAIL_LIKE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 class Settings(BaseSettings):
@@ -43,6 +45,7 @@ class Settings(BaseSettings):
     file_store_root: Path | None = (
         None  # 예 var.nosync/files (gitignore). 저장소 밖이면 iCloud 폴더 밖에
     )
+    inquiry_notify_to: str | None = None  # 문의 알림 수신 주소. 없으면 문의 접수만 501
     # ── 예약 칸 (서명 URL 은 프론트 확정 때, ADR-003 결정 3). missing() 목록 밖
     file_signing_key: SecretStr | None = None
 
@@ -70,11 +73,16 @@ class Settings(BaseSettings):
     # 만족도(T8 결정 xxi). Design 1절 값이 기본값이라 missing() 대상이 아니다
     survey_min_responses: int = 5  # 강사 결과(I7)를 보이는 최소 응답 수(마감 뒤)
     survey_close_days: int = 14  # 배포 기본 닫힘일 = 강의 종료일 + 이 일수
+    # 교육 문의(T9b 결정 xxiii·xxiv). 기본값이 있어 missing() 대상이 아니다. 본문 상한은 파싱 전 바이트(넘으면 413)
+    inquiry_body_max_bytes: int = 65536
+    inquiry_daily_max: int = 20  # 같은 이메일의 24시간 접수 상한(넘으면 429)
 
-    @field_validator("file_store_root", "file_signing_key", mode="before")
+    @field_validator(
+        "file_store_root", "file_signing_key", "inquiry_notify_to", mode="before"
+    )
     @classmethod
     def _blank_is_unset(cls, v: Any) -> Any:
-        # .env.example 을 그대로 복사한 빈 값이 Path("") = 현재 폴더로 조용히 바뀌지 않게
+        # .env.example 을 그대로 복사한 빈 값이 Path("") = 현재 폴더 · 빈 수신 주소로 조용히 바뀌지 않게
         if isinstance(v, str) and not v.strip():
             return None
         return v
@@ -122,11 +130,21 @@ class Settings(BaseSettings):
         "document_pdf_max_mb",
         "survey_min_responses",
         "survey_close_days",
+        "inquiry_body_max_bytes",
+        "inquiry_daily_max",
     )
     @classmethod
     def _positive(cls, v: int) -> int:
         if v < 1:
             raise ValueError("1 이상이어야 합니다")
+        return v
+
+    @field_validator("inquiry_notify_to")
+    @classmethod
+    def _email_like(cls, v: str | None) -> str | None:
+        # 값이 있으면 이메일 모양이어야 기동한다(빈 값은 _blank_is_unset 이 None 으로 — 미구성)
+        if v is not None and EMAIL_LIKE.fullmatch(v) is None:
+            raise ValueError("이메일 모양이 아닙니다")
         return v
 
     @field_validator("terms_version")
