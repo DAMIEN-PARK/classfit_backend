@@ -6,6 +6,6 @@ okf_version: "0.2"
 
 # 하위 폴더
 
-* [plans](plans/index.md) - 문서 11개
+* [plans](plans/index.md) - 문서 12개
 * [process](process/index.md) - 문서 11개
 * [requirements](requirements/index.md) - 문서 1개

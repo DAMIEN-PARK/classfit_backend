@@ -20,6 +20,7 @@ from classfit.models.outbox import MailOutbox
 from classfit.models.pool import Capability, CapabilityFile, PoolCourse, PoolCourseFile
 from classfit.models.record import Photo, SessionRecord
 from classfit.models.stored_file import StoredFile
+from classfit.models.survey import Survey, SurveyResponse, SurveyTemplate
 from classfit.models.tag import Tag
 
 __all__ = [
@@ -54,6 +55,9 @@ __all__ = [
     "SessionAttachment",
     "SessionRecord",
     "StoredFile",
+    "Survey",
+    "SurveyResponse",
+    "SurveyTemplate",
     "Tag",
     "TimestampMixin",
 ]

@@ -1,4 +1,8 @@
-"""관리자 수강생 명단 모양(관리자 전용). 이름·부서는 이 강의 등록의 값이고 이메일은 learner 의 값이다."""
+"""관리자 수강생 명단 모양(관리자 전용). 이름·부서는 이 강의 등록의 값이고 이메일은 learner 의 값이다.
+
+survey_responded 는 그 강의 현재 설문에 이 등록의 응답이 있는지(현재 설문이 없으면 null)다. 답·제출 시각과는 잇지
+않는다(T8 결정 xiv).
+"""
 
 from __future__ import annotations
 
@@ -13,3 +17,4 @@ class EnrollmentOut(BaseModel):
     dept: str | None
     email: str
     enrolled_at: dt.datetime  # enrollment.created_at(등록일)
+    survey_responded: bool | None

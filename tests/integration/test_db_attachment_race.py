@@ -48,7 +48,7 @@ GATHER_SECONDS = 15.0
 Factory = async_sessionmaker[AsyncSession]
 Work = Callable[[AsyncSession], Awaitable[Any]]
 # 마이그레이션이 넣는 시드 표는 비우지 않는다(0005 document_type, T2b test_db_concurrency.py 와 같다)
-SEED_TABLES = frozenset({"document_type"})
+SEED_TABLES = frozenset({"document_type", "survey_template"})
 
 
 @dataclass(frozen=True)

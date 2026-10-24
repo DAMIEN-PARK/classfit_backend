@@ -28,6 +28,9 @@ from classfit.app.endpoints import (
     portal,
     records,
     schedule,
+    survey_learner,
+    survey_templates,
+    surveys,
     tags,
 )
 
@@ -60,4 +63,7 @@ ROUTERS = (
     my_course_views.router,
     records.router,
     photos.router,
+    survey_templates.router,
+    surveys.router,
+    survey_learner.router,
 )

@@ -32,7 +32,7 @@ LARGEST = 2**63 - 1  # BIGINT 로 표현되는 가장 큰 id — 없으면 404
 OVERFLOW = 2**63  # BIGINT 밖 — DB 를 치기 전에 422(codex 구현 리뷰 1차)
 X_NAME = "가명 배정"
 # 포털 응답의 허용 키(결정 xiv — 교집합이 아니라 집합을 정확히 잰다)
-TOP_KEYS = {"course", "sections"}
+TOP_KEYS = {"course", "sections", "survey"}
 COURSE_KEYS = {"id", "title", "start_on", "end_on", "status", "intro", "notice"}
 SECTION_KEYS = {"id", "title", "description", "sessions"}
 CARD_KEYS = {

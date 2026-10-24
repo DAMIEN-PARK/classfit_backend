@@ -478,7 +478,7 @@ async def committing(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
                 names = ", ".join(
                     quote(t)
                     for t in Base.metadata.sorted_tables
-                    if t.name != "document_type"
+                    if t.name not in ("document_type", "survey_template")
                 )
                 await conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
         finally:

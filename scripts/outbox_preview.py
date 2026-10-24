@@ -8,6 +8,8 @@
 - `session_assigned`(T5)는 params {instructor_id, audit_id} 로 강사 이름과 그 audit(session.assign, target course)의
   detail 스냅샷(강의 제목·세션 제목)을 읽는다 — 강의가 그 뒤 지워져도 본문은 같다. audit 이 배정 기록이 아니거나
   detail 의 강사가 params 와 다르면 3 이다.
+- `survey_opened`·`survey_closed`(T8)는 params 스냅샷({survey_id, course_title, open_on, close_on} · {survey_id,
+  course_title, closed_on})만으로 본문을 만들고 DB 를 읽지 않는다 — 강의·설문이 지워져도 본문은 같다. 칸이 빠지면 3 이다.
 - 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 코드 자리는 `******` 로 가리고 "무효 코드(미리 보기)" 라고 찍는다.
   실제 숫자는 `--apply` 때만 stdout 에 나온다.
 - `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다.
@@ -22,6 +24,7 @@ import asyncio
 import json
 import sys
 from collections.abc import Awaitable, Callable
+from datetime import date
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -92,12 +95,37 @@ async def _session_assigned(
     )
 
 
+def _day(value: Any) -> str:
+    d = date.fromisoformat(str(value))
+    return f"{d.month}월 {d.day}일"
+
+
+async def _survey_opened(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
+    return (
+        f"「{params['course_title']}」 강의의 만족도 조사가 {_day(params['open_on'])}에 열립니다.\n"
+        f"{_day(params['close_on'])}까지 응답할 수 있습니다. 답변은 이름과 연결되지 않습니다."
+    )
+
+
+async def _survey_closed(
+    session: AsyncSession, params: dict[str, Any], reveal: bool
+) -> str:
+    return (
+        f"「{params['course_title']}」 강의의 만족도 조사가 {_day(params['closed_on'])}에 닫혔습니다.\n"
+        "응답 수가 최소 기준 이상이면 로그인해 결과를 볼 수 있습니다."
+    )
+
+
 # (session, params, reveal) → 본문. reveal 은 --apply 일 때만 참이다(미리 보기의 코드는 무효라 가린다)
 RENDERERS: dict[str, Callable[[AsyncSession, dict[str, Any], bool], Awaitable[str]]] = {
     "email_code": _email_code,
     "instructor_approved": _instructor_approved,
     "instructor_rejected": _instructor_rejected,
     "session_assigned": _session_assigned,
+    "survey_opened": _survey_opened,
+    "survey_closed": _survey_closed,
 }
 CODE_KINDS = frozenset({"email_code"})
 

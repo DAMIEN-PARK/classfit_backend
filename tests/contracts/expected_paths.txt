@@ -47,6 +47,15 @@
 /v1/admin/sessions/{session_id}/attachments
 /v1/admin/sessions/{session_id}/record
 /v1/admin/sessions/{session_id}/record:confirm
+/v1/admin/survey-templates
+/v1/admin/survey-templates/{template_id}
+/v1/admin/survey-templates/{template_id}:duplicate
+/v1/admin/survey-templates/{template_id}:set-default
+/v1/admin/surveys
+/v1/admin/surveys/{survey_id}
+/v1/admin/surveys/{survey_id}/results
+/v1/admin/surveys/{survey_id}:close
+/v1/admin/surveys/{survey_id}:reopen
 /v1/admin/tags
 /v1/admin/tags/{tag_id}
 /v1/auth/admin/login
@@ -59,6 +68,8 @@
 /v1/instructors
 /v1/instructors/email-codes
 /v1/learner/courses/{course_id}/portal
+/v1/learner/courses/{course_id}/survey
+/v1/learner/courses/{course_id}/survey/responses
 /v1/learner/sessions/{session_id}/attachments
 /v1/me
 /v1/me/attachments/{attachment_id}
@@ -76,6 +87,7 @@
 /v1/me/courses/{course_id}/portal
 /v1/me/courses/{course_id}/records
 /v1/me/courses/{course_id}/schedule
+/v1/me/courses/{course_id}/survey-results
 /v1/me/curricula
 /v1/me/curricula/{curriculum_id}
 /v1/me/curricula/{curriculum_id}/files

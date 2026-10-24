@@ -8,19 +8,22 @@
 - InstructorCaller 도 instructor 행을 읽지 않는다(T3 계획 결정 v). 정지(:suspend)가 그 강사의 산 세션을 전부
   폐기하므로 정지된 강사의 옛 토큰은 401 이다. 대기·반려 강사도 통과한다(승인 여부는 배정·첨부 태스크가 본다).
 - 날짜는 Today(Asia/Seoul) 한 곳에서 받는다. 시험은 app.dependency_overrides[today] 로 주입한다.
+- JSON 본문에 상한을 둘 끝점은 본문 매개변수 대신 limited_json(모델, 상한) 의존성을 인증 의존성 뒤에 둔다(T8 결정 ix).
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import date
 from typing import Annotated
 
 from fastapi import Depends, Request
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from classfit.app.errors import forbidden, unauthorized
+from classfit.app.errors import AppError, forbidden, unauthorized
 from classfit.core.clock import today_kst
 from classfit.service.auth.sessions import Principal, authenticate
 
@@ -99,3 +102,46 @@ def today() -> date:
 
 
 Today = Annotated[date, Depends(today)]
+
+
+def limited_json[M: BaseModel](
+    model: type[M], max_bytes: int
+) -> Callable[[Request], Awaitable[M]]:
+    """JSON 본문을 max_bytes 까지만 읽어 model 로 검증하는 함수(의존성)를 만든다(T8 결정 ix · T9b 재사용).
+
+    FastAPI 가 핸들러 전에 읽는 JSON 본문에 상한을 두는 유일한 자리다(fastapi/routing.py:455-471·511 — 본문 매개변수를
+    선언하면 통째로 읽는다). 폼은 request.form(max_files…)(T2b), JSON 은 이것이다.
+    ① Content-Length 가 상한을 넘으면 읽기 전에 413 ② 스트림을 읽으며 누적 + 이번 청크 길이를 버퍼에 복사하기 전에 잰다 —
+    넘으면 그 청크를 버리고 413(ASGI 청크는 통째로 오므로 "상한 + 1 바이트만 읽기" 가 아니다) ③ model_validate_json 이
+    JSON 파싱과 검증을 한 번에 한다(깊은 중첩도 json_invalid 422 — json.loads 의 RecursionError 500 이 없다) ④ 검증
+    실패는 loc 앞에 "body" 를 붙인 422 violations. 413 type 은 /problems/content-too-large 다.
+    끝점은 Depends(limited_json(…)) 를 인증 의존성 뒤에 선언하고(401·403 이 먼저) openapi_extra 의 requestBody
+    (required · model.model_json_schema())로 스키마를 남긴다. 설정 상한은 요청 때 await limited_json(M, n)(request) 로
+    부른다. 안에서 Depends 를 쓰지 않는 순수 함수다.
+    """
+
+    async def _read(request: Request) -> M:
+        declared = request.headers.get("content-length", "").strip()
+        # isdigit 은 '²' 같은 비 ASCII 숫자도 참이라 int() 가 ValueError 다 — ASCII 숫자만 믿고 나머지는 스트림 가드에 맡긴다
+        if declared.isascii() and declared.isdigit() and int(declared) > max_bytes:
+            raise _too_large(max_bytes)
+        buf = bytearray()
+        async for chunk in request.stream():
+            if len(buf) + len(chunk) > max_bytes:
+                raise _too_large(max_bytes)
+            buf += chunk
+        try:
+            return model.model_validate_json(bytes(buf))
+        except ValidationError as exc:
+            raise RequestValidationError(
+                [
+                    {"loc": ("body", *e["loc"]), "msg": e["msg"], "type": e["type"]}
+                    for e in exc.errors()
+                ]
+            ) from None
+
+    return _read
+
+
+def _too_large(max_bytes: int) -> AppError:
+    return AppError(413, f"본문이 너무 큽니다({max_bytes}바이트까지)")

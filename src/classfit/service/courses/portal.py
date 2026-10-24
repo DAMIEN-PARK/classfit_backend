@@ -6,6 +6,8 @@
 - 관리자 포털은 같은 판정의 미리 보기다. 응답의 href 는 끝점이 단다(schemas 는 service 를 모르고, courses 는 files 를 모른다).
 - 종료·보관 강의도 판정은 같다(L1 "종료된 강의도 열람은 된다"). 보관(archived_at)은 쓰지 않는다.
 - 카드마다 담당 강사 이름(instructor_name, T5 결정 xiv). 잠긴 카드에도 있고, 미배정이면 None 이다. 강사 id 는 싣지 않는다.
+- 그 강의의 현재 설문 머리(T8 결정 xv — crud.survey 로 읽는다, surveys 구성요소는 모른다). 주체를 읽지 않는다 — 응답 여부는
+  수강생 설문 조회가 준다. 그래서 미리 보기(LearnerView(id=0))와 수강생 포털이 같은 값이다.
 """
 
 from __future__ import annotations
@@ -21,8 +23,9 @@ from classfit.crud import attachment as crud_attachment
 from classfit.crud import course as crud_course
 from classfit.crud import instructor as crud_instructor
 from classfit.crud import schedule as crud_schedule
+from classfit.crud import survey as crud_survey
 from classfit.crud.scope import Subject
-from classfit.models import Course, CourseSession, Section
+from classfit.models import Course, CourseSession, Section, Survey
 from classfit.service.courses.days import schedule_of
 from classfit.service.rules.portal import CardState, card_state
 
@@ -51,6 +54,7 @@ class PortalSection:
 class Portal:
     course: Course
     sections: list[PortalSection]
+    survey: Survey | None = None  # 현재 설문(T8) — 없으면 None
 
 
 def _card_key(card: PortalCard) -> tuple[bool, dt.date, bool, str, int, int]:
@@ -109,7 +113,8 @@ async def build_portal(
         PortalSection(row=sec, cards=sorted(cards[sec.id], key=_card_key))
         for sec in await crud_schedule.list_sections(session, course_id)
     ]
-    return Portal(course=course, sections=sections)
+    survey = await crud_survey.current_for_course(session, course_id)
+    return Portal(course=course, sections=sections, survey=survey)
 
 
 async def session_attachments(
