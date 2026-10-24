@@ -1,13 +1,14 @@
 process.env.TZ = 'Asia/Seoul'; // 시안 scMakeDays 는 new Date('YYYY-MM-DD')(UTC 자정)를 현지 getDay 로 읽는다. 기계 시간대와 무관하게 고정한다
-// golden 추출(Design 5절 17). 시안/관리자.html 에서 상수 줄과 일정 함수 10개 줄만 이름으로 찾아 node:vm 에서 돌린다.
-// 입력은 아래 합성 사례뿐이라 사람·회사 이름이 없다. 출력은 사례 id·숫자·날짜(ISO)·시각이다.
+// golden 추출(Design 5절 17). 시안/관리자.html 에서 상수 줄 · 진단 문항 AREAS 블록 · 함수 11개(일정 10 + 진단 calc) 줄만
+// 이름으로 찾아 node:vm 에서 돌린다. 입력은 아래 합성 사례뿐이라 사람·회사 이름이 없다. 출력은 사례 id·숫자·날짜(ISO)·시각이다.
+// 진단 문항 글자는 vm 안에만 있고 출력에는 숫자만 남는다(T9a 결정 xv).
 // 키 정렬 · 2칸 들여쓰기 · 끝 줄바꿈 JSON 을 stdout 으로 낸다. 대조는 scripts/golden/check.sh 한 곳이다.
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const ROOT = new URL('../../', import.meta.url);
 const SOURCE = new URL('시안/관리자.html', ROOT);
-const NAMES = ['scHm', 'scM2', 'scDay', 'scLunch', 'scSkip', 'scTime', 'scBySlot', 'scMakeDays', 'scSlotTimes', 'scSlots'];
+const NAMES = ['scHm', 'scM2', 'scDay', 'scLunch', 'scSkip', 'scTime', 'scBySlot', 'scMakeDays', 'scSlotTimes', 'scSlots', 'calc'];
 
 function pickLines(html) {
   const lines = html.split('\n');
@@ -16,12 +17,24 @@ function pickLines(html) {
     if (hit.length !== 1) throw new Error(`시안에서 "${prefix}" 줄이 ${hit.length}개다(1개여야 한다)`);
     return hit[0];
   };
-  return [one('const SC_SLOT='), ...NAMES.map((n) => one(`function ${n}(`))].join('\n');
+  // prefix 로 시작하는 유일한 줄부터 처음 나오는 end 줄까지(여러 줄 상수). 없거나 둘이면 멈춘다
+  const block = (prefix, end) => {
+    const starts = lines.flatMap((l, i) => (l.startsWith(prefix) ? [i] : []));
+    if (starts.length !== 1) throw new Error(`시안에서 "${prefix}" 줄이 ${starts.length}개다(1개여야 한다)`);
+    const stop = lines.findIndex((l, i) => i > starts[0] && l === end);
+    if (stop < 0) throw new Error(`시안에서 "${prefix}" 뒤 "${end}" 줄이 없다`);
+    return lines.slice(starts[0], stop + 1);
+  };
+  // calc 는 AREAS.map 을 읽으므로 블록이 함수보다 앞에 온다
+  return [one('const SC_SLOT='), ...block('const AREAS=[', '];'), ...NAMES.map((n) => one(`function ${n}(`))].join('\n');
 }
 
 const ctx = vm.createContext({});
 vm.runInContext(pickLines(readFileSync(SOURCE, 'utf8')), ctx, { filename: '시안/관리자.html' });
-const { scMakeDays, scTime, scSlotTimes, scSlots } = vm.runInContext('({ scMakeDays, scTime, scSlotTimes, scSlots })', ctx);
+const { scMakeDays, scTime, scSlotTimes, scSlots, calc, AREAS } = vm.runInContext(
+  '({ scMakeDays, scTime, scSlotTimes, scSlots, calc, AREAS })',
+  ctx,
+);
 
 // ── make_days 사례: 시작 요일(월·금·토·일) · n(0·1·4·5·10) · 월말·연말 넘김 · 60일 가드
 const MAKE_DAYS = [
@@ -118,6 +131,28 @@ function slotCountCase([id, [start, end, lunch_start = null, lunch_end = null], 
   };
 }
 
+// ── score 사례(T9a 결정 xv): 진단 산식 calc. lv 는 "영역-지표" → 1..5, 없는 키는 미응답
+const KEYS = AREAS.flatMap((a, ai) => a.items.map((_, ii) => `${ai}-${ii}`));
+const byArea = (levels) => Object.fromEntries(KEYS.map((k) => [k, levels[Number(k.split('-')[0])]]));
+const SCORE = [
+  ['dg-all-1', Object.fromEntries(KEYS.map((k) => [k, 1]))], // 160 → L2(DEC-003 — L1 이 나오지 않는다)
+  ['dg-all-5', Object.fromEntries(KEYS.map((k) => [k, 5]))],
+  ['dg-boundary-320-l3', byArea([3, 1, 2, 2])], // 120·40·80·80 = 320 → L3
+  ['dg-boundary-480-l4', byArea([2, 3, 3, 4])], // 80·120·120·160 = 480 → L4
+  ['dg-mixed-450-l3', Object.fromEntries(KEYS.map((k, i) => [k, (i % 5) + 1]))],
+  ['dg-partial-9', Object.fromEntries(KEYS.slice(0, 9).map((k, i) => [k, (i % 5) + 1]))],
+  ['dg-none', {}],
+];
+
+function scoreCase([id, lv]) {
+  const out = calc({ lv, ev: {}, field: {}, mat: {} });
+  return {
+    id,
+    in: { lv },
+    out: { areas: out.areas.map((a) => ({ pts: a.pts, done: a.done, n: a.n })), total: out.total, answered: out.answered, level: out.level },
+  };
+}
+
 function sortKeys(v) {
   if (Array.isArray(v)) return v.map(sortKeys);
   if (v && typeof v === 'object') {
@@ -130,5 +165,6 @@ const golden = {
   make_days: MAKE_DAYS.map(makeDaysCase),
   session_time: SESSION_TIME.map(sessionTimeCase),
   slot_count: SLOT_COUNT.map(slotCountCase),
+  score: SCORE.map(scoreCase),
 };
 process.stdout.write(JSON.stringify(sortKeys(golden), null, 2) + '\n');

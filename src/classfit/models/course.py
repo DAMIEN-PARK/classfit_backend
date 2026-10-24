@@ -7,6 +7,8 @@
 - 표를 지우면 아래 표는 CASCADE 다: course → course_day · section → session.
 - 0007(T5): 원본 참조·담당 강사. 원본 삭제는 비활성이라 NO ACTION(T4) — session 의 pool_course_id · curriculum_id ·
   instructor_id(차시 하나의 현재 담당 강사), course 의 curriculum_src_id(커리큘럼 시작점의 원본).
+- 0010(T9a): 회사 연결 company_id(선택 · client_name 은 개설 시점 표시용 복제본으로 따로 남는다). 회사 삭제는 service 가
+  활성 연결 강의가 있으면 409, 보관 강의 연결은 DB 가 SET NULL 로 푼다.
 """
 
 from __future__ import annotations
@@ -68,6 +70,9 @@ class Course(BigIdMixin, TimestampMixin, Base):
     archived_at: Mapped[dt.datetime | None] = mapped_column()
     curriculum_src_id: Mapped[str | None] = mapped_column(
         Text, ForeignKey("curriculum.id")
+    )
+    company_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("company.id", ondelete="SET NULL"), index=True
     )
 
 

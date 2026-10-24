@@ -88,16 +88,19 @@ def _ordered(earlier: Any, later: Any, message: str) -> None:
 
 
 class CourseOpenIn(BaseModel):
-    """개설(기획안 A3 시작점 ①②④). day_count ≥ 1 이면 기간은 일정이 정하므로 end_on 을 받지 않는다.
+    """개설(기획안 A3 시작점 ①②③④). day_count ≥ 1 이면 기간은 일정이 정하므로 end_on 을 받지 않는다.
 
-    start 와 원본 칸의 짝: blank 는 원본 없음 · clone 은 source_course_id 만 · curriculum 은 curriculum_id 만(T5 결정 iii).
-    기본 정보·일정 칸은 세 시작점 모두 본문이 정한다(서버는 원본에서 값을 채우지 않는다). 판별 유니온은 오류 loc 에
-    태그가 끼어 쓰지 않는다.
+    start 와 원본 칸의 짝: blank 는 원본 없음 · clone 은 source_course_id 만 · curriculum 은 curriculum_id 만(T5 결정 iii) ·
+    diagnosis(③ 확정 진단)는 diagnosis_id 만이고 회사는 회차에서 온다(company_id 를 같이 주면 422). ①②④ 는 company_id 를
+    선택으로 받는다(CRS-003, T9a 결정 vii). 기본 정보·일정 칸은 네 시작점 모두 본문이 정한다(서버는 원본에서 값을 채우지
+    않는다). 판별 유니온은 오류 loc 에 태그가 끼어 쓰지 않는다.
     """
 
-    start: Literal["blank", "clone", "curriculum"]
+    start: Literal["blank", "clone", "curriculum", "diagnosis"]
     source_course_id: DbId | None = None
     curriculum_id: TextId | None = None
+    diagnosis_id: DbId | None = None
+    company_id: DbId | None = None
     title: Line
     client_name: Line
     course_type: Word | None = None
@@ -117,16 +120,23 @@ class CourseOpenIn(BaseModel):
     @model_validator(mode="after")
     def _source(self) -> CourseOpenIn:
         wanted = {
-            "blank": (False, False),
-            "clone": (True, False),
-            "curriculum": (False, True),
+            "blank": (False, False, False),
+            "clone": (True, False, False),
+            "curriculum": (False, True, False),
+            "diagnosis": (False, False, True),
         }[self.start]
-        given = (self.source_course_id is not None, self.curriculum_id is not None)
+        given = (
+            self.source_course_id is not None,
+            self.curriculum_id is not None,
+            self.diagnosis_id is not None,
+        )
         if given != wanted:
             raise ValueError(
                 "start 가 blank 면 원본이 없고, clone 이면 source_course_id 만,"
-                " curriculum 이면 curriculum_id 만 줍니다"
+                " curriculum 이면 curriculum_id 만, diagnosis 면 diagnosis_id 만 줍니다"
             )
+        if self.start == "diagnosis" and self.company_id is not None:
+            raise ValueError("diagnosis 는 회사를 회차에서 가져오므로 company_id 를 주지 않습니다")
         return self
 
     @model_validator(mode="after")
