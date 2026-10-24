@@ -171,11 +171,15 @@ _DATES = {
     "open_before_today": "열림일이 오늘보다 앞입니다",
     "close_before_open": "닫힘일이 열림일보다 앞입니다",
     "close_before_today": "닫힘일이 오늘보다 앞입니다",
+    "close_out_of_range": "닫힘일이 날짜 범위(9999-12-31)를 넘습니다",
 }
 
 
-def _deploy_loc(reason: str) -> tuple[str, ...]:
-    return ("open" if reason.startswith("open") else "close", "date")
+def _deploy_loc(reason: str, body: DeployIn) -> tuple[str, ...]:
+    """까닭이 가리키는 쪽(open·close). 그 쪽이 지정일(date) 모드면 날짜 칸까지, 아니면 모드 객체(넘침 등)."""
+    side = "open" if reason.startswith("open") else "close"
+    spec = body.open if side == "open" else body.close
+    return (side, "date") if spec.mode == "date" else (side,)
 
 
 def _patch_loc(reason: str, sent: set[str]) -> tuple[str, ...]:
@@ -266,7 +270,7 @@ async def deploy_surveys(
             actor=f"admin:{caller.id}",
         )
     except DatesRejected as exc:
-        raise _dates_invalid(exc, _deploy_loc(exc.reason)) from None
+        raise _dates_invalid(exc, _deploy_loc(exc.reason, body)) from None
     return DeployOut(
         items=[survey_out(h) for h in await views.heads_of(session, rows, today=today)]
     )

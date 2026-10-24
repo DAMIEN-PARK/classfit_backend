@@ -739,16 +739,33 @@ async def test_survey_admin_validation_422(
         body = {"course_ids": [cid], "template_id": tid, **over}
         problem = problem_of(await client.post(SURVEYS, headers=admin, json=body), 422)
         assert all(v[: len(loc)] == loc for v in locs(problem)), (over, locs(problem))
-    # 강의마다 푼 날짜 판정(오늘 이상 · 열림일 이상)도 422 이고 그 강의 id 가 msg 에 있다
-    for modes in (
-        {"open": {"mode": "date", "date": "2026-11-02"}},
-        {
-            "open": {"mode": "date", "date": "2026-11-10"},
-            "close": {"mode": "date", "date": "2026-11-09"},
-        },
+    # 강의마다 푼 날짜 판정(오늘 이상 · 열림일 이상 · 날짜 범위 넘침)도 422 이고 그 강의 id 가 msg 에 있다.
+    # loc 은 그 쪽이 지정일 모드면 date 칸, 아니면 모드 객체(넘침은 500 이 아니다 — codex 1차)
+    last = {"mode": "date", "date": "9999-12-31"}
+    for modes, expected in (
+        (
+            {"open": {"mode": "date", "date": "2026-11-02"}},
+            (["body", "open", "date"], "open_before_today"),
+        ),
+        (
+            {
+                "open": {"mode": "date", "date": "2026-11-10"},
+                "close": {"mode": "date", "date": "2026-11-09"},
+            },
+            (["body", "close", "date"], "close_before_open"),
+        ),
+        (
+            {"open": last, "close": {"mode": "open_plus_7"}},
+            (["body", "close"], "close_out_of_range"),
+        ),
+        ({"open": last}, (["body", "close"], "close_out_of_range")),  # end_plus_14 → 열림 + 7
     ):
         problem = problem_of(await _deploy(client, admin, [cid], tid, **modes), 422)
-        assert any(str(cid) in v["msg"] for v in problem["violations"]), problem
+        assert [(v["loc"], v["type"]) for v in problem["violations"]] == [expected], (
+            modes,
+            problem,
+        )
+        assert str(cid) in problem["violations"][0]["msg"], problem
     problem_of(await _deploy(client, admin, [cid], LARGEST), 404, "/problems/not_found")
     problem_of(await _deploy(client, admin, [LARGEST], tid), 404, "/problems/not_found")
     assert await count(db_session, Survey) == 0
