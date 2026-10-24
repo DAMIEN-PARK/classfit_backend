@@ -6,15 +6,19 @@ golden score 는 scripts/golden/extract.mjs 가 시안 calc 를 합성 사례로
 
 import json
 import re
+import typing
 from collections.abc import Iterator
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import StringConstraints
 
 from classfit.models import diagnosis as models_diagnosis
 from classfit.models.pool import JOB_GROUPS
+from classfit.schemas import course as schemas_course
+from classfit.schemas import diagnosis as schemas_diagnosis
 from classfit.service.rules import reco
 from classfit.service.rules.diagnosis import (
     ANSWER_KEYS,
@@ -397,3 +401,20 @@ def test_diagnosis_rules_build_reco() -> None:
     assert blank[0]["courses"] == [] and blank[0]["candidates_missing"] is True
     common = _reco(ANSWERS_MIXED)["common"]["items"]
     assert common and all(0 < len(t) <= reco.RECO_LINE_MAX for t in common)
+
+
+def _max_length(alias: Any) -> int | None:
+    """Annotated 별칭의 StringConstraints.max_length."""
+    (found,) = [
+        m.max_length
+        for m in typing.get_args(alias)[1:]
+        if isinstance(m, StringConstraints)
+    ]
+    return found
+
+
+def test_diagnosis_rules_reco_limits_match_schemas() -> None:
+    # rules 는 schemas 를 부를 수 없어(test_import_rules 의 ALLOWED) 같은 수가 두 벌이다 — 여기서 맞춘다(T11 결정 xi)
+    assert reco.RECO_TEXT_MAX == schemas_diagnosis.RECO_TEXT_MAX
+    assert reco.RECO_TEXT_MAX == _max_length(schemas_diagnosis.RecoText)
+    assert reco.RECO_LINE_MAX == _max_length(schemas_course.Line)
