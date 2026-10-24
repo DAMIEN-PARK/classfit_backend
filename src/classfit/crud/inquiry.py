@@ -7,7 +7,8 @@
 - 넣기 insert_inquiry 는 service.inquiries.receive 의 receive_inquiry() 만 부른다(단일 진입). 영수증 유일 위반만 Conflict.
 - 지우기 delete_inquiries 는 scripts.inquiry_gc 만 부른다. 대상 문의 행과 그 outbox 행(kind inquiry_* · params inquiry_id)을
   id 오름차순으로 잡은 뒤 지운다 — outbox_preview --apply 가 안 보낸 행을 id 순으로 하나씩 잡으므로 같은 순서다(교착 없음).
-  mail_outbox 에 FK 가 없어 outbox 행을 남기면 매달린 참조가 된다(outbox_preview 가 3 으로 멈춘다).
+  mail_outbox 에 FK 가 없어 outbox 행을 남기면 매달린 참조가 된다(outbox_preview 가 3 으로 멈춘다). id 목록은 문장마다 배열
+  바인드 하나다 — id 마다 바인드를 만들면 PG 바인드 상한 65,535 에 걸린다(outbox 가 2N, T11 결정 viii).
 """
 
 from __future__ import annotations
@@ -16,7 +17,18 @@ from collections.abc import Collection, Mapping
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, delete, func, select, text
+from sqlalchemy import (
+    BigInteger,
+    ColumnElement,
+    Text,
+    any_,
+    bindparam,
+    delete,
+    func,
+    select,
+    text,
+)
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.crud.flush import flush_or_conflict
@@ -131,7 +143,10 @@ async def delete_inquiries(
     wanted = list(ids)
     if not wanted:
         return 0, 0
-    of_these = MailOutbox.params["inquiry_id"].astext.in_([str(i) for i in wanted])
+    # astext 는 Text 다 — 저장된 JSON 글자를 bigint 로 캐스팅하지 않고 글자 배열과 비교한다
+    of_these = MailOutbox.params["inquiry_id"].astext == any_(
+        bindparam("inquiry_ids", [str(i) for i in wanted], type_=ARRAY(Text()))
+    )
     outbox_ids = list(
         (
             await session.scalars(
@@ -149,11 +164,19 @@ async def delete_inquiries(
     if outbox_ids:
         gone = await session.execute(
             delete(MailOutbox)
-            .where(MailOutbox.id.in_(outbox_ids))
+            .where(
+                MailOutbox.id
+                == any_(bindparam("outbox_ids", outbox_ids, type_=ARRAY(BigInteger())))
+            )
             .returning(MailOutbox.id)
         )
         outbox_deleted = len(gone.scalars().all())
     deleted = await session.execute(
-        delete(Inquiry).where(Inquiry.id.in_(wanted)).returning(Inquiry.id)
+        delete(Inquiry)
+        .where(
+            Inquiry.id
+            == any_(bindparam("inquiry_ids", wanted, type_=ARRAY(BigInteger())))
+        )
+        .returning(Inquiry.id)
     )
     return outbox_deleted, len(deleted.scalars().all())

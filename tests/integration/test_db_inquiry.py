@@ -8,6 +8,7 @@ alembic check 는 CHECK 를 비교하지 않으므로 CHECK 는 여기서 잰다
 
 import json
 import re
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -357,6 +358,61 @@ async def test_inquiry_outbox_preview_renders(
         )
         assert await outbox_preview.run([], factory) == 3
         assert "전제 거절" in capsys.readouterr().err
+
+
+# C1(NEL·CSI) · bidi(RLO·LRI) · DEL · 줄·문단 구분 · BMP 밖 서식 문자(U+E0001)를 한글 사이에 둔다
+HOSTILE = "홍길\x85\x9b\u202e\u2066\x7f\u2028\u2029\U000e0001동"
+HOSTILE_ESCAPES = (
+    "\\u0085",
+    "\\u009b",
+    "\\u202e",
+    "\\u2066",
+    "\\u007f",
+    "\\u2028",
+    "\\u2029",
+    "\\udb40\\udc01",  # 서로게이트 쌍 — 1 이면 다른 글자가 된다
+)
+
+
+async def test_outbox_preview_escapes_controls(
+    db_session: AsyncSession,
+    factory: async_sessionmaker[AsyncSession],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    db = db_session
+    await _receive(db, contact_name=HOSTILE, message=f"첫 줄\n{HOSTILE}")
+    # 다른 kind · to 칸도 같은 출력 자리를 지난다(이미 저장된 행)
+    to = "learner\u202e@example.com"
+    opened = {
+        "survey_id": 1,
+        "course_title": HOSTILE,
+        "open_on": "2026-11-02",
+        "close_on": "2026-11-05",
+    }
+    db.add(MailOutbox(kind="survey_opened", params=opened, to=to))
+    await db.flush()
+
+    assert await outbox_preview.run([], factory) == 0
+    out = capsys.readouterr().out
+    # 줄을 끊는 print 의 줄바꿈 말고는 Cc·Cf·Zl·Zp·Cs 글자가 하나도 없다
+    assert out.endswith("\n")
+    line = out[:-1]
+    categories = outbox_preview.ESCAPED_CATEGORIES
+    assert [ch for ch in line if unicodedata.category(ch) in categories] == []
+    for escaped in HOSTILE_ESCAPES:
+        assert escaped in line, escaped
+    assert "홍길" in line  # 한글은 날 글자 그대로
+
+    # json.loads 하면 원문 그대로 · json.dumps 가 만든 \n 이스케이프도 그대로
+    messages = json.loads(line)["messages"]
+    by_kind = {m["kind"]: m for m in messages}
+    notify = by_kind["inquiry_notify"]["body"]
+    assert f"담당자: {HOSTILE}\n" in notify
+    assert f"문의 내용:\n첫 줄\n{HOSTILE}" in notify
+    assert HOSTILE in by_kind["survey_opened"]["body"]
+    assert by_kind["survey_opened"]["to"] == to
+    assert line.count("\\n") == sum(m["body"].count("\n") for m in messages)
+    assert "\\u000a" not in line
 
 
 def _callers(pattern: str) -> list[str]:
