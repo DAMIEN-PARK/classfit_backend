@@ -1,7 +1,7 @@
 ---
 type: Plan
 title: "Plan: ClassFit 마스터 구현 계획"
-description: 태스크 한 바퀴 규칙, 1인 레인 A 의 단계, T0a~T9b 13개 태스크의 선행·마이그레이션·착수 조건·증명 요약·상태를 담은 순서표
+description: 태스크 한 바퀴 규칙, 1인 레인 A 의 단계, T0a~T10 14개 태스크의 선행·마이그레이션·착수 조건·증명 요약·상태를 담은 순서표
 date: 2026-10-21
 tags: [plan, classfit, tasks, sdlc, phase1]
 Archives: false
@@ -57,11 +57,11 @@ r3 §5.1 "태스크 한 바퀴"다. 커밋 제목 규약은 [태스크 계획 �
 | T7 | 기록·사진 | T6 | A | 0008 | 없음. 사진 공개는 r3 §7-7 기본값(공개 표시 없음). 메모: 이미지 판정(확장자·첫 바이트·10MB)은 `service/rules/attachment.py` 를 쓴다 · 홈 미기록 칸은 T7 이 `/v1/me/home` 에 더한다 | [T7-session-records.md](../plans/T7-session-records.md) | 상태 전이표 행마다 시험 · 포털에 기록 칸 없음 | 완료. master `ef145b0 merge: T7 session-records` |
 | T8 | 만족도 | T7 | A | 0009 | 없음. 메모: [Design 부록 A](2026-10-21-phase1-backend-design.md) T8 행의 `test_concurrent_` 를 정확한 이름으로 좁힌다(T2b 가 같은 접두를 쓴다) · 강사 명단 `/v1/me/courses/{course_id}/enrollments`(`MyRosterOut`)와 관리자 명단에 응답 여부 칸 · 홈 만족도 알림은 T8 이 더한다 · T6 포털 미리 보기는 `LearnerView(id=0)` 로 `build_portal` 을 부른다 — T8 이 수강생별 칸(응답 여부 등)을 `subject.id` 로 읽게 되면 미리 보기가 id 0 으로 질의하니 함께 정한다(T6 리뷰 Nit 6) → T8: 포털 `survey` 칸은 강의 단위(현재 설문 머리)라 주체를 읽지 않고, 응답 여부는 수강생 설문 GET 의 `responded` 다(결정 xv) | [T8-survey.md](../plans/T8-survey.md) | 동시성 1(열린 설문) · 1인 1회 · I7 최소 응답 수 · I7·A5 결과에 개인 키·제출 시각 없음 | 완료. master `b869eaf merge: T8 survey` |
 | T9a | 진단·링크·개설 ③ | T8 | A | 0010 | 없음(새 의존성 없음). 결정 (i)~(xxv) · 승인자 질문 ①~⑪ 기본값 승인 = 이 가지의 approve 커밋(충족) | [T9a-diagnosis.md](../plans/T9a-diagnosis.md) | 회사당 open 1 · 제출 응답에 점수 없음 · score golden | 완료. master `59e3579 merge: T9a diagnosis` |
-| T9b | 교육 문의·관리자 홈 | T9a | A | 0011 | 없음(새 의존성 없음). 결정 (i)~(xxvii) 기본값 · 승인자 결정(415 · 기획안 대조 Q4 ⓑ · Q1~Q3 기본) 승인 = 이 가지의 approve 커밋(충족). 메모: 관리자 홈의 미기록·새 사진(요구정의서 COM-004 :147)은 T7 표로 센다 — 미기록 = 지난 일차 ∧ `session_record` 없음, 새 사진 = `photo.seen_at IS NULL`(T7 결정 xi ④) · 관리자 홈의 열린 설문(COM-004 :147)은 T8 표로 센다 — `survey.current ∧ survey_status_sql(today) = 'open'`(T8 결정 iii) · 관리자 홈의 진단 검토 대기(COM-004 :147)는 `GET /v1/admin/diagnoses?status=review` 와 같은 문장의 셈(T9b 결정 xxvii) · 진단 요약 줄과 최근 확정 회차는 홈에 싣지 않는다(T9b 결정 xiii — T9a 회사 목록 `latest_final_round` 몫) · 교육 문의는 Company 와 연결하지 않는다(Design 4절 0011 · T9a 결정 xxii) | [T9b-inquiry-home.md](../plans/T9b-inquiry-home.md) | honeypot 응답 동일 + 0행 · 1분 재제출 200 같은 영수증 · Company 0행 · 확인 메일에 내용 없음 | 진행 중. 가지 T9b-inquiry-home, 승인됨 2a012fc |
-| T10 | 1차 마감 문서 | T9b | A | 없음 | T9b 병합·push | 착수 때 작성 | spec 1절 상태 "1차 완료" · ④ 행 수(T9b 2행 포함) · E-15 `completed`·`success` | 대기 |
+| T9b | 교육 문의·관리자 홈 | T9a | A | 0011 | 없음(새 의존성 없음). 결정 (i)~(xxvii) 기본값 · 승인자 결정(415 · 기획안 대조 Q4 ⓑ · Q1~Q3 기본) 승인 = 이 가지의 approve 커밋(충족). 메모: 관리자 홈의 미기록·새 사진(요구정의서 COM-004 :147)은 T7 표로 센다 — 미기록 = 지난 일차 ∧ `session_record` 없음, 새 사진 = `photo.seen_at IS NULL`(T7 결정 xi ④) · 관리자 홈의 열린 설문(COM-004 :147)은 T8 표로 센다 — `survey.current ∧ survey_status_sql(today) = 'open'`(T8 결정 iii) · 관리자 홈의 진단 검토 대기(COM-004 :147)는 `GET /v1/admin/diagnoses?status=review` 와 같은 문장의 셈(T9b 결정 xxvii) · 진단 요약 줄과 최근 확정 회차는 홈에 싣지 않는다(T9b 결정 xiii — T9a 회사 목록 `latest_final_round` 몫) · 교육 문의는 Company 와 연결하지 않는다(Design 4절 0011 · T9a 결정 xxii) | [T9b-inquiry-home.md](../plans/T9b-inquiry-home.md) | honeypot 응답 동일 + 0행 · 1분 재제출 200 같은 영수증 · Company 0행 · 확인 메일에 내용 없음 | 완료. master `1643ebc merge: T9b inquiry-home` |
+| T10 | 1차 마감 문서 | T9b | A | 없음 | T9b 병합·push(충족 — `1643ebc` · CI success) | [T10-phase1-close.md](../plans/T10-phase1-close.md) | spec 1절 상태 "1차 완료" · ④ 행 수(T9b 3행 포함 — Q4 ⓑ) · E-15 `completed`·`success` | 완료(이 가지 — 병합하면 1차 끝) |
 
 - 규칙 ↔ 시험 이름의 대응은 [Design 부록 A](2026-10-21-phase1-backend-design.md) 에 있다. 병합된 T 의 행은 `scripts/check_docs.sh` ④ 가 잰다.
-- 1차 끝(T9b 병합 뒤)의 수용 기준은 r3 §6 E-1~E-15 다. 개수 기준(E-10·E-12·E-14)은 T9b 기준이고, 태스크마다는 그 T 가 더한 시험만 잰다. T9b 계획 증명 블록이 E-1~E-15 최종값을 돌고, 병합 뒤 기록(spec 1절 "1차 완료" · ④ 행 수 · E-15)은 T10 이 쓴다.
+- 1차 수용 기준은 r3 §6 E-1~E-15 이고 T9b 병합 뒤의 값으로 잰다. 1차 끝은 T10 병합이다. 개수 기준(E-10·E-12·E-14)은 T9b 기준이고, 태스크마다는 그 T 가 더한 시험만 잰다. T9b 계획 증명 블록이 E-1~E-15 최종값을 돌고, 병합 뒤 기록(spec 1절 "1차 완료" · ④ 행 수 · E-15)은 T10 이 쓴다.
 
 
 
