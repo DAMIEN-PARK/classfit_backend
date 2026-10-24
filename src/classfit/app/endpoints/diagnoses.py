@@ -1,5 +1,9 @@
-"""진단 회차 끝점(관리자만, AdminCaller, T9a 계획 결정 i·ii·iv·v·viii·x·xviii).
+"""진단 회차 끝점(관리자만, AdminCaller, T9a 계획 결정 i·ii·iv·v·viii·x·xviii · T9b 결정 xxvii).
 
+- GET /v1/admin/diagnoses?status=<draft|review|final>&cursor=&limit=(T9b): 그 상태의 회차를 새로 받은 것부터 키셋 쪽
+  {items, next_cursor, has_more}. status 는 필수(없으면 422 missing). 첫 WHERE 는 company_scope 이고 관리자 홈의 진단 검토
+  대기 셈은 같은 문장(status=review)을 센다(COM-004). 항목은 회사 이름 · 응답자 이름 · 링크 제출 시각 · 총점·레벨까지다(응답자
+  이메일·답·증빙 없음). 깨진 커서는 422 loc ["query", "cursor"].
 - GET /v1/admin/diagnoses/{diagnosis_id}: 회차 하나(답·증빙·현장·역량·권장 구성 — 작성 화면).
 - PATCH …: 답·증빙·현장·역량·구분·진단일(하나 이상 · 칸마다 통째 교체). draft·review 만이다(final 은 409 — 새 회차로).
   링크 회차의 진단일(= 제출일)을 다른 값으로 바꾸면 422 violations[{loc: ["body", "diagnosed_on"], type: "frozen_field"}]
@@ -16,18 +20,29 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Query, Response
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.app.deps import AdminCaller, DbSession
 from classfit.app.endpoints.assign import IdPath
 from classfit.app.errors import AppError
+from classfit.core.cursor import decode_cursor
 from classfit.core.errors import NotFound
 from classfit.crud import diagnosis as crud_diagnosis
 from classfit.models import Diagnosis
-from classfit.schemas.diagnosis import DiagnosisOut, DiagnosisPatchIn, RecoIn, ReportOut
-from classfit.service.diagnosis import reports, rounds
+from classfit.schemas.diagnosis import (
+    DiagnosisListItemOut,
+    DiagnosisOut,
+    DiagnosisPatchIn,
+    DiagStatus,
+    RecoIn,
+    ReportOut,
+)
+from classfit.schemas.page import Page
+from classfit.service.diagnosis import reports, round_list, rounds
 
 router = APIRouter(prefix="/v1/admin", tags=["diagnoses"])
 
@@ -50,6 +65,40 @@ async def diagnosis_or_404(session: AsyncSession, diagnosis_id: int) -> Diagnosi
 def report_out(rep: reports.Report) -> ReportOut:
     """service 가 계산한 리포트(영역·지표 점수 · level · 비교 대상과 증감 · reco) → 응답 모양."""
     return ReportOut.model_validate(rep, from_attributes=True)
+
+
+@router.get("/diagnoses", response_model=Page[DiagnosisListItemOut])
+async def list_diagnoses(
+    session: DbSession,
+    caller: AdminCaller,
+    status: DiagStatus,
+    cursor: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> Page[DiagnosisListItemOut]:
+    # 깨진 커서만 422 로 — 목록 읽기의 다른 ValueError 는 500 그대로(T9a 회사 목록 꼴)
+    try:
+        if cursor is not None:
+            decode_cursor(cursor)
+    except ValueError:
+        raise RequestValidationError(
+            [
+                {
+                    "loc": ("query", "cursor"),
+                    "msg": "깨진 커서입니다",
+                    "type": "value_error",
+                }
+            ]
+        ) from None
+    items, next_cursor, has_more = await round_list.round_list(
+        session, caller, status=status, cursor=cursor, limit=limit
+    )
+    return Page[DiagnosisListItemOut](
+        items=[
+            DiagnosisListItemOut.model_validate(i, from_attributes=True) for i in items
+        ],
+        next_cursor=next_cursor,
+        has_more=has_more,
+    )
 
 
 @router.get("/diagnoses/{diagnosis_id}", response_model=DiagnosisOut, responses=_ONE)

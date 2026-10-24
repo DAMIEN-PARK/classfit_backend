@@ -55,7 +55,7 @@ URL: ""
 ## 후속
 
 - r3 §7-1 의 답을 받으면 이 ADR 과 카탈로그 끝점을 다시 본다(r3 부록 G).
-- 2차: 요청 제한·캡차 뒤 공개 폼 발송, 관리자 문의 목록.
+- 2차: 요청 제한·캡차 뒤 공개 폼 발송, 관리자 문의 목록. T9b: 접수 끝점 `POST /v1/inquiries`(honeypot · 1분 재제출 · 본문 64KiB · JSON 이 아닌 Content-Type 415 · 이메일당 하루 20건 · outbox 2행) + 관리 명령 `inquiry_gc`. 공개홈 폼에 honeypot 칸 `website` 를 더할 때 화면의 숨은 입력은 `autocomplete="off"` · `tabindex="-1"` · `aria-hidden="true"` 로 둔다(브라우저·비밀번호 관리자의 자동 채움이 정상 문의를 honeypot 으로 버리지 않게 — T9b 리뷰 Nit 3). 관리자 문의 목록·주소 기준 요청 제한·캡차는 그대로 2차 — 그 전에는 끝점을 공개 인터넷에 노출하지 않는다.
 - T4: `published_catalog()` 의 공개 ∧ 활성·강사 이름 없음 시험(Design 부록 A `test_no_personal_keys_catalog`).
 
 

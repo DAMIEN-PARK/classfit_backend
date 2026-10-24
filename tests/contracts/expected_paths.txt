@@ -32,11 +32,13 @@
 /v1/admin/courses/{course_id}:set-status
 /v1/admin/curricula
 /v1/admin/curricula/{curriculum_id}
+/v1/admin/diagnoses
 /v1/admin/diagnoses/{diagnosis_id}
 /v1/admin/diagnoses/{diagnosis_id}/pdf
 /v1/admin/diagnoses/{diagnosis_id}/reco
 /v1/admin/diagnoses/{diagnosis_id}/report
 /v1/admin/diagnoses/{diagnosis_id}:finalize
+/v1/admin/home
 /v1/admin/instructors
 /v1/admin/instructors/{instructor_id}
 /v1/admin/instructors/{instructor_id}/documents/{type_id}
@@ -76,6 +78,7 @@
 /v1/enter/lookup
 /v1/files/{key}
 /v1/health
+/v1/inquiries
 /v1/instructors
 /v1/instructors/email-codes
 /v1/learner/courses/{course_id}/portal

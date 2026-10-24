@@ -29,6 +29,8 @@ from classfit.service.auth.sessions import Principal, authenticate
 
 # token_urlsafe 글자만, 길이 상한. 모양이 틀리면 DB 를 보지 않고 401
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{1,256}")
+# limited_json 이 받는 미디어 타입(매개변수 앞 · 소문자): application/json · application/<x>+json
+_JSON_MEDIA = re.compile(r"application/(?:json|[^/\s]+\+json)")
 
 
 async def db(request: Request) -> AsyncIterator[AsyncSession]:
@@ -114,13 +116,20 @@ def limited_json[M: BaseModel](
     ① Content-Length 가 상한을 넘으면 읽기 전에 413 ② 스트림을 읽으며 누적 + 이번 청크 길이를 버퍼에 복사하기 전에 잰다 —
     넘으면 그 청크를 버리고 413(ASGI 청크는 통째로 오므로 "상한 + 1 바이트만 읽기" 가 아니다) ③ model_validate_json 이
     JSON 파싱과 검증을 한 번에 한다(깊은 중첩도 json_invalid 422 — json.loads 의 RecursionError 500 이 없다) ④ 검증
-    실패는 loc 앞에 "body" 를 붙인 422 violations. 413 type 은 /problems/content-too-large 다.
+    실패는 loc 앞에 "body" 를 붙인 422 violations. 413 type 은 /problems/content-too-large 다. ⑤ 본문을 읽기 전에
+    Content-Type 이 JSON(application/json · application/<x>+json — 매개변수 charset 등은 보지 않고 대소문자 무시)이
+    아니면 415 /problems/unsupported-media-type 다(헤더 없음 포함 — T9b 결정 xxiii ⑤). 순서는 ⑤ → ① → ② → ③·④ 다.
     끝점은 Depends(limited_json(…)) 를 인증 의존성 뒤에 선언하고(401·403 이 먼저) openapi_extra 의 requestBody
     (required · model.model_json_schema())로 스키마를 남긴다. 설정 상한은 요청 때 await limited_json(M, n)(request) 로
     부른다. 안에서 Depends 를 쓰지 않는 순수 함수다.
     """
 
     async def _read(request: Request) -> M:
+        media = (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+        )
+        if not _JSON_MEDIA.fullmatch(media):
+            raise AppError(415, "JSON 본문만 받습니다(Content-Type: application/json)")
         declared = request.headers.get("content-length", "").strip()
         # isdigit 은 '²' 같은 비 ASCII 숫자도 참이라 int() 가 ValueError 다 — ASCII 숫자만 믿고 나머지는 스트림 가드에 맡긴다
         if declared.isascii() and declared.isdigit() and int(declared) > max_bytes:
