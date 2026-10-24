@@ -1,5 +1,6 @@
 """T8 동시성 행동 시험 열(T8 결정 xix): 제출 둘 · 닫기와 제출 · 첫 응답과 문항 수정 · 배포 둘 · 다시 열기와 배포 · 옛 양식
-삭제와 다른 양식 재배포 · 기본 지정과 삭제 · 결과 한 스냅샷 · 양식 삭제와 배포 · 기본 지정 둘. 라이브 PG, 커밋한다.
+삭제와 다른 양식 재배포 · 기본 지정과 삭제 · 결과 한 스냅샷 · 양식 삭제와 배포 · 기본 지정 둘 + 관리자 목록이 두 문장 사이에
+지워진 강의의 설문을 건너뜀(codex 1차 #1 — 커밋하는 엔진이 필요해 여기 둔다). 라이브 PG, 커밋한다.
 이름 접두는 test_survey_race_(E-11 의 test_concurrent_ 와 다르다 — E-11 몫 하나는 tests/integration/test_db_concurrency.py).
 
 도우미는 T5 tests/integration/test_db_assign_race.py 의 :77-206(WAIT_SECONDS … _race)과 :271-286(_ok · _count · _seed)을
@@ -24,21 +25,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pytest
 import pytest_asyncio
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
 from classfit.core.config import Settings
+from classfit.core.cursor import encode_cursor
 from classfit.core.errors import Conflict, NotFound
 from classfit.crud import enrollment as crud_enrollment
+from classfit.crud import survey as crud_survey
 from classfit.crud import survey_template as crud_survey_template
 from classfit.crud.learner import get_or_create_learner
 from classfit.database.session import make_engine, make_session_factory
 from classfit.models import Base, Survey, SurveyResponse, SurveyTemplate
 from classfit.service.auth.sessions import Principal
 from classfit.service.rules.survey import questions_hash
-from classfit.service.surveys import close, respond, results, templates
+from classfit.service.surveys import close, respond, results, templates, views
 from tests.fixtures.courses import open_test_course
 from tests.fixtures.records import assigned
 from tests.fixtures.surveys import ANSWERS_OK, TODAY_RUNNING, deploy_to
@@ -591,3 +595,57 @@ async def test_survey_race_set_default_twice_409(
     assert (raced.waited, raced.blocked) == (True, {"survey_template"})
     assert isinstance(raced.second, Conflict), repr(raced.second)
     assert await _defaults(factory) == [t2]
+
+
+async def test_survey_admin_list_skips_deleted_between_queries(
+    factory: Factory, committing: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """관리자 목록의 두 문장(쪽 · 그 쪽의 강의 머리) 사이에 다른 연결이 쪽의 마지막 설문의 강의를 지우고 커밋해도 500
+    (KeyError)이 아니다. 빠진 설문은 목록에서 빼고, next_cursor·has_more 는 원래 쪽 그대로라 다음 쪽이 이어진다
+    (T7 test_photo_gallery_skips_deleted_between_queries 꼴)."""
+
+    async def seed(s: AsyncSession) -> list[tuple[int, int]]:
+        ids = []
+        for title in ("강의 0", "강의 1", "강의 2"):
+            course, _ = await open_test_course(s, title=title)
+            ids.append(course.id)
+        return [(row.course_id, row.id) for row in await deploy_to(s, ids)]
+
+    (_, s0), (gone_course, s1), (_, s2) = await _seed(factory, seed)
+    # 한 트랜잭션이라 created_at 이 같아 쪽 차례는 id 내림차순: [s2, s1] · [s0]
+    gone_at = (await _survey(factory, s1)).created_at
+
+    real = crud_survey.course_header
+    calls = 0
+
+    async def delete_then_read(session: AsyncSession, survey_ids: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        if calls == 1:  # 첫 문장(keyset_page) 뒤 · 강의 머리 문장 앞
+            async with committing.begin() as conn:
+                await conn.execute(
+                    text("DELETE FROM course WHERE id = :c"), {"c": gone_course}
+                )
+        return await real(session, survey_ids)
+
+    monkeypatch.setattr(crud_survey, "course_header", delete_then_read)
+    admin = Principal("admin", 1)
+    async with factory() as s:
+        heads, next_cursor, has_more = await views.admin_list(
+            s, admin, course_id=None, status=None, today=TODAY, cursor=None, limit=2
+        )
+        assert calls == 1
+        assert [h.id for h in heads] == [s2]  # limit − 1, 지워진 강의의 s1 은 없다
+        assert has_more is True
+        assert next_cursor == encode_cursor(gone_at, s1)  # 원래 쪽의 마지막 키
+        rest, rest_cursor, rest_more = await views.admin_list(
+            s,
+            admin,
+            course_id=None,
+            status=None,
+            today=TODAY,
+            cursor=next_cursor,
+            limit=2,
+        )
+    assert ([h.id for h in rest], rest_cursor, rest_more) == ([s0], None, False)
+    assert await _count(factory, Survey, Survey.id == s1) == 0

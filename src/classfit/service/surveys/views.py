@@ -2,7 +2,8 @@
 
 - 속성 이름이 응답 칸 이름이다(끝점이 from_attributes 로 읽는다). 사람 칸은 없다.
 - 머리는 설문 행 + 강의 제목·고객사 + 오늘 상태 + 응답 수 + 지금 등록 수(응답률 분모) + 문항 잠김(응답 ≥ 1)이다.
-  여러 설문의 머리는 질의 셋(강의 머리 · 응답 수 · 등록 수)으로 한 번에 만든다(heads_of).
+  여러 설문의 머리는 질의 셋(강의 머리 · 응답 수 · 등록 수)으로 한 번에 만든다(heads_of). 설문 행과 강의 머리는 다른 문장이라
+  (READ COMMITTED) 그 사이 강의가 지워진 설문은 머리 없이 건너뛴다(T7 c3c6440 모아보기와 같은 원칙 — codex 1차 #1).
 - 목록은 crud.survey.list_stmt(첫 WHERE course_scope) + 키셋 커서. 깨진 커서만 InvalidCursor(ValueError)로 바꾼다
   (끝점이 422 loc ["query","cursor"]) — keyset_page 호출만 감싼다.
 """
@@ -154,7 +155,11 @@ def head_from(
 async def heads_of(
     session: AsyncSession, rows: Sequence[Survey], *, today: dt.date
 ) -> list[SurveyHead]:
-    """설문들의 머리(rows 순서). 질의 셋 — 강의 머리 · 응답 수 · 등록 수."""
+    """설문들의 머리(rows 순서). 질의 셋 — 강의 머리 · 응답 수 · 등록 수.
+
+    rows 를 읽은 뒤 그 강의가 지워지고 커밋되면(설문도 CASCADE) 강의 머리 문장이 그 설문을 돌려주지 않는다 — 그 설문은
+    건너뛴다(500 이 아니다). 응답 수·등록 수 사전은 없는 키를 0 으로 채워 준다.
+    """
     headers = await crud_survey.course_header(session, [r.id for r in rows])
     responses = await crud_survey_response.counts_for(session, [r.id for r in rows])
     totals = await crud_survey.enrollment_counts(session, {r.course_id for r in rows})
@@ -168,10 +173,13 @@ async def heads_of(
             today=today,
         )
         for r in rows
+        if r.id in headers  # 그 사이 지워진 강의의 설문은 건너뛴다
     ]
 
 
 async def head_of(session: AsyncSession, row: Survey, *, today: dt.date) -> SurveyHead:
+    """쓰기(배포 · 닫기 · 다시 열기 · 고치기) 뒤 그 한 행의 머리. 부르는 쪽이 그 강의 행을 잠그고 있어(lock_course) 강의가
+    지워질 수 없으므로 건너뛰는 일이 없다 — 비면 아래 풀기가 ValueError 로 알린다(규약 위반)."""
     (head,) = await heads_of(session, [row], today=today)
     return head
 
@@ -186,7 +194,11 @@ async def admin_list(
     cursor: str | None,
     limit: int,
 ) -> tuple[list[SurveyHead], str | None, bool]:
-    """관리자 설문 목록 한 쪽 — (머리들, 다음 커서, 더 있는지). (created_at, id) 내림차순, 밀려난 설문도 든다."""
+    """관리자 설문 목록 한 쪽 — (머리들, 다음 커서, 더 있는지). (created_at, id) 내림차순, 밀려난 설문도 든다.
+
+    쪽을 읽은 뒤 강의가 지워진 설문은 빠져 한 쪽이 limit 보다 짧을 수 있다. next_cursor·has_more 는 keyset_page 의 원래 쪽
+    값 그대로라 다음 쪽이 어긋나지 않는다.
+    """
     stmt = crud_survey.list_stmt(
         subject, course_id=course_id, status=status, today=today
     )

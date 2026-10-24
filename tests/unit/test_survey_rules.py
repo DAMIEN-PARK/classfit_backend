@@ -142,6 +142,24 @@ def test_survey_rules_resolve_dates() -> None:
             solve(open_, close)
         assert (caught.value.reason, caught.value.course_id) == (reason, None), reason
 
+    # 날짜 끝(9999-12-31)을 넘는 닫힘일 셈은 OverflowError(500)가 아니라 close_out_of_range(422) — codex 1차 #2
+    last = date.max
+    assert solve({"mode": "date", "date": last - 7 * DAY}, {"mode": "open_plus_7"}) == (
+        last - 7 * DAY,
+        last,
+    )  # 경계: 딱 날짜 끝은 받는다
+    overflow = [
+        ({"mode": "date", "date": last}, {"mode": "open_plus_7"}, END),  # 열림 + 7
+        ({"mode": "now"}, {"mode": "end_plus_14"}, date(9999, 12, 25)),  # 종료 + 14
+        ({"mode": "date", "date": last}, {"mode": "end_plus_14"}, END),  # 되물림 열림 + 7
+    ]
+    for open_, close, end_on in overflow:
+        with pytest.raises(DatesRejected) as caught:
+            solve(open_, close, end_on)
+        assert caught.value.reason == "close_out_of_range", (open_, close, end_on)
+    with pytest.raises(DatesRejected):
+        default_close_on(open_on=TODAY, end_on=date(9999, 12, 25), close_days=14)
+
 
 def test_survey_rules_status_at() -> None:
     open_on, close_on = date(2026, 11, 5), date(2026, 11, 19)

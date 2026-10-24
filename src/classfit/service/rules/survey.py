@@ -40,8 +40,9 @@ _TEXT_CONTROL = re.compile(
 class DatesRejected(ValueError):
     """풀린 열림·닫힘일이 규칙에 어긋난다(끝점이 422 로). course_id 는 service 가 채운다.
 
-    reason: open_before_today · close_before_open · date_required · open_mode · close_mode(배포 모드 풀기) ·
-    close_before_today(배포 설문 PATCH 의 닫힘일이 오늘보다 앞 — service.surveys.close.patch_survey).
+    reason: open_before_today · close_before_open · date_required · open_mode · close_mode ·
+    close_out_of_range(닫힘일 셈이 날짜 끝 9999-12-31 을 넘음)(배포 모드 풀기) · close_before_today(배포 설문 PATCH 의
+    닫힘일이 오늘보다 앞 — service.surveys.close.patch_survey).
     """
 
     def __init__(self, reason: str, course_id: int | None = None) -> None:
@@ -71,11 +72,19 @@ def status_at(
     return "closed"
 
 
+def _plus_days(day: date, days: int) -> date:
+    """닫힘일 셈의 날짜 더하기. 날짜 끝(9999-12-31)을 넘으면 OverflowError(→ 500) 대신 DatesRejected(→ 422)."""
+    try:
+        return day + timedelta(days=days)
+    except OverflowError as exc:
+        raise DatesRejected("close_out_of_range") from exc
+
+
 def default_close_on(*, open_on: date, end_on: date, close_days: int) -> date:
     """end_plus_14 모드의 닫힘일: 종료일 + close_days. 그 날이 열림일보다 앞이면 열림일 + REOPEN_DAYS."""
-    close_on = end_on + timedelta(days=close_days)
+    close_on = _plus_days(end_on, close_days)
     if close_on < open_on:
-        return open_on + timedelta(days=REOPEN_DAYS)
+        return _plus_days(open_on, REOPEN_DAYS)
     return close_on
 
 
@@ -112,7 +121,7 @@ def resolve_dates(
             open_on=open_on, end_on=end_on, close_days=close_days
         )
     elif mode == "open_plus_7":
-        close_on = open_on + timedelta(days=REOPEN_DAYS)
+        close_on = _plus_days(open_on, REOPEN_DAYS)
     elif mode == "date":
         close_on = _given_date(close)
         if close_on < open_on:
