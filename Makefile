@@ -90,5 +90,7 @@ db-create:
 migrate: unhide
 	$(ENVRUN) $(BIN)/alembic upgrade head
 
+# uvicorn 접근 로그는 끈다 — 토큰 경로(/v1/ax/<토큰>)를 그대로 찍는다. 앱 요청 로그(classfit.request)가 메서드·경로({token})·
+# 상태·ms 를 대신 찍는다(T9a 결정 xxv). 다른 기동 방식·프록시 로그는 운영 몫이다.
 run: unhide
-	$(ENVRUN) $(BIN)/uvicorn $(PKG).main:app --reload --port 8000
+	$(ENVRUN) $(BIN)/uvicorn $(PKG).main:app --reload --port 8000 --no-access-log

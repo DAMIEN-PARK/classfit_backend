@@ -1,4 +1,5 @@
-"""개설 시작점 ②(지난 강의 복제)·④(강사 커리큘럼)의 판정·잠금과 구조 채움(T5 결정 iii·iv·v·xvii). flush 까지만.
+"""개설 시작점 ②(지난 강의 복제)·③(확정 진단 — start_diagnosis)·④(강사 커리큘럼)의 판정·잠금과 구조 채움
+(T5 결정 iii·iv·v·xvii · T9a 결정 vii). flush 까지만.
 
 open.open_course() 안에서만 부른다(단일 진입). 순서: load(판정·잠금, 쓰기 없음) → 강의·일차·초대코드 → apply(구조).
 - 복제(load_clone·apply_clone): 원본 강의·섹션·세션은 잠그지 않고 읽는다. 새 세션이 FK 로 가리킬 커리큘럼·풀 과정 행을
@@ -11,6 +12,8 @@ open.open_course() 안에서만 부른다(단일 진입). 순서: load(판정·�
   중지면 409 · 소유 강사가 승인이 아니면 409(instructor_status). 섹션 「전체」 하나에 차시마다 세션(분 = 새 강의 교시,
   일차 밖은 일차 미정), 커리큘럼 기본 자료를 모든 세션에 행 복제, 소유 강사 배정. 검토·공개는 조건이 아니다.
 - 원본을 나중에 고쳐도 강의는 그대로다(내용을 복제하고 참조 id 만 둔다, CAT-007).
+- 회사 연결(T9a): 확인은 load 한 곳이다. ①②④ 의 body.company_id 는 맨 앞에서 FOR KEY SHARE(hold_company)로 잡고 없으면
+  404, ③ 은 회차의 회사를 start_diagnosis.load_diagnosis 가 잡는다. company 는 T5 잠금 순서의 참조 행 층(①′)이다.
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.core.errors import Conflict, NotFound
+from classfit.crud import company as crud_company
 from classfit.crud import course as crud_course
 from classfit.crud import curriculum as crud_curriculum
 from classfit.crud import materials as crud_materials
@@ -36,7 +40,8 @@ from classfit.models import (
     Section,
 )
 from classfit.schemas.course import CourseOpenIn
-from classfit.service.courses import assign, materials
+from classfit.service.courses import assign, materials, start_diagnosis
+from classfit.service.courses.start_diagnosis import DiagnosisSource
 
 CURRICULUM_SECTION = "전체"  # 시안 관리자.html:1670
 
@@ -57,7 +62,7 @@ class CurriculumSource:
     files: SourceSet
 
 
-Loaded = CloneSource | CurriculumSource
+Loaded = CloneSource | CurriculumSource | DiagnosisSource
 
 
 async def load_clone(session: AsyncSession, source_course_id: int) -> CloneSource:
@@ -102,7 +107,14 @@ async def load_curriculum(
 
 
 async def load(session: AsyncSession, body: CourseOpenIn) -> Loaded | None:
-    """시작점의 원본을 판정하고 잠근다(쓰기 없음). 빈 강의(①)는 None."""
+    """시작점의 원본을 판정하고 잠근다(쓰기 없음). 빈 강의(①)는 None. 회사 연결 확인도 여기 한 곳이다."""
+    if body.company_id is not None and not await crud_company.hold_company(
+        session, body.company_id
+    ):
+        raise NotFound("회사가 없습니다")
+    if body.start == "diagnosis":
+        assert body.diagnosis_id is not None  # CourseOpenIn 이 422 로 먼저 막는다
+        return await start_diagnosis.load_diagnosis(session, body.diagnosis_id)
     if body.start == "clone":
         assert body.source_course_id is not None  # CourseOpenIn 이 422 로 먼저 막는다
         return await load_clone(session, body.source_course_id)
@@ -222,4 +234,6 @@ async def apply(
         return await apply_curriculum(
             session, course, loaded, day_count=day_count, actor=actor
         )
+    if isinstance(loaded, DiagnosisSource):
+        return await start_diagnosis.apply_diagnosis(session, course, loaded)
     return {}

@@ -5,6 +5,8 @@
 - 출력 칸에 강사 id·이름·이메일·파일 href 가 없다. 강사 표를 join 하지 않는다. 출처는 source(ax·own)까지만이다
   (기획안 :435). 고유 과정·커리큘럼 id 글자에는 작성 강사 번호가 들어 있다(own-<n>-… · cur-<n>-…, 결정 vii·xiii).
 - 순서는 과정 (source, id) · 커리큘럼 (id) · 심화 (id), 차시는 (일, 교시)다.
+- published_ax_courses(T9a 권장 구성 후보): 공개 ∧ 활성 AX 풀 과정만 읽는 얇은 질의(id 순). 강사 고유 과정은 빼고
+  curricula·slots·advanced 는 읽지 않는다 — 리포트 GET 마다·회사 잠금 아래의 확정에서 돈다(T9a 결정 viii).
 """
 
 from __future__ import annotations
@@ -122,6 +124,22 @@ def _advanced(row: AdvancedCourse) -> CatalogAdvanced:
         goal=row.goal,
         features=list(row.features),
     )
+
+
+async def published_ax_courses(session: AsyncSession) -> list[CatalogCourse]:
+    """공개 ∧ 활성인 AX 풀 과정(source == "ax"), id 순."""
+    rows = (
+        await session.scalars(
+            select(PoolCourse)
+            .where(
+                PoolCourse.source == "ax",
+                PoolCourse.active.is_(True),
+                PoolCourse.pub.is_(True),
+            )
+            .order_by(PoolCourse.id)
+        )
+    ).all()
+    return [_course(r) for r in rows]
 
 
 async def published_catalog(session: AsyncSession) -> Catalog:

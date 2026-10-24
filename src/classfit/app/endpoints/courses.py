@@ -67,6 +67,7 @@ def course_out(row: Course, today: date) -> CourseOut:
         status_manual=row.status_manual,
         archived_at=row.archived_at,
         created_at=row.created_at,
+        company_id=row.company_id,
     )
 
 

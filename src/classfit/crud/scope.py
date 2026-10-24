@@ -9,6 +9,7 @@
 과정 풀 범위(T4)도 기본 거절이다: pool_scope 는 관리자 전부 · 강사는 활성 과정, own_course_scope·curriculum_scope·
 capability_scope 는 관리자 전부 · 강사는 자기 것. 범위 함수는 목록과 "범위 밖은 404" 인 읽기에만 쓴다. 쓰기·소유 판정은
 service 가 범위 없는 getter 로 읽어 404 → 403(owned_by) → 409 순으로 한다(T4 결정 i).
+회사 범위 company_scope(T9a)는 관리자 전부 · 그 밖 거절이다(AX 진단은 강사·학습자 권한이 없다 — 요구정의서 :106).
 
 등록된 owner_kind:
 - session_attachment(T2b) — 관리자 참 · 수강생은 같은 강의 ∧ 세션 is_open · 강사는 범위 강의의 내 세션 ∨ 열린 세션
@@ -22,6 +23,7 @@ service 가 범위 없는 getter 로 읽어 404 → 403(owned_by) → 409 순으
   셋 다 관리자 열람에 audit 이 없다(강의안은 서류가 아니다, T4 결정 ix).
 - photo(T7) — owner_id = 사진 id. 관리자 ∨ 그 사진 세션의 지금 담당 강사(session_scope). 수강생·그 밖 거짓 —
   공개 표시가 없다(r3 §7-7). 재배정되면 옛 담당은 거짓이다. 관리자 열람에 audit 은 없다(T7 결정 ix).
+- diagnosis_pdf(T9a) — 관리자만. 1차에 행을 만드는 끝점이 없다(PDF 501, Design :73) — owner_id 를 보지 않는다.
 """
 
 from __future__ import annotations
@@ -140,6 +142,13 @@ def capability_scope(subject: Subject) -> ColumnElement[bool]:
     return false()
 
 
+def company_scope(subject: Subject) -> ColumnElement[bool]:
+    """회사 목록의 첫 WHERE(T9a 결정 ix). 관리자는 전부, 그 밖은 기본 거절."""
+    if subject.type == "admin":
+        return true()
+    return false()
+
+
 def owned_by(subject: Subject, owner_instructor_id: int | None) -> bool:
     """강사 주체이고 소유 강사가 그 강사면 참. 같은 id 의 관리자·수강생 토큰이 통과하지 않게 종류를 먼저 본다.
 
@@ -244,6 +253,13 @@ async def _photo(session: AsyncSession, subject: Subject, owner_id: int) -> bool
     return bool(await session.scalar(select(found.exists())))
 
 
+async def _diagnosis_pdf(
+    session: AsyncSession, subject: Subject, owner_id: int
+) -> bool:
+    """owner_id = 진단 회차 id. 관리자만 — 행을 만드는 경로가 없어 owner_id 를 보지 않는다."""
+    return subject.type == "admin"
+
+
 OWNER_KINDS: dict[str, OwnerCheck] = {
     "session_attachment": _session_attachment,
     "instructor_document": _instructor_document,
@@ -252,4 +268,5 @@ OWNER_KINDS: dict[str, OwnerCheck] = {
     "capability_file": _capability_file,
     "curriculum_file": _curriculum_file,
     "photo": _photo,
+    "diagnosis_pdf": _diagnosis_pdf,
 }

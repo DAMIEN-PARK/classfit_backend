@@ -12,6 +12,7 @@ from classfit.models.auth import AuthAttempt, AuthSession, EmailVerification
 from classfit.models.base import Base, BigIdMixin, TimestampMixin
 from classfit.models.course import Course, CourseDay, CourseSession, Section
 from classfit.models.curriculum import Curriculum, CurriculumFile, CurriculumSlot
+from classfit.models.diagnosis import Company, DiagLink, Diagnosis
 from classfit.models.document import DocumentType, InstructorDocument
 from classfit.models.instructor import Instructor, InstructorTag
 from classfit.models.invite_code import InviteCode
@@ -33,12 +34,15 @@ __all__ = [
     "BigIdMixin",
     "Capability",
     "CapabilityFile",
+    "Company",
     "Course",
     "CourseDay",
     "CourseSession",
     "Curriculum",
     "CurriculumFile",
     "CurriculumSlot",
+    "DiagLink",
+    "Diagnosis",
     "DocumentType",
     "EmailVerification",
     "Enrollment",

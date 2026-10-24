@@ -2,6 +2,10 @@
 /v1/admin/advanced-courses
 /v1/admin/advanced-courses/{advanced_course_id}
 /v1/admin/attachments/{attachment_id}
+/v1/admin/companies
+/v1/admin/companies/{company_id}
+/v1/admin/companies/{company_id}/diagnoses
+/v1/admin/companies/{company_id}/links
 /v1/admin/courses
 /v1/admin/courses/{course_id}
 /v1/admin/courses/{course_id}/assignee-candidates
@@ -28,6 +32,11 @@
 /v1/admin/courses/{course_id}:set-status
 /v1/admin/curricula
 /v1/admin/curricula/{curriculum_id}
+/v1/admin/diagnoses/{diagnosis_id}
+/v1/admin/diagnoses/{diagnosis_id}/pdf
+/v1/admin/diagnoses/{diagnosis_id}/reco
+/v1/admin/diagnoses/{diagnosis_id}/report
+/v1/admin/diagnoses/{diagnosis_id}:finalize
 /v1/admin/instructors
 /v1/admin/instructors/{instructor_id}
 /v1/admin/instructors/{instructor_id}/documents/{type_id}
@@ -36,6 +45,7 @@
 /v1/admin/instructors/{instructor_id}:reject
 /v1/admin/instructors/{instructor_id}:suspend
 /v1/admin/instructors/{instructor_id}:unsuspend
+/v1/admin/links/{token}:revoke
 /v1/admin/photos
 /v1/admin/photos/{photo_id}
 /v1/admin/photos:download
@@ -61,6 +71,7 @@
 /v1/auth/admin/login
 /v1/auth/instructor/login
 /v1/auth/logout
+/v1/ax/{token}
 /v1/enter
 /v1/enter/lookup
 /v1/files/{key}
