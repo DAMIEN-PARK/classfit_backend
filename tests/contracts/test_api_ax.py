@@ -423,6 +423,17 @@ async def test_diag_link_submit_validation_422(
         {**base, "matrix": {"9-9": 3}},
     ):
         await rejected(body)
+    # 입력 키가 토큰이어도 422 위치·안내로 되돌아가지 않는다(토큰 네임스페이스는 violations 를 가린다)
+    for body, where in (
+        ({**base, token: 1}, ["body", "{token}"]),
+        (
+            {**base, "answers": {**ANSWERS_MIXED, token: 3}},
+            ["body", "answers", "{token}", "[key]"],
+        ),
+    ):
+        r = await client.post(f"{AX}/{token}", json=body)
+        assert locs(problem_of(r, 422)) == [where]
+        assert token not in r.text
     assert await count(db_session, Diagnosis) == 0
     assert (await _links(client, auth, co))[token]["state"] == "open"
     assert await count(db_session, AuditLog, AuditLog.action == "diag_link.submit") == 0
@@ -467,6 +478,21 @@ async def test_diag_link_public_token_not_logged(
     check(await client.post(f"{AX}/{t}", json={"answers": {}}), 422, "/v1/ax/{token}")
     check(await client.put(f"{AX}/{t}", json={}), 405, "/v1/ax/{token}")
     check(await _revoke(client, auth, n), 404, "/v1/admin/links/{token}:revoke")
+    # 기형 토큰 경로 — 네임스페이스 판정은 접두만 본다(겹 슬래시 · %2F · 빈 세그먼트), 나머지 경로의 토큰도 가린다
+    check(await client.get(f"{AX}//{t}"), 404, "/v1/ax/{token}")
+    check(await client.get(f"{AX}/%2F{t}"), 404, "/v1/ax/{token}")
+    check(await client.get(f"/v1//ax/{t}"), 404, "/v1/ax/{token}")
+    check(await client.get(f"{AX}/x/{t}"), 404, "/v1/ax/{token}/{token}")
+    check(
+        await client.post(f"{ADMIN}/links//{n}:revoke", headers=auth),
+        404,
+        "/v1/admin/links/{token}:revoke",
+    )
+    check(
+        await client.post(f"{ADMIN}/links/:revoke", headers=auth),
+        404,
+        "/v1/admin/links/{token}:revoke",
+    )
 
     # 토큰 네임스페이스 밖은 지금과 같다 — 실제 경로 · 캐시 헤더 없음
     plain = await client.get(f"{ADMIN}/companies/{LARGEST}", headers=auth)
@@ -489,6 +515,7 @@ async def test_diag_link_public_token_not_logged(
         "GET /v1/ax/{token}/ -> 307",
         "PUT /v1/ax/{token} -> 405",
         "POST /v1/admin/links/{token}:revoke -> 404",
+        "GET /v1/ax/{token}/{token} -> 404",
         f"GET {ADMIN}/companies/{LARGEST} -> 404",
     ):
         assert template in joined, template
