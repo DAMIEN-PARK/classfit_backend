@@ -461,7 +461,9 @@ async def test_survey_outbox_preview_kinds(
         ("notice-1@example.com", params),
         ("notice-x@example.com", params),
     ]
-    factory = make_session_factory(db_connection, join_transaction_mode="create_savepoint")
+    factory = make_session_factory(
+        db_connection, join_transaction_mode="create_savepoint"
+    )
 
     async def bodies(kind: str) -> list[tuple[str, str]]:
         assert await outbox_preview.run([], factory) == 0
@@ -490,7 +492,9 @@ async def test_survey_outbox_preview_kinds(
     assert await bodies("survey_closed") == closed
 
     broken = {k: v for k, v in params.items() if k != "course_title"}
-    await crud_outbox.enqueue(db, kind="survey_opened", params=broken, to="a@example.com")
+    await crud_outbox.enqueue(
+        db, kind="survey_opened", params=broken, to="a@example.com"
+    )
     assert await outbox_preview.run([], factory) == 3
     assert "전제 거절" in capsys.readouterr().err
 
@@ -527,9 +531,12 @@ async def test_survey_patch_close_on_not_before_today(db_session: AsyncSession) 
     updates = (AuditLog.action == "survey.update",)
     for row, status in ((opened, "open"), (scheduled, "scheduled")):
         before = (row.open_on, row.close_on)
-        assert status_at(
-            open_on=row.open_on, close_on=row.close_on, closed_at=None, today=today
-        ) == status
+        assert (
+            status_at(
+                open_on=row.open_on, close_on=row.close_on, closed_at=None, today=today
+            )
+            == status
+        )
         with pytest.raises(DatesRejected) as caught:
             await close.patch_survey(
                 db,
@@ -551,9 +558,10 @@ async def test_survey_patch_close_on_not_before_today(db_session: AsyncSession) 
         db, survey_id=opened.id, changes={"close_on": today}, today=today, actor=ADMIN
     )
     assert patched.close_on == today
-    assert status_at(
-        open_on=patched.open_on, close_on=today, closed_at=None, today=today
-    ) == "open"
+    assert (
+        status_at(open_on=patched.open_on, close_on=today, closed_at=None, today=today)
+        == "open"
+    )
     assert await count(db, AuditLog, *updates) == 1
 
 
@@ -593,7 +601,9 @@ async def test_survey_instructor_results_single_statement(
     def survey_reads(sql: list[str]) -> list[str]:
         skip = ("SAVEPOINT", "RELEASE", "ROLLBACK")
         return [
-            s for s in sql if SURVEY_SQL.search(s) and not s.lstrip().upper().startswith(skip)
+            s
+            for s in sql
+            if SURVEY_SQL.search(s) and not s.lstrip().upper().startswith(skip)
         ]
 
     assert len(survey_reads(admin_sql)) == 1, admin_sql
@@ -719,7 +729,8 @@ def test_survey_lock_call_sites() -> None:
         bare = [
             c.name
             for c in _calls(tree)
-            if c.name in crud_names and not (c.owner or "").startswith("crud_")
+            if c.name in crud_names
+            and not (c.owner or "").startswith("crud_")
             and c.owner not in ("self", "session")
         ]
         assert bare == [], f"{relpath}: crud 를 별칭 밖에서 부른다 — {bare}"
@@ -731,7 +742,8 @@ def test_survey_lock_call_sites() -> None:
                 assert all(a.asname == f"crud_{a.name}" for a in node.names), relpath
             elif module.startswith("classfit.crud."):
                 loaded = importlib.import_module(module)
-                for alias in node.names:  # 형(Subject 등)만 들인다 — 함수는 별칭 속성으로
+                # 형(Subject 등)만 들인다 — 함수는 별칭 속성으로
+                for alias in node.names:
                     assert not inspect.isfunction(getattr(loaded, alias.name)), (
                         relpath,
                         alias.name,
@@ -785,7 +797,12 @@ def test_survey_lock_call_sites() -> None:
 
     # ⑥ 기본 지정: 옛 기본 읽기 → lock_templates → 잠근 뒤 기본 재확인 → 옛 false · flush → 새 true · flush
     calls = _calls(_function("service/surveys/templates.py", "set_default_template"))
-    watched = {"lock_templates", "default_template", "apply_template", "flush_or_conflict"}
+    watched = {
+        "lock_templates",
+        "default_template",
+        "apply_template",
+        "flush_or_conflict",
+    }
     assert [c.name for c in calls if c.name in watched] == [
         "default_template",
         "lock_templates",
@@ -809,7 +826,9 @@ def test_survey_lock_call_sites() -> None:
         ]
         assert writes and course < survey < min(writes), where
         assert any(
-            c.name == "get_survey" and c.at > survey and c.keywords.get("fresh") == "True"
+            c.name == "get_survey"
+            and c.at > survey
+            and c.keywords.get("fresh") == "True"
             for c in calls
         ), f"{where}: 잠근 뒤 get_survey(fresh=True) 가 없다"
         if fn == "patch_survey":
@@ -834,10 +853,13 @@ def test_survey_lock_call_sites() -> None:
     assert not any(c.name.startswith("lock_") for c in _calls(tree))
     text = (SRC / "service/surveys/results.py").read_text(encoding="utf-8")
     assert "course_header(" not in text and "session.get(" not in text
-    admin = [c.name for c in _calls(_function("service/surveys/results.py", "admin_results"))]
+    admin = [
+        c.name for c in _calls(_function("service/surveys/results.py", "admin_results"))
+    ]
     assert admin.count("survey_with_answers") == 1
     mine = [
-        c.name for c in _calls(_function("service/surveys/results.py", "instructor_results"))
+        c.name
+        for c in _calls(_function("service/surveys/results.py", "instructor_results"))
     ]
     assert mine.count("current_with_answers") == 1
     assert "current_for_course" not in mine and "survey_with_answers" not in mine

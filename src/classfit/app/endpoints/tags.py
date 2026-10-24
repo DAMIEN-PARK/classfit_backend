@@ -16,7 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import AdminCaller, DbSession
+from classfit.app.deps import AdminCaller, DbSession, IdPath
 from classfit.app.endpoints.admin_instructors import query_text
 from classfit.core.errors import NotFound
 from classfit.crud import tag as crud_tag
@@ -114,7 +114,7 @@ async def create_tag(
     },
 )
 async def patch_tag(
-    tag_id: int, body: TagPatchIn, session: DbSession, caller: AdminCaller
+    tag_id: IdPath, body: TagPatchIn, session: DbSession, caller: AdminCaller
 ) -> TagAdminOut:
     row = await crud_tag.get_tag(session, tag_id)
     if row is None:

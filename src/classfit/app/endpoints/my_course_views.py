@@ -20,8 +20,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import DbSession, InstructorCaller, Today
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import DbSession, IdPath, InstructorCaller, Today
 from classfit.app.endpoints.courses import code_out
 from classfit.app.endpoints.enrollments import survey_responders
 from classfit.app.endpoints.portal import portal_out

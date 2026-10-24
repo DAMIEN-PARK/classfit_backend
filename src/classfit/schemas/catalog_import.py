@@ -113,7 +113,9 @@ class AxCourseIn(_In):
     @classmethod
     def _known_jobs(cls, value: list[str]) -> list[str]:
         if any(job not in JOB_GROUPS for job in value):
-            raise ValueError(f"직무군은 정해진 {len(JOB_GROUPS)}개 값 중에서만 고릅니다")
+            raise ValueError(
+                f"직무군은 정해진 {len(JOB_GROUPS)}개 값 중에서만 고릅니다"
+            )
         if len(set(value)) != len(value):
             raise ValueError("직무군이 겹칩니다")
         return value
@@ -134,7 +136,9 @@ class AdvancedCourseImportIn(_In):
     tool: Tool
     hours: int = Field(ge=ADVANCED_HOURS_RANGE[0], le=ADVANCED_HOURS_RANGE[1])
     goal: Text | None = None
-    features: list[Feature] = Field(default_factory=list, max_length=ADVANCED_FEATURES_MAX)
+    features: list[Feature] = Field(
+        default_factory=list, max_length=ADVANCED_FEATURES_MAX
+    )
 
     def content(self) -> dict[str, Any]:
         """내용 칸(ADVANCED_CONTENT_FIELDS) dict."""
@@ -161,5 +165,7 @@ class AxCatalogFileIn(_In):
         for section, items in (("courses", self.courses), ("advanced", self.advanced)):
             index = _first_duplicate([item.id for item in items])
             if index is not None:
-                raise ValueError(f"{section}.{index}.id 가 파일 안의 앞 항목과 겹칩니다")
+                raise ValueError(
+                    f"{section}.{index}.id 가 파일 안의 앞 항목과 겹칩니다"
+                )
         return self

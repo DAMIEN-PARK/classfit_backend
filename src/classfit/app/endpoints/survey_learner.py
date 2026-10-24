@@ -23,12 +23,12 @@ from fastapi.exceptions import RequestValidationError
 
 from classfit.app.deps import (
     DbSession,
+    IdPath,
     InstructorCaller,
     LearnerCaller,
     Today,
     limited_json,
 )
-from classfit.app.endpoints.assign import IdPath
 from classfit.app.endpoints.surveys import head_out, rate_out, results_body
 from classfit.core.config import Settings
 from classfit.schemas.survey import (

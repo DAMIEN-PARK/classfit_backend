@@ -22,6 +22,10 @@ extend-exclude = ["기획", "시안", "scripts/okf"]
 # 경로를 직접 줘도 제외를 지킨다(`ruff check scripts/okf` · format-on-edit 훅이 okf.py 사본을 고치지 않게, T0b 리뷰)
 force-exclude = true
 
+# 포매터는 .py 만 — 루트 참조 가이드 md 의 코드 블록은 원문 그대로 둔다(T11 결정 xiii)
+[tool.ruff.format]
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 extend-select = ["TID251"]
 

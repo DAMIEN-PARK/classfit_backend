@@ -19,8 +19,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Response
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import AdminCaller, DbSession
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import AdminCaller, DbSession, IdPath
 from classfit.schemas.survey import (
     TemplateIn,
     TemplateListOut,

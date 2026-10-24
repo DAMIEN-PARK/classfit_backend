@@ -19,7 +19,9 @@ async def test_unknown_path_is_problem_json(client: httpx.AsyncClient) -> None:
     assert body["status"] == 404 and body["instance"] == "/v1/nope" and body["type"]
 
 
-async def test_openapi_is_always_open_and_lists_routes(client: httpx.AsyncClient) -> None:
+async def test_openapi_is_always_open_and_lists_routes(
+    client: httpx.AsyncClient,
+) -> None:
     # 경로 수는 app.routes 가 아니라 openapi paths 로 센다 (포함 라우터가 게으르게 담길 수 있다)
     r = await client.get("/v1/openapi.json")
     assert r.status_code == 200

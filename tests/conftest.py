@@ -42,7 +42,10 @@ def _test_url() -> str:
     dbname = url.rsplit("/", 1)[-1].split("?")[0]
     if not dbname.endswith("_test"):
         # downgrade base 가 표를 전부 지우므로, 개발 DB 를 가리키는 실수를 막는다
-        pytest.fail(f"{TEST_URL_VAR} 의 DB 이름은 _test 로 끝나야 합니다 (지금: {dbname})", pytrace=False)
+        pytest.fail(
+            f"{TEST_URL_VAR} 의 DB 이름은 _test 로 끝나야 합니다 (지금: {dbname})",
+            pytrace=False,
+        )
     return url
 
 
@@ -56,7 +59,11 @@ def migrated_db_url() -> str:
     for step in (("downgrade", "base"), ("upgrade", "head")):
         done = subprocess.run(
             [sys.executable, "-m", "alembic", *step],
-            check=False, cwd=ROOT, env=env, capture_output=True, text=True,
+            check=False,
+            cwd=ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
         )
         if done.returncode != 0:
             pytest.fail(f"alembic {' '.join(step)} 실패:\n{done.stderr}", pytrace=False)
@@ -80,6 +87,8 @@ async def db_connection(migrated_db_url: str) -> AsyncIterator[AsyncConnection]:
 
 @pytest_asyncio.fixture
 async def db_session(db_connection: AsyncConnection) -> AsyncIterator[AsyncSession]:
-    factory = make_session_factory(db_connection, join_transaction_mode="create_savepoint")
+    factory = make_session_factory(
+        db_connection, join_transaction_mode="create_savepoint"
+    )
     async with factory() as session:
         yield session

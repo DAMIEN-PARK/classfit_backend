@@ -44,7 +44,10 @@ class Enrollment(BigIdMixin, Base):
         UniqueConstraint(
             "course_id", "learner_id", name="uq_enrollment_course_id_learner_id"
         ),
-        CheckConstraint("length(btrim(name)) BETWEEN 1 AND 50", name="name"),
+        # 공백류가 아닌 글자 하나 이상 · 앞뒤 스페이스를 뺀 50자 이하(0012 — 탭·줄바꿈만 있는 값도 막는다)
+        CheckConstraint(
+            "name ~ '[^[:space:]]' AND length(btrim(name)) <= 50", name="name"
+        ),
     )
 
     course_id: Mapped[int] = mapped_column(

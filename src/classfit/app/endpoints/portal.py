@@ -15,7 +15,7 @@ from datetime import date
 
 from fastapi import APIRouter
 
-from classfit.app.deps import AdminCaller, DbSession, LearnerCaller, Today
+from classfit.app.deps import AdminCaller, DbSession, IdPath, LearnerCaller, Today
 from classfit.app.endpoints.attachments import attachment_out
 from classfit.app.errors import forbidden
 from classfit.models import Survey
@@ -98,7 +98,7 @@ def portal_out(portal: Portal, today: date) -> PortalOut:
     responses={403: {"description": "토큰의 강의가 아님"}},
 )
 async def learner_portal(
-    course_id: int, session: DbSession, caller: LearnerCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: LearnerCaller, today: Today
 ) -> PortalOut:
     if caller.course_id != course_id:
         raise forbidden("이 강의의 수강생이 아닙니다")
@@ -111,7 +111,7 @@ async def learner_portal(
     responses={404: {"description": "강의가 없음"}},
 )
 async def admin_portal(
-    course_id: int, session: DbSession, caller: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: AdminCaller, today: Today
 ) -> PortalOut:
     """수강생이 보는 것과 같은 판정의 미리 보기."""
     return portal_out(await build_portal(session, caller, course_id=course_id), today)

@@ -18,7 +18,9 @@ EXEMPT = ("models", "schemas")
 LIMITS = {"app/endpoints": 500}
 DEFAULT = 300
 MAX_FACTOR = 2
-OVERSIZE = re.compile(r"^[ \t]*#[ \t]*oversize:[ \t]*(\d+)[ \t]+(\S.{9,})$", re.MULTILINE)
+OVERSIZE = re.compile(
+    r"^[ \t]*#[ \t]*oversize:[ \t]*(\d+)[ \t]+(\S.{9,})$", re.MULTILINE
+)
 
 
 def limit_for(rel: Path) -> int | None:
@@ -44,7 +46,9 @@ def main() -> int:
             wanted = int(declared.group(1))
             cap = limit * MAX_FACTOR
             if wanted > cap:
-                failures.append(f"{rel}: oversize 선언 {wanted}줄 > 허용 최대 {cap}줄 — 쪼갠다")
+                failures.append(
+                    f"{rel}: oversize 선언 {wanted}줄 > 허용 최대 {cap}줄 — 쪼갠다"
+                )
                 continue
             limit = wanted
         if len(lines) > limit:

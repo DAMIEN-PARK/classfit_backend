@@ -25,9 +25,7 @@ def _hm(t: dt.time) -> int:
     return t.hour * 60 + t.minute
 
 
-def slots_per_day(
-    start: dt.time, end: dt.time, slot_min: int, break_min: int
-) -> int:
+def slots_per_day(start: dt.time, end: dt.time, slot_min: int, break_min: int) -> int:
     """하루 교시 수 = max(1, ⌊(끝 − 시작 + 휴식) / (교시 + 휴식)⌋)(시안 scSlots)."""
     return max(1, (_hm(end) - _hm(start) + break_min) // (slot_min + break_min))
 

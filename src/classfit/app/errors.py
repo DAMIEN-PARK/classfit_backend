@@ -73,7 +73,8 @@ class TokenRedactFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             message = record.getMessage()
-        except (TypeError, ValueError, KeyError):  # 형식 오류 — 메시지는 그대로 두고 logging 의 handleError 에 맡긴다
+        except TypeError, ValueError, KeyError:
+            # 형식 오류 — 메시지는 그대로 두고 logging 의 handleError 에 맡긴다
             message = None
         if message is not None and (redacted := redact(message)) != message:
             record.msg = redacted
@@ -184,7 +185,13 @@ async def _app_error(request: Request, exc: AppError) -> JSONResponse:
 
 async def _domain_error(request: Request, exc: DomainError) -> JSONResponse:
     status = _DOMAIN_STATUS.get(exc.kind, 409)
-    return problem(request, status=status, detail=exc.message, type="/problems/" + exc.kind, **_extras(exc.extra))
+    return problem(
+        request,
+        status=status,
+        detail=exc.message,
+        type="/problems/" + exc.kind,
+        **_extras(exc.extra),
+    )
 
 
 async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -192,9 +199,15 @@ async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResp
     return problem(request, status=exc.status_code, detail=detail, headers=exc.headers)
 
 
-async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def _validation_error(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     violations = [
-        {"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")}
+        {
+            "loc": list(e.get("loc", ())),
+            "msg": e.get("msg", ""),
+            "type": e.get("type", ""),
+        }
         for e in exc.errors()
     ]
     if is_token_path(request.scope):
@@ -212,8 +225,12 @@ async def _validation_error(request: Request, exc: RequestValidationError) -> JS
 
 
 async def _last_resort(request: Request, exc: Exception) -> JSONResponse:
-    log.exception("처리되지 않은 예외: %s %s", request.method, request_path(request.scope))
-    return problem(request, status=500, title="서버 오류", detail="서버에서 처리하지 못했습니다")
+    log.exception(
+        "처리되지 않은 예외: %s %s", request.method, request_path(request.scope)
+    )
+    return problem(
+        request, status=500, title="서버 오류", detail="서버에서 처리하지 못했습니다"
+    )
 
 
 def _install_uvicorn_filter() -> None:

@@ -31,7 +31,8 @@ def _check(module: str | None, attr: str | None) -> None:
     if module not in FACADES or not attr:
         return
     try:
-        loaded = importlib.import_module(module)  # 아직 import 전이어도 확실히 적재한 뒤 본다
+        # 아직 import 전이어도 확실히 적재한 뒤 본다
+        loaded = importlib.import_module(module)
     except ImportError:
         return
     obj = getattr(loaded, attr, None)

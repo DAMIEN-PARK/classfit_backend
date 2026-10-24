@@ -266,6 +266,30 @@ async def test_admin_attachment_without_length_411(
     await _nothing_written(db_session)
 
 
+async def test_upload_content_length_non_ascii_411(
+    app: FastAPI, client: httpx.AsyncClient, db_session: AsyncSession, tmp_path: Path
+) -> None:
+    """T11 결정 v: 숫자 꼴 비 ASCII 길이('²' — isdigit 은 참)는 int() 전에 411(500 아님) · 413 안내문은 설정 MiB."""
+    app.state.settings = Settings(file_store_root=tmp_path, attachment_pdf_max_mb=1)
+    auth, _, sid = await _setup(client, db_session)
+    # httpx 는 str 헤더를 ASCII 로만 인코딩하므로 값을 bytes 로 준다(Starlette 는 latin-1 로 풀어 '²')
+    r = await client.post(
+        f"{ADMIN}/sessions/{sid}/attachments",
+        headers=[
+            *auth.items(),
+            ("content-type", "application/x-www-form-urlencoded"),
+            (b"content-length", "²".encode("latin-1")),
+        ],
+        content=b"kind=link&title=x&url=https%3A%2F%2Fexample.com",
+    )
+    assert r.request.headers["content-length"] == "²"
+    _problem(r, 411)
+    # 끝점 한도(상한 + 1MiB 여유)를 넘는 선언 길이: 안내문 숫자는 여유를 뺀 파일 상한 1MiB 다
+    body = _problem(await add_pdf(client, auth, sid, PDF + b"0" * (2 * MIB)), 413)
+    assert body["detail"] == "본문이 너무 큽니다(1MiB 까지)"
+    await _nothing_written(db_session)
+
+
 async def test_admin_attachment_bad_multipart_400(
     client: httpx.AsyncClient, db_session: AsyncSession, store_root: Path
 ) -> None:

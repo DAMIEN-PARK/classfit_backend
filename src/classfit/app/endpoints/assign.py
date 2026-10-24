@@ -18,11 +18,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Path
-
-from classfit.app.deps import AdminCaller, DbSession
+from classfit.app.deps import AdminCaller, DbSession, IdPath
 from classfit.app.endpoints.pool import id_or_404
 from classfit.crud.pool import LIST_LIMIT
 from classfit.schemas.assign import (
@@ -32,14 +30,11 @@ from classfit.schemas.assign import (
     SectionAssignIn,
     SectionAssignOut,
 )
-from classfit.schemas.course import DB_ID_LIMIT, SessionOut
+from classfit.schemas.course import SessionOut
 from classfit.schemas.page import Page
 from classfit.service.courses import assign, pool_sessions
 
 router = APIRouter(prefix="/v1/admin", tags=["assign"])
-
-# T5 끝점의 경로 id(BIGINT). 범위 밖은 DB 를 치지 않고 422 loc ["path", <이름>] 다(본문 DbId 와 같은 상한)
-IdPath = Annotated[int, Path(ge=1, lt=DB_ID_LIMIT)]
 
 _SECTION = "/courses/{course_id}/sections/{section_id}"
 

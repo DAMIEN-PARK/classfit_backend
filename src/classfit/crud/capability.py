@@ -88,7 +88,8 @@ async def list_capabilities(
 ) -> tuple[list[tuple[Capability, PoolCourse]], bool]:
     """(앞 limit 쌍, 더 있는지). 한 쪽 규칙(결정 xii)."""
     rows = [
-        (c, p) for c, p in (await session.execute(list_stmt(subject).limit(limit + 1))).all()
+        (c, p)
+        for c, p in (await session.execute(list_stmt(subject).limit(limit + 1))).all()
     ]
     return rows[:limit], len(rows) > limit
 

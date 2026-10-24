@@ -21,8 +21,9 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from starlette.datastructures import FormData, UploadFile
 
-from classfit.app.deps import AdminCaller, DbSession, LearnerCaller
+from classfit.app.deps import AdminCaller, DbSession, IdPath, LearnerCaller
 from classfit.app.errors import AppError
+from classfit.app.upload import MIB, check_length, invalid
 from classfit.core.config import Settings
 from classfit.core.errors import NotConfigured, NotFound
 from classfit.crud.attachment import AttachmentRow
@@ -35,7 +36,6 @@ from classfit.service.files.store import href_for
 
 router = APIRouter(prefix="/v1", tags=["attachments"])
 
-MIB = 1024 * 1024
 _TEXT_FIELDS = ("kind", "title", "description", "url")
 _TEXT = {"type": "string"}
 _FORM_SCHEMA = {
@@ -89,21 +89,6 @@ def attachment_out(item: AttachmentRow) -> AttachmentOut:
     )
 
 
-def _invalid(field: str, msg: str) -> RequestValidationError:
-    return RequestValidationError(
-        [{"loc": ("body", field), "msg": msg, "type": "value_error"}]
-    )
-
-
-def _check_length(request: Request, limit: int) -> None:
-    """본문을 읽기 전에 Content-Length 로 거른다. 없거나 숫자가 아니면 411, limit 초과 413."""
-    raw = request.headers.get("content-length")
-    if raw is None or not raw.strip().isdigit():
-        raise AppError(411, "Content-Length 헤더가 필요합니다")
-    if int(raw) > limit:
-        raise AppError(413, f"본문이 너무 큽니다({limit // MIB}MiB 까지)")
-
-
 def _form_fields(form: FormData) -> AttachmentFormIn:
     raw: dict[str, str] = {}
     for name in _TEXT_FIELDS:
@@ -111,7 +96,7 @@ def _form_fields(form: FormData) -> AttachmentFormIn:
         if value is None:
             continue
         if not isinstance(value, str):
-            raise _invalid(name, "글자 필드여야 합니다")
+            raise invalid(name, "글자 필드여야 합니다")
         raw[name] = value
     try:
         return AttachmentFormIn.model_validate(raw)
@@ -133,7 +118,7 @@ def _form_fields(form: FormData) -> AttachmentFormIn:
     },
 )
 async def list_learner_attachments(
-    session_id: int, session: DbSession, caller: LearnerCaller
+    session_id: IdPath, session: DbSession, caller: LearnerCaller
 ) -> Page[AttachmentOut]:
     items = await session_attachments(session, caller, session_id=session_id)
     return Page[AttachmentOut](
@@ -156,19 +141,19 @@ async def list_learner_attachments(
     },
 )
 async def add_attachment(
-    session_id: int, request: Request, session: DbSession, caller: AdminCaller
+    session_id: IdPath, request: Request, session: DbSession, caller: AdminCaller
 ) -> AttachmentOut:
     settings: Settings = request.app.state.settings
     if await get_session_and_course(session, session_id) is None:
         raise NotFound("세션이 없습니다")
     max_bytes = settings.attachment_pdf_max_mb * MIB
-    _check_length(request, max_bytes + MIB)
+    check_length(request, max_bytes)
     actor = f"admin:{caller.id}"
     async with request.form(max_files=1, max_fields=5) as form:
         fields = _form_fields(form)
         if fields.kind == "link":
             if fields.url is None:  # AttachmentFormIn 이 422 로 먼저 막는다
-                raise _invalid("url", "link 는 url 이 필요합니다")
+                raise invalid("url", "link 는 url 이 필요합니다")
             row = await files_attachments.add_link_attachment(
                 session,
                 session_id=session_id,
@@ -180,7 +165,7 @@ async def add_attachment(
             return attachment_out((row, None, None))
         upload = form.get("file")
         if not isinstance(upload, UploadFile):
-            raise _invalid("file", "pdf 는 file 파트가 필요합니다")
+            raise invalid("file", "pdf 는 file 파트가 필요합니다")
         root = settings.file_store_root
         if root is None:
             missing = settings.missing("file_store_root")
@@ -202,7 +187,7 @@ async def add_attachment(
                 raise AppError(
                     413, f"PDF 는 {settings.attachment_pdf_max_mb}MB 까지입니다"
                 ) from None
-            raise _invalid("file", "PDF 파일이 아닙니다") from None
+            raise invalid("file", "PDF 파일이 아닙니다") from None
         return attachment_out((row, stored.key, stored.size))
 
 
@@ -213,7 +198,7 @@ async def add_attachment(
     responses={404: {"description": "첨부가 없음"}},
 )
 async def delete_attachment(
-    attachment_id: int, session: DbSession, caller: AdminCaller
+    attachment_id: IdPath, session: DbSession, caller: AdminCaller
 ) -> Response:
     await files_attachments.delete_attachment(
         session, attachment_id=attachment_id, actor=f"admin:{caller.id}"

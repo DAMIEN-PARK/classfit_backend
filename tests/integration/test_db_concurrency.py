@@ -267,7 +267,8 @@ async def test_concurrent_survey_deploy_one_open(
     Conflict(23505·500 아님). 설문 1행 · 알림 survey_opened 는 A 몫만(T8 결정 xix, 열린 설문 동시성 1개)."""
     course_id, code = await _seed_course(factory)
     async with factory() as s, s.begin():
-        entered = await _enter(code, "a@example.com", "김가명")(s)  # 알림 받을 수강생 하나
+        # 알림 받을 수강생 하나
+        entered = await _enter(code, "a@example.com", "김가명")(s)
         template_id = await s.scalar(
             select(SurveyTemplate.id).where(SurveyTemplate.is_default.is_(True))
         )

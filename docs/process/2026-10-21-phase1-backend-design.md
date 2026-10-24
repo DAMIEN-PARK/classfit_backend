@@ -91,10 +91,11 @@ r1 B1 의 표를 r3 태스크 번호로 옮겼다.
 | 0009 | T8 | `survey_template` · `survey`(course_id 부분 U where open · template_id SET NULL) · `survey_response`(survey_id+enrollment_id U) · T8 반영(부분 U 는 `current` 칸 — 상태는 open_on·close_on·closed_at 과 오늘로 계산 · 문항·양식 이름 스냅샷 · course FK CASCADE · 응답 (설문, 등록) U · submitted_at 비노출 · 기본 양식 시드 1행) |
 | 0010 | T9a | `company` · `diagnosis`(company_id+round_no U) · `diag_link`(token U · company_id 부분 U where open) · ALTER `course` + company_id(선택) · T9a 반영(회사 삭제는 회차·링크 CASCADE · 부서 ≤ 20 · 링크 토큰 평문 U · open 부분 U `uq_diag_link_company_open` · 만료는 계산 · `course.company_id` ON DELETE SET NULL) |
 | 0011 | T9b | `inquiry`(Company 연결 없음) · T9b 반영(FK 없음 · IP 없음 · 영수증 저장 난수 U · 함수 색인 lower(email) · 내용 NULL 허용) |
+| 0012 | T11 | 색인 `ix_survey_template_id` · 공백류 CHECK 여섯(`ck_enrollment_name` · `ck_instructor_name` · `ck_pool_course_title` · `ck_curriculum_title` · `ck_curriculum_slot_title` · `ck_advanced_course_title`)을 `x ~ '[^[:space:]]' AND length(btrim(x)) <= n` 으로(같은 이름·n, 어기는 행이 있으면 업그레이드가 멈춘다) |
 
 - `stored_file.owner_kind` 등록 순서: T2b session_attachment(T2b 등록됨. 관리자 참 · 수강생은 같은 강의 ∧ 세션 `is_open`, `crud/scope.py` · T6: 강사는 범위 강의의 내 세션 ∨ 열린 세션) · T3 instructor_document·instructor_photo(T3 등록됨. instructor_document 는 본인 강사만 — 종류와 id 를 함께 보고 관리자는 거짓, 관리자 열람은 audit 끝점 · instructor_photo 는 관리자 ∨ 본인 강사, 행을 만드는 끝점은 아직 없다) · T4 pool_course_file·capability_file·curriculum_file(T4 등록됨. 세 종류 다 owner_id = 파일 행 id 이고 관리자 ∨ 본인 강사 — 주체 종류를 먼저 본다(`crud.scope.owned_by`), 관리자 열람에 audit 은 없다) · T7 photo(T7 등록됨. 관리자 ∨ 그 세션의 지금 담당 강사, 수강생 거짓 — 공개 표시 없음) · T9a diagnosis_pdf(T9a 등록됨. 관리자만. 행을 만드는 끝점은 없다 — PDF 501). 등록되지 않은 종류는 404 다.
 - 다형 참조라 FK 가 없다. 그래서 소유자 행을 지우는 crud 는 같은 트랜잭션에서 stored_file 행도 지운다.
-- head 는 정확히 하나다. 1차 끝에 `alembic heads` 가 `0011 (head)` 한 줄이다(r3 §6 E-8).
+- head 는 정확히 하나다. 1차 끝에 `alembic heads` 가 `0011 (head)` 한 줄이었고(r3 §6 E-8), T11 뒤에는 `0012 (head)` 다.
 
 ## 5. 공통 규칙
 
@@ -103,7 +104,7 @@ r3 부록 D 가 본문이다. r1 B0 의 규칙은 r3 와 겹치지 않는 것만
 | # | 규칙 | 내용 | T | 근거 |
 |---|---|---|---|---|
 | 1 | 재사용 부품 | `DbSession`(app/deps.py) · `NotFound·Forbidden·Conflict·Gone·NotConfigured`(core/errors.py:22-43) · `AppError·unauthorized()·forbidden()`·`problem()`(app/errors.py:38-91) · `insert_audit`(crud/audit.py:12) · `Base·BigIdMixin·TimestampMixin`(models/base.py:26-44) · `ROUTERS`(app/routers.py:5) · 계약 픽스처 `app·client·client_noraise`(tests/contracts/conftest.py:42-65). 경계 시험의 본보기는 test_tx_boundary.py 다. 시험 전용 라우터는 probe_routes.py 처럼 ROUTERS 밖에 둔다 | T1 부터 전부 | r3 부록 D |
-| 2 | 경로 규칙 | 관리자 `/v1/admin/…`, 강사 `/v1/me/…`, 수강생 `/v1/learner/…`, 토큰 `/v1/ax/{token}`. 동작은 `:접미사`. 목록은 커서 `{items,next_cursor,has_more}`. 파일을 가리키는 응답 칸은 `href`. 콘텐츠를 받는 공개(인증 없음) JSON 끝점은 `/v1/enter…`(T2b) · `/v1/instructors…`(T3) · `/v1/ax/{token}`(T9a) · `/v1/inquiries`(T9b)뿐이다(로그인·health 제외). 공개 JSON 끝점의 본문 상한은 T8 의 `app.deps.limited_json` 이 파싱 전에 잰다(T9b 는 문의 끝점에 재사용 — 일반 적용은 열린 것) · JSON 이 아닌 Content-Type 은 415(T9b 결정 xxiii ⑤ — `limited_json` 을 쓰는 끝점 전부) | T1 부터 전부 | r3 부록 B 머리 · r1 B0 · T9b 계획 결정 xxiii |
+| 2 | 경로 규칙 | 관리자 `/v1/admin/…`, 강사 `/v1/me/…`, 수강생 `/v1/learner/…`, 토큰 `/v1/ax/{token}`. 동작은 `:접미사`. 목록은 커서 `{items,next_cursor,has_more}`. 파일을 가리키는 응답 칸은 `href`. 콘텐츠를 받는 공개(인증 없음) JSON 끝점은 `/v1/enter…`(T2b) · `/v1/instructors…`(T3) · `/v1/ax/{token}`(T9a) · `/v1/inquiries`(T9b)뿐이다(로그인·health 제외). 모든 요청의 본문 상한은 T11 의 `BodyLimitMiddleware` 가 잰다 — 라우트로 고른 상한(업로드 연산 = 업로드 상한 최댓값 + 2MiB · 라우트별 표 `ROUTE_MAX_BYTES` 의 커리큘럼 슬롯 일괄 저장 7MiB · 그 밖 1MiB)을 선언 길이가 넘으면 인증 전에, 읽은 바이트가 넘으면 그 자리에서 413(T11 결정 i · 계획 편차 P2). 응답이 이미 시작된 뒤 상한을 넘으면 413 대신 연결을 끊는다 — 본문을 읽는 연산은 바로, 본문과 무관한 연산은 응답을 다 보낸 뒤(편차 P4). 끝점별로 더 좁은 상한은 T8 의 `app.deps.limited_json` 이 파싱 전에 잰다(문의 64KiB · 설문 제출 256KiB) · JSON 이 아닌 Content-Type 은 415(T9b 결정 xxiii ⑤ — `limited_json` 을 쓰는 끝점 전부) | T1 부터 전부 | r3 부록 B 머리 · r1 B0 · T9b 계획 결정 xxiii · T11 계획 결정 i |
 | 3 | 권한 | 목록·파일 조회의 첫 WHERE 는 주체 범위다(`crud/scope.py`). 남의 자원은 403, 등록 안 된 파일 소유 종류는 404. T6: `session_scope`(강사는 맡은 세션) · 명단·첨부 목록 `list_stmt`·`_listed` 는 강사 주체면 ValueError. T7: 강사 기록 목록·사진 목록의 첫 WHERE 는 `session_scope`(내 세션), 모아보기는 `course_scope`. T8: 설문 목록·홈·포털 `survey` 칸의 첫 WHERE 는 `course_scope`, 수강생은 토큰의 강의(403), 강사 결과는 배정 강의(404 → 403). T9a: 회사 목록의 첫 WHERE 는 `company_scope`(관리자 전부 · 그 밖 거절), 공개 토큰 끝점(`/v1/ax/{token}`)은 주체가 토큰. T9b: 관리자 홈 셈 여덟의 첫 WHERE 는 각 표의 주체 범위(`instructor_scope`·`course_scope`·`own_course_scope`·`curriculum_scope`·`company_scope`)이고 이력은 관리자만 · 진단 회차 목록(`GET /v1/admin/diagnoses`, T9b 결정 xxvii)의 첫 WHERE 도 `company_scope` | T1 부터 전부 | r3 부록 D · T6 계획 결정 xxii · T7 계획 결정 ix·x·xi · T8 계획 결정 i·xiv·xv·xvi · T9a 계획 결정 ix · T9b 계획 결정 xiv·xxvii |
 | 4 | 트랜잭션 | 요청 1개 = 트랜잭션 1개(`db()`). service·crud 는 flush 까지만 하고 commit 하지 않는다 | 전부 | CLAUDE.md Rules |
 | 5 | 유일 위반 | `flush_or_conflict(session, message, *rows)` 는 begin_nested 안에서 rows 를 add 하고 flush 한다. SQLAlchemy 2.0.55 의 `begin_nested()` 는 SAVEPOINT 를 열기 전에 대기 변경을 flush 하므로, 위반이 날 수 있는 행은 rows 로 넘겨 SAVEPOINT 안에서 add 한다. `exc.orig.sqlstate == '23505'` 일 때만 Conflict(409)로 바꾼다. CHECK(23514)·FK(23503) 등은 다시 던져 500 이 된다. T9b: 영수증 유일 위반은 `flush_or_conflict` + 새 난수 재시도 3회 뒤 409 | T1 | r3 부록 D · N5 · T9b 계획 결정 v |
@@ -185,6 +186,17 @@ r3 부록 D 가 본문이다. r1 B0 의 규칙은 r3 와 겹치지 않는 것만
 | 교육 문의: honeypot 응답 동일 + 0행, 1분 재제출 200 같은 영수증, Company 0행, 확인 메일에 내용 없음, 수신 주소 미설정 501 | T9b | `test_inquiry_` | r3 §5.2 T9b · 부록 B T9b · T9b 계획 결정 i·iv·v·viii·ix·xxiii·xxiv |
 | 관리자 홈 아홉 셈(승인 대기 · 진행 강의 · 미배정 · 미검토 등록 · 열린 설문 · 진단 검토 대기 · 미기록 · 새 사진 · 최근 이력)은 상세 목록과 같은 조건이고 관리자만 열며 홈 service 호출당 문장 둘이다 | T9b | `test_admin_home_` | 요구정의서 COM-004 · 시안 관리자.html:1323 · T9b 계획 결정 xiii·xiv·xviii |
 | 진단 회차 목록은 관리자만이고 `status` 가 필수이며 첫 WHERE 는 `company_scope`, 새로 받은 것부터 키셋 쪽이다. 응답자 이메일·답·증빙은 싣지 않고, 홈의 진단 검토 대기 셈은 이 목록과 같은 문장이다 | T9b | `test_diagnosis_list_` | 기획안 A1 :726-727 · 요구정의서 COM-004 · T9b 계획 결정 xxvii |
+| 본문 상한: 라우트로 고른 상한(업로드 연산 = 업로드 상한 최댓값 + 2MiB · 커리큘럼 슬롯 일괄 저장 7MiB · 그 밖 1MiB — Content-Type 과 상관없이)을 선언 길이가 넘으면 인증 전에 413, 읽은 바이트가 넘으면 그 자리에서 413, 둘 다 problem+json · CORS 헤더 · 요청 기록. 업로드 끝점 자체 413 이 먼저다 | T11 | `test_body_limit_` | T11 계획 결정 i |
+| 토큰 전체를 싣는 응답(회사 상세 GET·PATCH · 링크 발급 · 로그인 둘 · 입장)은 `Cache-Control: no-store`, 오류 응답에는 달지 않는다 | T11 | `test_no_store_token_responses` | T11 계획 결정 ii · T9a 결정 xxv |
+| 요청 기록의 경로는 토큰 글자 32자 이상 줄을 `{token}` 으로 가린다(점 세그먼트 경로 · 앞뒤에 글자를 붙인 꼴 포함) | T11 | `test_request_log_masks_token_runs` | T11 계획 결정 iii |
+| 정수 경로 매개변수는 1 ~ 2**63−1, 일차는 1~60 이고 밖이면 자원 질의 전에 422 | T11 | `test_path_id_bounds_` `test_path_day_bounds_422` | T11 계획 결정 iv · T5 :414 |
+| 업로드 Content-Length 는 ASCII 숫자만(아니면 411), 413 안내문은 설정 MiB | T11 | `test_upload_content_length_non_ascii_411` | T11 계획 결정 v |
+| 관리자 연산 전부 강사·수강생 토큰 403, `/v1/admin` 라우트만 `require_admin` 이고 그 앞 의존성은 `db`·`no_store` 뿐 | T11 | `test_admin_paths_instructor_403` `test_admin_routes_require_admin_structure` | T11 계획 결정 vi |
+| 운영자 미리 보기 출력에 제어·서식 문자(Cc·Cf·Zl·Zp·Cs)가 날 글자로 나가지 않는다 — JSON 이스케이프, 왕복하면 원문 | T11 | `test_outbox_preview_escapes_controls` | T11 계획 결정 vii |
+| `inquiry_gc` 는 지울 id 를 배열 바인드 하나로 보낸다(바인드 상한 없음, 문장 수·잠금 순서 그대로) | T11 | `test_inquiry_delete_beyond_bind_limit` | T11 계획 결정 viii · T9b :472 |
+| 교체 뒤 옛 바이트는 gc 가 지우고 새 바이트는 남긴다 | T11 | `test_gc_replaced_bytes_removed` | T11 계획 결정 x · T6 :388 |
+| 권장 구성 글자 한도는 rules 와 schemas 가 같다(500 · 200) | T11 | `test_diagnosis_rules_reco_limits_match_schemas` | T11 계획 결정 xi |
+| 0012: 설문 양식 색인 · 공백류만 있는 이름·제목은 DB 도 거절(모델 식 = 마이그레이션 식) · 어기는 행이 있으면 업그레이드가 멈추고 왕복이 된다 | T11 | `test_survey_template_id_index` `test_blank_check_` `test_migration_0012_guard_and_roundtrip` | T11 계획 결정 xii · T7 :424 |
 
 
 

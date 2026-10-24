@@ -20,6 +20,8 @@
   잡고(crud.outbox.lock_unsent — FOR UPDATE 뒤 다시 읽기) 렌더한다 — 그 사이 inquiry_gc 가 지웠거나 다른 --apply 가 보낸
   행은 건너뛰고 stderr 에 그 수를 찍는다(T9b codex 구현 리뷰 1차 ①). 미리 보기는 커밋하지 않으니 잡지 않는다.
 - 모르는 kind · params 모양 틀림은 3(전제 거절)이고 아무것도 커밋하지 않는다.
+- 결과 JSON 은 한 줄이고, 유니코드 범주 Cc·Cf·Zl·Zp·Cs 글자(C1·DEL·bidi·U+2028/2029·짝 없는 서로게이트 등)는 날 글자 대신
+  JSON 이스케이프로 찍는다 — 공개 문의·가입 이름이 운영자 터미널을 조작하지 못하게(T11 결정 vii). 값은 json.loads 하면 같다.
 - 종료 코드 0 끝 · 2 인자 틀림 · 3 전제 거절. 결과 JSON 은 stdout, 안내는 stderr.
 """
 
@@ -29,6 +31,7 @@ import argparse
 import asyncio
 import json
 import sys
+import unicodedata
 from collections.abc import Awaitable, Callable
 from datetime import date
 from typing import Any
@@ -52,6 +55,8 @@ RECEIVED_BODY = (
     "교육 문의가 접수되었습니다. 접수 번호 {receipt_no}. 영업일 1일 안에 연락드립니다."
 )
 NONE_MARK = "(없음)"
+# 터미널에 날 글자로 내지 않는 범주 — 제어 · 서식(bidi 등) · 줄 구분 · 문단 구분 · 서로게이트
+ESCAPED_CATEGORIES = frozenset({"Cc", "Cf", "Zl", "Zp", "Cs"})
 
 
 async def _email_code(
@@ -206,6 +211,18 @@ def _err(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+def _dumps(value: Any) -> str:
+    """json.dumps(ensure_ascii=False) 에서 ESCAPED_CATEGORIES 글자만 json.dumps(글자) 의 이스케이프로 바꾼다.
+
+    BMP 밖 글자(U+E0001 등)는 서로게이트 쌍 \\udb40\\udc01 이 된다. json.dumps 가 이미 만든 \\n·\\u001b 는 ASCII 라 그대로다.
+    """
+    out = json.dumps(value, ensure_ascii=False)
+    return "".join(
+        json.dumps(ch)[1:-1] if unicodedata.category(ch) in ESCAPED_CATEGORIES else ch
+        for ch in out
+    )
+
+
 async def run(
     argv: list[str], session_factory: async_sessionmaker[AsyncSession]
 ) -> int:
@@ -251,7 +268,7 @@ async def run(
             await session.commit()
         else:
             await session.rollback()
-    print(json.dumps({"applied": args.apply, "messages": messages}, ensure_ascii=False))
+    print(_dumps({"applied": args.apply, "messages": messages}))
     if skipped:
         _err(f"건너뜀: 읽은 뒤 지워졌거나 이미 보낸 행 {skipped}건")
     if not args.apply:

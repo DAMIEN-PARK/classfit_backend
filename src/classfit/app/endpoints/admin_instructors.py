@@ -18,7 +18,7 @@ from fastapi import APIRouter, Query
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from classfit.app.deps import AdminCaller, DbSession
+from classfit.app.deps import AdminCaller, DbSession, IdPath
 from classfit.app.endpoints.instructors import document_outs, instructor_tags
 from classfit.core.errors import NotFound
 from classfit.crud import instructor as crud_instructor
@@ -171,7 +171,7 @@ async def list_instructors(
     responses=_NOT_FOUND,
 )
 async def get_instructor(
-    instructor_id: int, session: DbSession, caller: AdminCaller
+    instructor_id: IdPath, session: DbSession, caller: AdminCaller
 ) -> InstructorAdminOut:
     return await admin_out(
         session, await instructor_or_404(session, caller, instructor_id)
@@ -184,7 +184,7 @@ async def get_instructor(
     responses=_TRANSITION,
 )
 async def approve_instructor(
-    instructor_id: int, session: DbSession, caller: AdminCaller
+    instructor_id: IdPath, session: DbSession, caller: AdminCaller
 ) -> InstructorAdminOut:
     """대기 → 승인. audit 1 + outbox 1(kind instructor_approved)."""
     return await _transition(session, caller, instructor_id, "approve")
@@ -196,7 +196,7 @@ async def approve_instructor(
     responses={**_TRANSITION, 422: {"description": "사유가 없거나 공백뿐"}},
 )
 async def reject_instructor(
-    instructor_id: int, body: RejectIn, session: DbSession, caller: AdminCaller
+    instructor_id: IdPath, body: RejectIn, session: DbSession, caller: AdminCaller
 ) -> InstructorAdminOut:
     """대기 → 반려. 사유는 행과 audit detail 에 남고, 메일 본문은 audit 의 사유를 쓴다."""
     return await _transition(session, caller, instructor_id, "reject", body.reason)
@@ -208,7 +208,7 @@ async def reject_instructor(
     responses=_TRANSITION,
 )
 async def suspend_instructor(
-    instructor_id: int, session: DbSession, caller: AdminCaller
+    instructor_id: IdPath, session: DbSession, caller: AdminCaller
 ) -> InstructorAdminOut:
     """승인 → 정지. 그 강사의 산 세션을 전부 폐기한다(옛 토큰 401)."""
     return await _transition(session, caller, instructor_id, "suspend")
@@ -220,7 +220,7 @@ async def suspend_instructor(
     responses=_TRANSITION,
 )
 async def unsuspend_instructor(
-    instructor_id: int, session: DbSession, caller: AdminCaller
+    instructor_id: IdPath, session: DbSession, caller: AdminCaller
 ) -> InstructorAdminOut:
     """정지 → 승인. 폐기한 세션은 되살리지 않는다(다시 로그인)."""
     return await _transition(session, caller, instructor_id, "unsuspend")
@@ -232,7 +232,7 @@ async def unsuspend_instructor(
     responses=_NOT_FOUND,
 )
 async def patch_memo(
-    instructor_id: int, body: MemoIn, session: DbSession, caller: AdminCaller
+    instructor_id: IdPath, body: MemoIn, session: DbSession, caller: AdminCaller
 ) -> InstructorAdminOut:
     row = await instructor_or_404(session, caller, instructor_id)
     if await crud_instructor.update_instructor(session, row, memo=body.memo):

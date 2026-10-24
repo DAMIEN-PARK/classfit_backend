@@ -27,11 +27,10 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from starlette.datastructures import FormData, UploadFile
 
-from classfit.app.deps import AdminCaller, DbSession, InstructorCaller, Today
+from classfit.app.deps import AdminCaller, DbSession, IdPath, InstructorCaller, Today
 from classfit.app.endpoints.admin_instructors import query_text
-from classfit.app.endpoints.assign import IdPath
-from classfit.app.endpoints.attachments import MIB, _check_length, _invalid
 from classfit.app.errors import AppError
+from classfit.app.upload import MIB, check_length, invalid
 from classfit.core.config import Settings
 from classfit.core.errors import NotConfigured
 from classfit.schemas.course import DB_ID_LIMIT
@@ -93,8 +92,8 @@ def _rejected(exc: FileRejected) -> Exception:
     if exc.reason == "too_large":
         return AppError(413, f"사진은 {exc.limit_mb}MB 까지입니다")
     if exc.reason == "mismatch" and exc.kind == _IMAGE:
-        return _invalid("file", "파일 내용이 확장자와 맞지 않습니다")
-    return _invalid("file", NOT_IMAGE)
+        return invalid("file", "파일 내용이 확장자와 맞지 않습니다")
+    return invalid("file", NOT_IMAGE)
 
 
 def _form_fields(form: FormData) -> PhotoFormIn:
@@ -103,7 +102,7 @@ def _form_fields(form: FormData) -> PhotoFormIn:
     value = form.get("caption")
     if value is not None:
         if not isinstance(value, str):
-            raise _invalid("caption", "글자 필드여야 합니다")
+            raise invalid("caption", "글자 필드여야 합니다")
         raw["caption"] = value
     try:
         return PhotoFormIn.model_validate(raw)
@@ -145,12 +144,12 @@ async def upload_my_photo(
         session, instructor_id=caller.id, session_id=session_id, today=today
     )
     max_bytes = settings.attachment_image_max_mb * MIB
-    _check_length(request, max_bytes + MIB)
+    check_length(request, max_bytes)
     async with request.form(max_files=1, max_fields=2) as form:
         fields = _form_fields(form)
         upload = form.get("file")
         if not isinstance(upload, UploadFile) or not upload.filename:
-            raise _invalid("file", "file 파트(파일 이름 포함)가 필요합니다")
+            raise invalid("file", "file 파트(파일 이름 포함)가 필요합니다")
         root = settings.file_store_root
         if root is None:
             missing = settings.missing("file_store_root")

@@ -8,6 +8,8 @@
 - test_attachment_replace_reupload_during_sweep_keeps_bytes(codex 구현 리뷰 1차, 이름에 gc_ 를 쓰지 않는다 — E-14 셈):
   gc 의 확인과 지우기 사이에 교체가 같은 바이트를 다시 올려도 바이트가 남는다(store.remove_stale 이 무덤으로 옮긴 뒤
   지운다). 옮긴 채 남은 무덤은 다음 gc 가 되살린다(store.restore_leftovers).
+- test_gc_replaced_bytes_removed(T11 결정 x): 교체 뒤 참조 0 이 된 옛 바이트는 유예 안에서는 남고, 유예가 지나면 gc 가
+  지운다. 새 바이트는 남는다.
 - factory·_settings·_age 는 T1 tests/integration/test_db_admin_commands.py 꼴을 복사했다(시험 연결에 묶은 savepoint factory —
   gc 는 이 시험 트랜잭션의 행을 본다).
 - 표본 바이트는 서로 다르고 어느 픽스처 바이트와도 다르다. 같은 바이트면 내용 주소가 한 파일로 합쳐 "지워짐/남음" 이
@@ -366,3 +368,43 @@ async def test_attachment_replace_reupload_during_sweep_keeps_bytes(
     after = await _gc(factory, tmp_path, capsys)
     assert sha_b not in after["candidates"]
     assert path_for(tmp_path, sha_b).read_bytes() == b
+
+
+async def test_gc_replaced_bytes_removed(
+    db_session: AsyncSession,
+    factory: async_sessionmaker[AsyncSession],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """교체(…:replace) 뒤 옛 sha 는 참조 0 이 되어 유예가 지나면 gc 가 지우고, 새 바이트는 남는다(T6 :388 · T11 결정 x)."""
+    old = PDF + b"%t11-gc-replace-old\n"
+    new = PDF + b"%t11-gc-replace-new\n"
+    sha_old, sha_new = _sha(old), _sha(new)
+    assert sha_old != sha_new
+    for sha in (sha_old, sha_new):
+        assert await _rows_by_sha(db_session, sha) == 0
+    x, sid = await _x_session(db_session, "gc-replace-x@example.com")
+    row = await _file(db_session, tmp_path, x, sid, "old.pdf", old)
+    _, key, _ = await my_attachment_edit.replace_my_file(
+        db_session,
+        root=tmp_path,
+        max_bytes=MAX,
+        instructor_id=x,
+        attachment_id=row.id,
+        filename="new.pdf",
+        data=new,
+        actor=f"instructor:{x}",
+    )
+    assert key is not None
+    assert await _rows_by_sha(db_session, sha_old) == 0
+    assert await _rows_by_sha(db_session, sha_new) == 1
+
+    # 유예 안: 옛 바이트도 남는다(mtime 이 새롭다)
+    fresh = await _gc(factory, tmp_path, capsys)
+    assert fresh["deleted"] == [] and path_for(tmp_path, sha_old).is_file()
+    for sha in (sha_old, sha_new):
+        _age(path_for(tmp_path, sha), 25)
+    swept = await _gc(factory, tmp_path, capsys)
+    assert swept["deleted"] == [sha_old] and sha_new not in swept["candidates"]
+    assert not path_for(tmp_path, sha_old).exists()
+    assert path_for(tmp_path, sha_new).read_bytes() == new

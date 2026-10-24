@@ -151,7 +151,8 @@ def test_survey_rules_resolve_dates() -> None:
     overflow = [
         ({"mode": "date", "date": last}, {"mode": "open_plus_7"}, END),  # 열림 + 7
         ({"mode": "now"}, {"mode": "end_plus_14"}, date(9999, 12, 25)),  # 종료 + 14
-        ({"mode": "date", "date": last}, {"mode": "end_plus_14"}, END),  # 되물림 열림 + 7
+        # 되물림 열림 + 7
+        ({"mode": "date", "date": last}, {"mode": "end_plus_14"}, END),
     ]
     for open_, close, end_on in overflow:
         with pytest.raises(DatesRejected) as caught:

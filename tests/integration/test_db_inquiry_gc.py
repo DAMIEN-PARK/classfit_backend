@@ -2,13 +2,15 @@
 
 라이브 PG, 시험 연결에 묶은 session_factory 를 넘긴다(T1 test_db_admin_commands 꼴). 시험 이름에 gc_ 를 쓰지 않는다
 (규약 이름 셈 E-14 와 겹치지 않게 — 계획 확인값 칸).
+바인드 상한 시험(T11 결정 viii)은 문의·outbox 를 generate_series 로 한 문장씩 넣고, 실제로 보낸 문장의 매개변수를 엔진
+before_cursor_execute 이벤트로 본다.
 """
 
 import json
 from typing import Any
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, async_sessionmaker
 
 from classfit.database.session import make_session_factory
@@ -147,3 +149,84 @@ async def test_inquiry_delete_apply_removes_inquiry_and_outbox(
     result = json.loads(capsys.readouterr().out)
     assert result["selector"] == {"older_than_days": 365}
     assert result["selected"] == [] and result["applied"] is False
+
+
+# outbox 가 2N = 65,536 — id 마다 바인드면 PG 바인드 상한 65,535 를 넘는다
+BULK_INQUIRIES = 32_768
+BULK_SEED = (
+    "INSERT INTO inquiry (receipt_no, company_name, contact_name, email, phone,"
+    " privacy_agreed_at, created_at)"
+    " SELECT 'BULK' || lpad(g::text, 6, '0'), 'A사', '홍길동', 'bulk@example.com',"
+    " '010-0000-0000', now(), now() - interval '400 days'"
+    " FROM generate_series(1, :n) AS g"
+)
+BULK_OUTBOX = (
+    'INSERT INTO mail_outbox (kind, params, "to")'
+    " SELECT CASE k WHEN 1 THEN 'inquiry_received' ELSE 'inquiry_notify' END,"
+    " jsonb_build_object('inquiry_id', i.id), 'bulk@example.com'"
+    " FROM inquiry AS i CROSS JOIN generate_series(1, 2) AS k"
+    " WHERE i.receipt_no LIKE 'BULK%'"
+)
+
+
+async def test_inquiry_delete_beyond_bind_limit(
+    db_session: AsyncSession,
+    db_connection: AsyncConnection,
+    factory: async_sessionmaker[AsyncSession],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    db = db_session
+    await db.execute(text(BULK_SEED), {"n": BULK_INQUIRIES})
+    await db.execute(text(BULK_OUTBOX))
+    bulk_id = await db.scalar(select(func.min(Inquiry.id)))
+    # cutoff 안쪽 문의(그 outbox 2) · kind 가 다른 outbox(inquiry_id 가 같아도 남는다)
+    await _receive(db, message="최근 문의")
+    db.add(
+        MailOutbox(
+            kind="survey_closed", params={"inquiry_id": bulk_id}, to="x@example.com"
+        )
+    )
+    await db.flush()
+    n = BULK_INQUIRIES
+    assert await _counts(db) == (n + 1, 2 * n + 2, 1)
+
+    sent: list[tuple[str, dict[str, Any]]] = []
+
+    def record(
+        conn: Any, cursor: Any, statement: str, parameters: Any, *_: Any
+    ) -> None:
+        sent.append((statement, parameters))
+
+    engine = db_connection.sync_engine
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        argv = ["--older-than-days", "365", "--apply"]
+        assert await inquiry_gc.run(argv, factory) == 0
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+    result = json.loads(capsys.readouterr().out)
+    assert (len(result["selected"]), result["deleted"], result["outbox_deleted"]) == (
+        n,
+        n,
+        2 * n,
+    )
+    assert await _counts(db) == (1, 2, 1)
+
+    # 세 문장 모두 id 배열 바인드가 하나다 — 매개변수 수가 N 과 상관없다
+    def bound(prefix: str) -> dict[str, Any]:
+        (params,) = [p for s, p in sent if s.lstrip().startswith(prefix)]
+        arrays = [v for v in params.values() if isinstance(v, list)]
+        assert len(arrays) == 1, (prefix, len(arrays))
+        return params
+
+    found = dict(bound("SELECT mail_outbox.id"))
+    ids = found.pop(next(k for k, v in found.items() if isinstance(v, list)))
+    assert len(ids) == n
+    # 남는 것은 kind 앞글자와 JSON 키(inquiry_id) 둘
+    assert len(found) == 2 and "inquiry_id" in found.values(), found
+    for prefix, size in (
+        ("DELETE FROM mail_outbox", 2 * n),
+        ("DELETE FROM inquiry", n),
+    ):
+        (only,) = bound(prefix).values()
+        assert len(only) == size, prefix

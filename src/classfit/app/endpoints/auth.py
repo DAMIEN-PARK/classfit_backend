@@ -8,10 +8,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 
-from classfit.app.deps import CurrentPrincipal, DbSession, bearer_token
+from classfit.app.deps import CurrentPrincipal, DbSession, bearer_token, no_store
 from classfit.app.errors import problem
 from classfit.core.config import Settings
 from classfit.schemas.auth import AdminLoginIn, TokenOut
@@ -24,6 +24,7 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 @router.post(
     "/admin/login",
     response_model=TokenOut,
+    dependencies=[Depends(no_store)],
     responses={
         401: {"description": "아이디 또는 비밀번호가 틀림(없는 아이디와 같은 응답)"},
         429: {"description": "같은 (계정, 클라이언트 주소)의 실패가 많아 잠김"},
@@ -54,6 +55,7 @@ async def admin_login(
 @router.post(
     "/instructor/login",
     response_model=TokenOut,
+    dependencies=[Depends(no_store)],
     responses={
         401: {"description": "이메일 또는 비밀번호가 틀림(없는 이메일과 같은 응답)"},
         403: {"description": "정지된 강사(/problems/instructor-suspended)"},

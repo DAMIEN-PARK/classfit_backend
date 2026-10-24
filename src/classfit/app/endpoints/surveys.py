@@ -24,8 +24,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, Request
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import AdminCaller, DbSession, Today
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import AdminCaller, DbSession, IdPath, Today
 from classfit.app.endpoints.survey_templates import questions_invalid
 from classfit.core.config import Settings
 from classfit.schemas.course import DB_ID_LIMIT
@@ -299,7 +298,9 @@ async def patch_survey(
     except QuestionsRejected as exc:
         raise questions_invalid(exc) from None
     except DatesRejected as exc:
-        raise _dates_invalid(exc, _patch_loc(exc.reason, body.model_fields_set)) from None
+        raise _dates_invalid(
+            exc, _patch_loc(exc.reason, body.model_fields_set)
+        ) from None
     return survey_out(await views.head_of(session, row, today=today))
 
 

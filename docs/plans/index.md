@@ -10,6 +10,7 @@
 * [Plan: T0b sdlc-okf](T0b-sdlc-okf.md) - SDLC 4단계 문서 사슬(intent·spec·Design·ADR-001·004·plan·agent·research)과 OKF 1~7단계(okf.py·okf.toml·label·link·index·check·guard)를 깔고, T0a 리뷰 잔여 nit 와 CI 액션 판을 정리하는 태스크 계획
 * [Plan: T1 common-base](T1-common-base.md) - 관리자 로그인·auth_session·auth_attempt·outbox·issue_email_code()·stored_file·파일 Bearer 전달·flush_or_conflict·Today·커서·관리 명령 3·import-linter 계약 ② 와 마이그레이션 0002 를 까는 공통 바닥 태스크 계획
 * [Plan: T10 phase1-close](T10-phase1-close.md) - T9b 병합·push 뒤 1차 마감 기록만 남기는 문서 전용 태스크 계획 — spec 1절 plan.md 행 "1차 완료" · check_docs ④ 대상 행 수 · E-15(T9b 병합 커밋 CI) 결론을 T9b 계획 기록 칸과 plan.md 에 적는다. 코드·마이그레이션 없음
+* [Plan: T11 hardening](T11-hardening.md) - 1차가 남긴 엔지니어링 후보를 묶은 경화 태스크 계획 — 전역 본문 상한(인증 전 413), 토큰이 실리는 응답의 no-store, 요청 로그 토큰 가림, 정수 경로 매개변수 상한, 업로드 길이 검사 공용화, 관리자 92연산 강사 403 시험, 운영자 미리 보기 제어 문자 이스케이프, inquiry_gc 배열 바인드, 0012(설문 양식 색인 · 공백류 CHECK), ruff format 관문, T10 P4 문서와 2차 입력 목록
 * [Plan: T2a open-course](T2a-open-course.md) - 빈 강의 개설 + 초대코드 발급(한 트랜잭션)·일정·섹션·세션·코드 관리·course_status_at·code_state_at(+SQL 판)·golden 추출·깨진 커서 422 와 마이그레이션 0003 을 까는 태스크 계획
 * [Plan: T2b enter-portal](T2b-enter-portal.md) - 수강생 입장·재입장(초대코드 + 이메일)·learner(이메일만)·enrollment(이름·부서)·포털·관리자 첨부(pdf·link)·파일 열람 href·정원·재발급 잠금과 마이그레이션 0004 를 까는 태스크 계획
 * [Plan: T3 instructor-onboarding](T3-instructor-onboarding.md) - 강사 가입(이메일 인증 코드 해시·분야 태그·약관 판본)·로그인·프로필·서류 3종(열람 audit)·관리자 승인/반려/정지/해제(A2 상태 4행 전이)·태그 설정과 마이그레이션 0005 를 까는 태스크 계획

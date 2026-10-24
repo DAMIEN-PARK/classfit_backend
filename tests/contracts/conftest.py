@@ -29,7 +29,8 @@ def _isolated_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         if key.startswith("CLASSFIT_"):
             monkeypatch.delenv(key)
     monkeypatch.setitem(Settings.model_config, "env_file", None)
-    get_settings.cache_clear()  # classfit.main import 때 모듈 최상위 create_app() 이 채운 캐시
+    # classfit.main import 때 모듈 최상위 create_app() 이 채운 캐시
+    get_settings.cache_clear()
     yield
     get_settings.cache_clear()
 
@@ -40,13 +41,18 @@ def nested_at_response_start() -> list[bool]:
 
 
 @pytest_asyncio.fixture
-async def app(db_connection: AsyncConnection, nested_at_response_start: list[bool]) -> FastAPI:
+async def app(
+    db_connection: AsyncConnection, nested_at_response_start: list[bool]
+) -> FastAPI:
     application = create_app(Settings())
     application.state.session_factory = make_session_factory(
         db_connection, join_transaction_mode="create_savepoint"
     )
-    application.include_router(probe_router)  # 시험 전용 (tests/fixtures/probe_routes.py)
-    application.add_middleware(NestedTxProbe, connection=db_connection, sink=nested_at_response_start)
+    # 시험 전용 (tests/fixtures/probe_routes.py)
+    application.include_router(probe_router)
+    application.add_middleware(
+        NestedTxProbe, connection=db_connection, sink=nested_at_response_start
+    )
     return application
 
 

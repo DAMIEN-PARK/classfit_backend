@@ -26,8 +26,7 @@ from fastapi import APIRouter, Query, Response
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from classfit.app.deps import AdminCaller, DbSession
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import AdminCaller, DbSession, IdPath
 from classfit.app.errors import AppError
 from classfit.core.cursor import decode_cursor
 from classfit.core.errors import NotFound

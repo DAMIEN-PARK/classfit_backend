@@ -9,6 +9,10 @@
   폐기하므로 정지된 강사의 옛 토큰은 401 이다. 대기·반려 강사도 통과한다(승인 여부는 배정·첨부 태스크가 본다).
 - 날짜는 Today(Asia/Seoul) 한 곳에서 받는다. 시험은 app.dependency_overrides[today] 로 주입한다.
 - JSON 본문에 상한을 둘 끝점은 본문 매개변수 대신 limited_json(모델, 상한) 의존성을 인증 의존성 뒤에 둔다(T8 결정 ix).
+- 토큰 전체가 실리는 응답(로그인 둘 · 입장 · 회사 상세 GET·PATCH · 진단 링크 발급)은 데코레이터 dependencies 에
+  no_store 를 둔다(T11 결정 ii — Cache-Control: no-store).
+- 정수 경로 매개변수는 IdPath(행 id, 1 ≤ id < 2**63) · DayPath(일차 번호 1..60) 로만 받는다(T11 결정 iv — 밖이면
+  자원 질의 전에 422 loc ["path", <이름>], DB 의 BIGINT DataError 500 이 없다).
 """
 
 from __future__ import annotations
@@ -18,13 +22,15 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import date
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Path, Request, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.app.errors import AppError, forbidden, unauthorized
+from classfit.app.upload import length_over
 from classfit.core.clock import today_kst
+from classfit.schemas.course import DB_ID_LIMIT
 from classfit.service.auth.sessions import Principal, authenticate
 
 # token_urlsafe 글자만, 길이 상한. 모양이 틀리면 DB 를 보지 않고 401
@@ -105,6 +111,17 @@ def today() -> date:
 
 Today = Annotated[date, Depends(today)]
 
+# 경로의 행 id(BIGINT, T5 에서 옮김). 범위 밖은 DB 를 치지 않고 422 loc ["path", <이름>] 다(본문 DbId 와 같은 상한)
+IdPath = Annotated[int, Path(ge=1, lt=DB_ID_LIMIT)]
+# 일차 번호 경로(본문 DayNo 1..60 의 경로 판, T7 에서 옮김). 밖이면 DB 를 치지 않고 422 loc ["path", "day_no"]
+DayPath = Annotated[int, Path(ge=1, le=60)]
+
+
+def no_store(response: Response) -> None:
+    """응답 헤더만 단다(인증·자원 판정과 순서 무관). FastAPI 는 핸들러가 모델을 돌려줄 때만 이 헤더를 합친다
+    (fastapi/routing.py:790) — problem 응답(오류 · 로그인 실패)에는 붙지 않는다."""
+    response.headers["Cache-Control"] = "no-store"
+
 
 def limited_json[M: BaseModel](
     model: type[M], max_bytes: int
@@ -132,7 +149,11 @@ def limited_json[M: BaseModel](
             raise AppError(415, "JSON 본문만 받습니다(Content-Type: application/json)")
         declared = request.headers.get("content-length", "").strip()
         # isdigit 은 '²' 같은 비 ASCII 숫자도 참이라 int() 가 ValueError 다 — ASCII 숫자만 믿고 나머지는 스트림 가드에 맡긴다
-        if declared.isascii() and declared.isdigit() and int(declared) > max_bytes:
+        if (
+            declared.isascii()
+            and declared.isdigit()
+            and length_over(declared, max_bytes)
+        ):
             raise _too_large(max_bytes)
         buf = bytearray()
         async for chunk in request.stream():

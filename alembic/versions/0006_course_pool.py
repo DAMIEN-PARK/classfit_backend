@@ -50,7 +50,9 @@ def _now(name: str) -> sa.Column:
 
 
 def _flag(name: str, default: str) -> sa.Column:
-    return sa.Column(name, sa.Boolean(), server_default=sa.text(default), nullable=False)
+    return sa.Column(
+        name, sa.Boolean(), server_default=sa.text(default), nullable=False
+    )
 
 
 def _text_array(name: str) -> sa.Column:
@@ -114,9 +116,7 @@ def _pool_course() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_pool_course")),
     )
-    op.create_index(
-        "ix_pool_course_source_active", "pool_course", ["source", "active"]
-    )
+    op.create_index("ix_pool_course_source_active", "pool_course", ["source", "active"])
     op.create_index(
         op.f("ix_pool_course_owner_instructor_id"),
         "pool_course",
@@ -213,7 +213,9 @@ def _curriculum() -> None:
     )
 
 
-def _file_table(name: str, owner_fk: str, owner_type: sa.types.TypeEngine, owner: str) -> None:
+def _file_table(
+    name: str, owner_fk: str, owner_type: sa.types.TypeEngine, owner: str
+) -> None:
     op.create_table(
         name,
         _id(),

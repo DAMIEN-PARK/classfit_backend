@@ -19,8 +19,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import DbSession, InstructorCaller, Today
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import DbSession, IdPath, InstructorCaller, Today
 from classfit.crud.schedule import get_session_and_course
 from classfit.schemas.course import CourseStatus, ScheduleOut
 from classfit.schemas.my_course import (
