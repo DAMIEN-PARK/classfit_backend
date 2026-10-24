@@ -35,7 +35,7 @@ URL: ""
 | ADR-002 학습자 세션 | [`docs/process/adr/ADR-002-learner-session.md`](adr/ADR-002-learner-session.md) | 저장소 | git 추적 | 승인 | r3 §4 · §1.1 ④ | [Design](2026-10-21-phase1-backend-design.md) 1·2절 |
 | ADR-003 외부 포트 | [`docs/process/adr/ADR-003-external-ports.md`](adr/ADR-003-external-ports.md) | 저장소 | git 추적 | 승인 | r3 §4 | [Design](2026-10-21-phase1-backend-design.md) 1·3절 |
 | ADR-004 공개홈 | [`docs/process/adr/ADR-004-public-home.md`](adr/ADR-004-public-home.md) | 저장소 | git 추적 | 승인 · r3 §7-1 답에 따라 다시 봄 | r3 §4 · 부록 A5 | [feature intent](intents/2026-10-21-phase1-backend.md) |
-| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1·T2a·T2b·T3·T4·T5·T6·T7·T8·T9a 병합 · T9b 진행 중 | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
+| 태스크 순서 | [`docs/process/plan.md`](plan.md) | 저장소 | git 추적 | T0a·T0b·T1·T2a·T2b·T3·T4·T5·T6·T7·T8·T9a·T9b 병합 · 1차 완료(T10 마감 기록) | r3 §5.2 | 태스크 계획 · [agent.md](agent.md) |
 | 에이전트 편성 | [`docs/process/agent.md`](agent.md) | 저장소 | git 추적 | 승인자 DAMIEN-PARK | r3 §5.1 · 부록 E11 | CLAUDE.md · `.claude/settings.json` |
 
 ## 2. 정책 대조표

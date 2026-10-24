@@ -72,13 +72,16 @@ git diff --stat 1643ebc..HEAD -- . ':!docs' | tail -1                   # → �
 (구현 중 채운다. 비어 있으면 계획대로다.)
 
 - P1. plan 커밋 때 `okf link --apply` 가 T9b 계획의 두 자리(결정 xxvi :76 · 작업 순서 11 :197)에 이 계획으로 가는 링크를 넣었다 — 글자 `docs/plans/T10-phase1-close.md` 를 링크로 바꾼 것뿐이라 T9b 계획을 plan 커밋에 같이 넣었다(뜻 변화 없음).
+- P2. plan.md T10 행은 상태·착수 조건 칸 말고 두 칸을 더 고쳤다 — 증명 요약 "T9b 2행 포함" → "T9b 3행 포함 — Q4 ⓑ"(잰 값, 착수 조건 표의 기준선 행) · 계획 칸 "착수 때 작성" → 이 계획 링크(T9a·T9b 행 꼴). 같은 행 안이고 뜻은 잰 값에 맞춘 것뿐이다.
+- P3. `T10: 1차 마감 문서` 커밋은 세 문서에 이 계획(기록 칸 · 편차)을 더한 네 파일이다(위험 표 "바뀌는 파일 넷만"). 목차 둘은 머리말이 그대로라 바뀌지 않았다.
+- P4. "병합 뒤 ④" 칸은 `merge: T10` 뒤에는 이 가지에 쓸 수 없다(master 직접 커밋 금지). 병합 뒤 리드가 master 에서 재어 승인자에게 보고하고, 저장소 기록은 2차 첫 태스크 계획이 옮겨 적는다. Design 부록 A 에 T10 행이 없어 예상값은 48행 중 대상 48행이다.
 
 | 기록 칸 | 값 |
 |---|---|
-| 승인(approve 커밋 해시) | |
-| E-15(`$SHA` 40자 · JSON · `e15-ok`) | |
-| `check_docs.sh` ④ — T10 커밋 전·뒤 | 커밋 전(`1643ebc`): 48행 중 대상 48행 · docs check: OK |
-| 병합 뒤 ④(`merge: T10` 뒤 master) | |
+| 승인(approve 커밋 해시) | `6bfb4df approve: T10`(`Approved-by: DAMIEN-PARK`, 2026-10-24 — 가지 `T10-phase1-close`, 승인자) |
+| E-15(`$SHA` 40자 · JSON · `e15-ok`) | 2026-10-24 리드: `$SHA` = `1643ebc0ef2523d3c9ca1e49fc0b02e5ddbc9a6f`(40자) · `[{"conclusion":"success","status":"completed"}]` · `e15-ok`(CI run 40077861625 · 08:23:41 → 08:27:01 UTC) |
+| `check_docs.sh` ④ — T10 커밋 전·뒤 | 커밋 전(`1643ebc`): 48행 중 대상 48행 · docs check: OK · 승인 뒤 `6bfb4df`(`CLASSFIT_REQUIRE_EXTERNAL=1`): `④ 병합된 T: T0a T0b T1 T2a T2b T3 T4 T5 T6 T7 T8 T9a T9b · 대응표 48행 중 대상 48행` · `docs check: OK` · 커밋 트리(커밋 직전 작업 트리, `CLASSFIT_REQUIRE_EXTERNAL=1`): 같은 두 줄 |
+| 병합 뒤 ④(`merge: T10` 뒤 master) | (P4 — 병합 뒤 리드가 재어 보고한다) |
 
 
 
