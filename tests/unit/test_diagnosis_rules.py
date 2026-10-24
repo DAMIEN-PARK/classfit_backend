@@ -19,6 +19,7 @@ from classfit.service.rules.diagnosis import (
     AREAS,
     can_edit,
     delta,
+    expiry_window,
     frozen_fields,
     is_complete,
     item_points,
@@ -176,6 +177,18 @@ def test_diagnosis_rules_missing_and_edit() -> None:
     assert link_state("open", day, day + timedelta(days=1)) == "expired"
     assert link_state("revoked", day, day + timedelta(days=9)) == "revoked"
     assert link_state("submitted", day, day + timedelta(days=9)) == "submitted"
+    # 만료일 범위 — 날짜 끝(9999-12-31) 근처는 OverflowError 대신 그 날로 멈춘다
+    window = {"default_days": 14, "max_days": 365}
+    assert expiry_window(day, **window) == (
+        day + timedelta(days=14),
+        day + timedelta(days=365),
+    )
+    end = date.max
+    assert expiry_window(end - timedelta(days=20), **window) == (
+        end - timedelta(days=6),
+        end,
+    )
+    assert expiry_window(end, **window) == (end, end)
     total, areas = delta(score(ANSWERS_ALL_5), score(ANSWERS_ALL_1))
     assert total == 640 and areas == [160, 160, 160, 160]
     total, areas = delta(score(ANSWERS_9), score(ANSWERS_MIXED))

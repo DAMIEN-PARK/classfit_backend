@@ -17,7 +17,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from classfit.models import DiagLink, Diagnosis
+from classfit.models import Company, DiagLink, Diagnosis
 from classfit.models.diagnosis import ANSWER_KEYS
 
 COMPLETED_STATUSES = (
@@ -70,6 +70,19 @@ async def get_diagnosis(
     if fresh:
         stmt = stmt.execution_options(populate_existing=True)
     return await session.scalar(stmt)
+
+
+async def get_with_company(
+    session: AsyncSession, diagnosis_id: int
+) -> tuple[Diagnosis, Company] | None:
+    """(회차, 그 회사) 한 문장 — 리포트가 회사 부서를 함께 읽는다(두 문장 사이 회사가 지워져도 어긋나지 않게)."""
+    stmt = (
+        select(Diagnosis, Company)
+        .join(Company, Company.id == Diagnosis.company_id)
+        .where(Diagnosis.id == diagnosis_id)
+    )
+    found = (await session.execute(stmt)).first()
+    return (found[0], found[1]) if found is not None else None
 
 
 async def next_round_no(session: AsyncSession, company_id: int) -> int:

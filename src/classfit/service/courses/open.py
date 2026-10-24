@@ -1,10 +1,13 @@
 """강의 개설 + 초대코드 발급의 단일 진입점 open_course()(Design 5절 13, 기획안 A3 시작점 ① 빈 강의 · ② 지난 강의
-복제 · ④ 강사 커리큘럼).
+복제 · ③ 확정 진단 · ④ 강사 커리큘럼).
 
-한 트랜잭션: (②④ 원본 판정·잠금, service.courses.starts.load) → course 1행 → (day_count ≥ 1 이면) course_day n행
-→ 초대코드 1행 → (②④ 구조 채움, starts.apply — 섹션·세션·기본 강의안·배정 audit·outbox) → audit_log course.open 1행.
+한 트랜잭션: (②③④ 원본 판정·잠금 · 회사 확인, service.courses.starts.load) → course 1행 → (day_count ≥ 1 이면)
+course_day n행 → 초대코드 1행 → (②③④ 구조 채움, starts.apply — 섹션·세션·기본 강의안·배정 audit·outbox) →
+audit_log course.open 1행.
 원본이 없으면 404, 사용 중지 커리큘럼·미승인 소유 강사는 409 이고 그때는 아무 행도 쓰지 않는다(T5 결정 iii).
-course.open detail 은 {day_count, start, source} 이고 ②④ 면 사본 수 materials·건너뛴 원본 수 skipped_missing 이 붙는다.
+course.open detail 은 {day_count, start, source} 이고 ②④ 면 사본 수 materials·건너뛴 원본 수 skipped_missing 이,
+③ 이면 섹션 수 sections·세션 수 sessions 가 붙는다. 회사 연결 company_id 는 본문(①②④ 선택) ∨ 확정 회차의 회사(③)이고,
+회사 확인은 starts.load 한 곳이 한다(T9a 결정 vii).
 flush 까지만 하고 커밋은 요청 트랜잭션(app.deps.db)이 한다. 중간에 실패하면 전부 롤백된다.
 기간: day_count ≥ 1 이면 rules.schedule.make_days 의 첫·끝 날이다. 시작일이 토·일이면 첫 평일로 옮겨진다
 (T2a 계획 결정 i, 기획안 A3 "종료일은 일정에서 자동"). 만료일은 end_on + invite_expiry_days 로 저장한다(결정 ii).
@@ -23,6 +26,7 @@ from classfit.models import Course, InviteCode
 from classfit.schemas.course import CourseOpenIn
 from classfit.service.courses import starts
 from classfit.service.courses.codes import issue_invite_code
+from classfit.service.courses.start_diagnosis import DiagnosisSource
 from classfit.service.rules.schedule import make_days
 
 
@@ -65,6 +69,9 @@ async def open_course(
         status="prep",
         status_manual=False,
         curriculum_src_id=body.curriculum_id if body.start == "curriculum" else None,
+        company_id=loaded.company_id
+        if isinstance(loaded, DiagnosisSource)
+        else body.company_id,
     )
     course_id = course.id
     await crud_schedule.insert_days(
@@ -88,7 +95,11 @@ async def open_course(
     extra = await starts.apply(
         session, course, loaded, day_count=len(planned), actor=actor
     )
-    source = {"clone": body.source_course_id, "curriculum": body.curriculum_id}
+    source = {
+        "clone": body.source_course_id,
+        "curriculum": body.curriculum_id,
+        "diagnosis": body.diagnosis_id,
+    }
     await insert_audit(
         session,
         actor=actor,

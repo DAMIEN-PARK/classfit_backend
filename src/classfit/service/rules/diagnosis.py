@@ -8,7 +8,8 @@
   (shown_level). score() 는 golden 과 같이 늘 level 을 계산한다.
 - 답 키는 시안 `ai-ii`("0-0"~"3-3"), 값은 1..5. 키·값이 밖이면 ValueError(끝점은 스키마가 먼저 422 로 막는다).
 - 상태: 회차 draft·review 는 고칠 수 있고 final 은 못 고친다. 링크 회차는 제출일(diagnosed_on)이 잠긴다.
-  링크 만료는 저장하지 않고 계산한다(open ∧ expires_on < today, 만료일 당일은 유효).
+  링크 만료는 저장하지 않고 계산한다(open ∧ expires_on < today, 만료일 당일은 유효). 만료일 범위 expiry_window 는
+  날짜 끝(9999-12-31)을 넘으면 그 날로 멈춘다(date + timedelta 의 OverflowError → 500 을 막는다).
 """
 
 from __future__ import annotations
@@ -190,6 +191,20 @@ def link_state(status: str, expires_on: dt.date, today: dt.date) -> str:
     if status == "open" and expires_on < today:
         return "expired"
     return status
+
+
+def _plus_days(day: dt.date, days: int) -> dt.date:
+    try:
+        return day + dt.timedelta(days=days)
+    except OverflowError:
+        return dt.date.max
+
+
+def expiry_window(
+    today: dt.date, *, default_days: int, max_days: int
+) -> tuple[dt.date, dt.date]:
+    """(만료일 기본값, 만료일 상한) = (today + default_days, today + max_days). 날짜 끝을 넘으면 date.max."""
+    return _plus_days(today, default_days), _plus_days(today, max_days)
 
 
 def public_areas() -> list[dict[str, Any]]:

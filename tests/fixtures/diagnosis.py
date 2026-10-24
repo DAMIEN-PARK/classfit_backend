@@ -3,27 +3,36 @@
 - 답 사전 ANSWERS_* 는 golden 사례와 같은 값이다(단위 시험은 golden.json 을 읽고, 계약·통합 시험은 이 상수를 쓴다).
 - 키 집합은 응답을 정확히(==) 잴 때 쓴다(T9a 결정 xii). PUBLIC_FORBIDDEN 은 공개 응답 어디에도 없어야 할 키다.
 - CRUD 전용 도우미(make_company · insert_round · insert_link)는 service 없이 상태를 바로 박는다 — 표 제약 시험과 시험 준비용.
-  운영 경로(잠금·audit)를 재는 시험은 5단계의 service 도우미를 쓴다.
+  운영 경로(잠금·audit)를 재는 시험은 5단계의 service 도우미(make_round · make_link · submit_via_service · pool_candidates)와
+  HTTP 도우미(post_company · submit_link)를 쓴다.
+- pool_candidates 는 권장 구성 후보의 증인을 만든다: prod 에 공개 AX 4개(앞 3개 한도), cs 에 공개 AX 2개 + 승인 강사의 공개
+  고유 과정 1개(필터가 없으면 셋째로 드는 자리 — AX id ax-custom-… 가 own-… 보다 앞서 정렬된다), eng 에 0개.
 - 회사·사람 이름은 A사·B사 · "담당자 가" 꼴이고 이메일은 example.com 이다.
 """
 
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
+import httpx
 from fastapi import FastAPI
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.app import deps
+from classfit.core.config import Settings
 from classfit.crud import company as crud_company
 from classfit.crud import diag_link as crud_link
 from classfit.crud import diagnosis as crud_diagnosis
 from classfit.crud import schedule as crud_schedule
 from classfit.models import Company, CourseSession, DiagLink, Diagnosis, Section
 from classfit.models.diagnosis import ANSWER_KEYS
+from classfit.service.diagnosis import links, public, rounds
+from tests.fixtures.assign import approved
+from tests.fixtures.pool import make_pool_course, set_flags
 
 TODAY = date(2026, 11, 3)  # T2b 동시성 시험과 같은 날(화)
 LINK_DAYS = 14
@@ -379,3 +388,147 @@ async def sections_of(
         )
         for section in await crud_schedule.list_sections(session, course_id)
     ]
+
+
+# ── service·HTTP(5단계)
+
+ACTOR = "admin:1"
+ADMIN_ID = 1
+
+
+async def make_round(
+    session: AsyncSession,
+    company_id: int,
+    *,
+    answers: dict[str, int] | None = None,
+    status: str = "draft",
+    phase: str = "pre",
+    diagnosed_on: date = TODAY,
+    reco: dict[str, Any] | None = None,
+) -> Diagnosis:
+    """운영 경로로 방문 회차: create_round → (답) patch_round → (reco) save_reco → (final) finalize_round.
+
+    review 회차는 링크 제출로만 생긴다 — submit_via_service 를 쓴다.
+    """
+    if status not in ("draft", "final"):
+        raise ValueError("make_round 는 draft·final 만 — review 는 submit_via_service")
+    row = await rounds.create_round(
+        session, company_id=company_id, phase=phase, diagnosed_on=diagnosed_on, actor=ACTOR
+    )
+    if answers:
+        row = await rounds.patch_round(
+            session, diagnosis_id=row.id, fields={"answers": dict(answers)}, actor=ACTOR
+        )
+    if reco is not None:
+        row = await rounds.save_reco(
+            session, diagnosis_id=row.id, reco=reco, actor=ACTOR
+        )
+    if status == "final":
+        row = await rounds.finalize_round(
+            session, diagnosis_id=row.id, admin_id=ADMIN_ID, actor=ACTOR
+        )
+    return row
+
+
+async def make_link(
+    session: AsyncSession,
+    company_id: int,
+    *,
+    phase: str = "pre",
+    expires_on: date | None = None,
+    today: date = TODAY,
+    recipient: str | None = None,
+) -> DiagLink:
+    """운영 경로로 open 링크 발급(issue_link)."""
+    return await links.issue_link(
+        session,
+        company_id=company_id,
+        phase=phase,
+        recipient=recipient,
+        expires_on=expires_on,
+        today=today,
+        actor=ACTOR,
+    )
+
+
+async def submit_via_service(
+    session: AsyncSession,
+    token: str,
+    *,
+    answers: dict[str, int] | None = None,
+    today: date = TODAY,
+) -> Diagnosis:
+    """운영 경로로 공개 제출(public.submit) — 만든 review 회차를 돌려준다."""
+    link = await public.submit(
+        session,
+        token=token,
+        answers=dict(answers or ANSWERS_MIXED),
+        field=FIELD_SAMPLE,
+        matrix=MATRIX_SAMPLE,
+        respondent={**RESPONDENT, "email": RESPONDENT_EMAIL},
+        today=today,
+    )
+    assert link.diagnosis_id is not None
+    row = await crud_diagnosis.get_diagnosis(session, link.diagnosis_id)
+    assert row is not None
+    return row
+
+
+async def post_company(
+    client: httpx.AsyncClient, headers: dict[str, str], **over: Any
+) -> httpx.Response:
+    """POST /v1/admin/companies(COMPANY_BODY + over)."""
+    return await client.post(
+        "/v1/admin/companies", headers=headers, json={**COMPANY_BODY, **over}
+    )
+
+
+async def submit_link(
+    client: httpx.AsyncClient, token: str, **over: Any
+) -> httpx.Response:
+    """POST /v1/ax/{token} — 17지표(ANSWERS_MIXED) · 현장 · 역량 · 응답자. over 로 칸을 바꾼다."""
+    body = {
+        "answers": ANSWERS_MIXED,
+        "field": FIELD_SAMPLE,
+        "matrix": MATRIX_SAMPLE,
+        "respondent": RESPONDENT,
+        **over,
+    }
+    return await client.post(f"/v1/ax/{token}", json=body)
+
+
+@dataclass(frozen=True)
+class PoolCandidates:
+    prod: list[str]  # 공개 AX 4개 제목, id 순(후보는 앞 3개)
+    cs: list[str]  # 공개 AX 2개 제목, id 순
+    own: str  # cs 태그를 단 공개·활성 고유 과정 제목(후보가 아니다)
+
+
+async def pool_candidates(
+    session: AsyncSession, settings: Settings, *, email: str = "pool-own@example.com"
+) -> PoolCandidates:
+    """권장 구성 후보의 증인 — prod AX 4 · cs AX 2 + 고유 과정 1 · eng 0. 전부 pub ∧ active."""
+
+    async def ax(title: str, tag: str) -> tuple[str, str]:
+        row = await make_pool_course(
+            session, source="ax", title=title, job_groups=[tag]
+        )
+        await set_flags(session, row, pub=True, active=True)
+        return row.id, row.title
+
+    prod = sorted([await ax(f"생산 후보 {i}", "생산·제조") for i in range(1, 5)])
+    cs = sorted(
+        [await ax("CS 후보 1", "영업·마케팅"), await ax("CS 후보 2", "고객응대(CS)")]
+    )
+    instructor_id, _ = await approved(session, settings, email=email)
+    own = await make_pool_course(
+        session,
+        source="own",
+        owner_instructor_id=instructor_id,
+        title="CS 고유 과정",
+        job_groups=["영업·마케팅"],
+    )
+    await set_flags(session, own, reviewed=True, pub=True, active=True)
+    return PoolCandidates(
+        prod=[t for _, t in prod], cs=[t for _, t in cs], own=own.title
+    )
