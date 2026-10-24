@@ -42,10 +42,12 @@ log.addFilter(TokenRedactFilter())
 BODY_MAX_BYTES = MIB
 # 업로드 연산 상한 = 업로드 상한 설정 중 가장 큰 값 + 이 여유. 끝점 check_length 의 상한 + 1MiB 보다 커서 끝점 413 이 먼저다
 UPLOAD_SLACK_MIB = 2
-# 칸 상한을 다 채운 정상 JSON 본문이 1MiB 를 넘는 연산의 상한(메서드 · 경로 틀 → 바이트, T11 codex 구현 1차 〔정함〕)
+# 검증을 지나는 압축 JSON 의 필수 이스케이프 최대가 1MiB 를 넘는 연산의 상한(메서드 · 경로 틀 → 바이트, 최대 + 여유 MiB,
+# T11 codex 구현 1·2차 〔정함〕). 그 최대는 칸마다 검증기가 받는 글자 중 JSON 인코딩이 가장 긴 글자로 잰다 — 제어 문자는
+# ensure_ascii=False 여도 \u0001 6바이트다. JSON 요청 모델 55개 중 1MiB 를 넘는 것은 아래 하나다(다음 TemplateIn 815,615 B)
 ROUTE_MAX_BYTES: dict[tuple[str, str], int] = {
-    # 차시표 통째 교체: 200칸 × 제목 200 · 설명 5000자 — 이론 최대 4,169,703 B(4바이트 글자) · 한글 3,129,703 B
-    ("PUT", "/v1/me/curricula/{curriculum_id}/slots"): 5 * MIB,
+    # 차시표 통째 교체: 200칸 × 제목 200(4바이트 글자) · 설명 5000(제어 문자) — 6,169,539 B(일차·교시가 BIGINT 면 6,176,611 B)
+    ("PUT", "/v1/me/curricula/{curriculum_id}/slots"): 7 * MIB,
 }
 
 

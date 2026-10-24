@@ -3,7 +3,7 @@
 - 상한은 Content-Type 이 아니라 라우트로 고른다(업로드 연산 = openapi_extra requestBody 가 multipart 인 APIRoute,
   Match.FULL 만). ① 선언 길이가 넘으면 앱을 부르지 않고(인증 전) 413 ② 읽은 바이트가 넘으면 읽는 자리에서 413.
 - 응답이 시작된 뒤의 초과(본문을 안 읽는 FileResponse 의 disconnect 대기 루프)는 던지지 않고 응답을 끝낸다(리뷰 N1).
-- 정상 본문이 1MiB 를 넘는 JSON 연산은 라우트별 상한 표(ROUTE_MAX_BYTES — 차시표 PUT 5MiB)가 따로 정한다(codex 구현 1차).
+- 정상 본문이 1MiB 를 넘는 JSON 연산은 라우트별 상한 표(ROUTE_MAX_BYTES — 차시표 PUT 7MiB)가 따로 정한다(codex 구현 1·2차 — 필수 이스케이프 최대).
 - CORS · 요청 기록 단언과 업로드 갈래는 시험용 앱(업로드 상한 다섯 = 1MiB → 끝점 한도 2MiB · 업로드 상한 3MiB,
   CORS 출처 하나)으로 본다. 앱·db 재정의는 contracts conftest 의 꼴이다(바깥 트랜잭션 + savepoint).
 """
@@ -366,7 +366,7 @@ async def test_body_limit_under_cap_unchanged(
 
 def test_body_limit_route_table_matches_routes() -> None:
     """표 항목마다 실제 라우트가 하나다(경로가 바뀌면 앱을 만들 때 실패) · 미들웨어가 그 라우트와 상한을 받는다."""
-    assert ROUTE_MAX_BYTES == {("PUT", SLOTS): 5 * MIB}
+    assert ROUTE_MAX_BYTES == {("PUT", SLOTS): 7 * MIB}
     app = create_app(Settings())
     [entry] = [m for m in app.user_middleware if m.cls is BodyLimitMiddleware]
     got = {
@@ -386,39 +386,42 @@ def test_body_limit_route_table_matches_routes() -> None:
             route_limits(ROUTERS, {missing: MIB})
 
 
-async def test_body_limit_route_table_slots_5mib(
+async def test_body_limit_route_table_slots_max_body(
     app: FastAPI, client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
-    """차시표 PUT: 10일차 × 8교시 = 80칸, 설명 한글 5,000자(스키마·격자 통과, 1MiB 초과) → 200 · 5MiB 초과 → 413."""
+    """차시표 PUT 의 필수 이스케이프 최대 본문: 25일차 × 8교시 = 200칸 · 제목 4바이트 글자 200 · 설명 제어 문자(\\u0001
+    6바이트) 5,000 — 스키마·격자 검증을 지나는 6,169,539 B → 200. 표 상한(7MiB) + 1 은 413 · 다른 JSON 연산은 1MiB."""
+    limit = ROUTE_MAX_BYTES[("PUT", SLOTS)]
     (_, auth), _ = await instructor_pair(db_session, app.state.settings)
     r = await client.post(
         "/v1/me/curricula",
         headers=auth,
-        json=curriculum_body(days=10, start_time="09:00", end_time="17:00"),
+        json=curriculum_body(days=25, start_time="09:00", end_time="17:00"),
     )
     assert r.status_code == 201, r.text
     assert r.json()["slots_per_day"] == 8
     url = SLOTS.format(curriculum_id=r.json()["id"])
     cells = [
-        {"day": d, "slot": s, "title": f"{d}일차 {s}교시", "description": "가" * 5000}
-        for d in range(1, 11)
+        {"day": d, "slot": s, "title": "\U0001f600" * 200, "description": "\x01" * 5000}
+        for d in range(1, 26)
         for s in range(1, 9)
     ]
     raw = json.dumps({"slots": cells}, ensure_ascii=False, separators=(",", ":"))
     big = raw.encode()
-    assert MIB < len(big) < 5 * MIB, len(big)
+    assert len(big) == 6_169_539  # 필수 이스케이프 최대(scratchpad 측정과 같다)
     r = await client.put(url, headers={**auth, **JSON}, content=big)
     assert r.status_code == 200, r.text[:300]
-    assert len(r.json()["slots"]) == 80
-    # 선언 길이 5MiB + 1 은 앱 전에 · 길이 선언 없는 5MiB + 1 스트림은 읽다가 413
+    slots = r.json()["slots"]
+    assert len(slots) == 200 and slots[-1]["description"] == "\x01" * 5000
+    # 선언 길이 상한 + 1 은 앱 전에 · 길이 선언 없는 상한 + 1 스트림은 읽다가 413
     r = await client.put(
         url,
-        headers={**auth, **JSON, "content-length": str(5 * MIB + 1)},
-        content=_spaces(5 * MIB + 1),
+        headers={**auth, **JSON, "content-length": str(limit + 1)},
+        content=_spaces(limit + 1),
     )
-    _too_large(r, 5 * MIB)
-    r = await client.put(url, headers={**auth, **JSON}, content=_spaces(5 * MIB + 1))
-    _too_large(r, 5 * MIB)
+    _too_large(r, limit)
+    r = await client.put(url, headers={**auth, **JSON}, content=_spaces(limit + 1))
+    _too_large(r, limit)
     # 다른 JSON 연산(같은 커리큘럼 PATCH)은 여전히 1MiB
     r = await client.patch(
         url.removesuffix("/slots"), headers={**auth, **JSON}, content=big
