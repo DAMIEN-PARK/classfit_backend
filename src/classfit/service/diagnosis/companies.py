@@ -1,9 +1,11 @@
 """회사 만들기·고치기·지우기와 목록·상세 읽기(T9a 결정 iii·x·xi·xii·xxiv). flush 까지만.
 
-- 만들기·고치기는 잠그지 않는다(한 행 쓰기, 불변식 없음 — T4 결정 xxii 꼴). 고치기는 바뀐 칸만 쓰고, 바뀐 것이 없으면
-  audit 도 없다.
-- 지우기는 회사 행 FOR UPDATE 뒤 활성(보관하지 않은) 연결 강의 수를 세어 1 이상이면 409. 보관 강의의 연결은 crud 가
-  명시 UPDATE 로 풀고(강의 행 잠금을 기다릴 수 있다 — company → course 순, 결정 xi ⓐ) 회차·링크는 CASCADE 로 지운다.
+- 만들기는 잠그지 않는다(새 행 하나). 고치기는 회사 행 FOR UPDATE(lock_company — 새로 읽는다) 뒤 비교·쓰기다. 잠그지
+  않고 읽은 행을 flush 하면 그 사이 삭제가 커밋됐을 때 UPDATE 0행 StaleDataError 500 이 된다(codex 구현 리뷰 1차 ④) —
+  잠근 뒤 행이 없으면 404. 바뀐 칸만 쓰고, 바뀐 것이 없으면 audit 도 없다.
+- 지우기는 회사 행 FOR UPDATE 뒤 활성(보관하지 않은) 연결 강의 수를 세어 1 이상이면 409. 그다음 연결 강의(전부 보관)를
+  id 오름차순으로 잠그고(강의 행 잠금을 기다릴 수 있다 — company → course 순, 결정 xi ⓐ · 강의를 오름차순으로 잡는
+  T8 양식 삭제와 같은 차례, codex 1차 ③) 연결을 풀고 회사를 지운다. 회차·링크는 CASCADE 다.
 - 목록·상세는 여러 문장으로 모은다. 회차 요약은 .get 으로 꺼내 그 사이 지워진 회차·회사가 있어도 500 이 아니다.
   요약의 level 은 17지표 전이면 None 이다(shown_level, 결정 v).
 """
@@ -165,8 +167,8 @@ async def patch_company(
     fields: Mapping[str, Any],
     actor: str,
 ) -> Company:
-    """준 칸 가운데 지금 값과 다른 칸만 쓴다. 없으면 404."""
-    row = await crud_company.get_company(session, company_id)
+    """준 칸 가운데 지금 값과 다른 칸만 쓴다. 없으면(그 사이 지워졌으면) 404."""
+    row = await crud_company.lock_company(session, company_id)
     if row is None:
         raise NotFound(NO_COMPANY)
     changes = {k: v for k, v in fields.items() if getattr(row, k) != v}
@@ -197,6 +199,7 @@ async def delete_company(session: AsyncSession, *, company_id: int, actor: str) 
         )
     rounds = len(await crud_diagnosis.list_rounds(session, company_id))
     links = len(await crud_link.list_links(session, company_id))
+    await crud_company.lock_linked_courses(session, company_id)
     deleted, unlinked = await crud_company.delete_company(session, company_id)
     if not deleted:  # 잠근 행이라 생기지 않는다(방어)
         raise NotFound(NO_COMPANY)

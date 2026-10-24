@@ -579,7 +579,8 @@ async def test_company_list_survives_rows_deleted_between_queries(
 
 # ── 잠금 호출 자리(결정 xvii). T7 tests/integration/test_db_record.py 의 정적 도우미를 복사했다
 
-# 회사 행 잠금 아래의 쓰기 아홉(결정 xi). 각 파일의 공개 async def 중 쓰기를 부르는 것은 이 아홉 + 잠그지 않는 둘뿐이다
+# 회사 행 잠금 아래의 쓰기 열(결정 xi 아홉 + 회사 PATCH — codex 구현 리뷰 1차 ④). 각 파일의 공개 async def 중 쓰기를
+# 부르는 것은 이 열 + 잠그지 않는 하나(회사 만들기)뿐이다
 DIAG_WRITERS = {
     "service/diagnosis/links.py": ("issue_link", "revoke_link"),
     "service/diagnosis/public.py": ("submit",),
@@ -590,9 +591,9 @@ DIAG_WRITERS = {
         "finalize_round",
         "delete_round",
     ),
-    "service/diagnosis/companies.py": ("delete_company",),
+    "service/diagnosis/companies.py": ("patch_company", "delete_company"),
 }
-UNLOCKED_WRITERS = {"create_company", "patch_company"}  # 한 행 쓰기, 불변식 없음
+UNLOCKED_WRITERS = {"create_company"}  # 새 행 하나
 DIAG_FILES = (
     "service/diagnosis/companies.py",
     "service/diagnosis/links.py",
@@ -612,8 +613,8 @@ DIAG_WRITE_CALLS = {
     "delete_diagnosis",
     "insert_audit",
 }
-# 잠근 뒤 대상을 다시 읽는 호출(②). fresh 표시는 fresh=True 를 함께 본다
-DIAG_REREAD = {
+# 잠근 뒤 대상을 다시 읽는 호출(②). fresh 표시는 fresh=True 를 함께 본다. None 은 잠금 자체가 새로 읽는 것(populate_existing)
+DIAG_REREAD: dict[str, tuple[str, bool] | None] = {
     "issue_link": ("open_links", False),
     "revoke_link": ("get_by_token", True),
     "submit": ("get_by_token", True),
@@ -622,6 +623,7 @@ DIAG_REREAD = {
     "save_reco": ("get_diagnosis", True),
     "finalize_round": ("get_diagnosis", True),
     "delete_round": ("get_diagnosis", True),
+    "patch_company": None,
     "delete_company": ("active_course_count", False),
 }
 DIAG_CRUD: tuple[ModuleType, ...] = (
@@ -703,13 +705,17 @@ def test_diagnosis_lock_call_sites() -> None:
             lock = _first(calls, "lock_company", where)
             writes = [c.at for c in calls if c.name in DIAG_WRITE_CALLS]
             assert writes and lock < min(writes), f"{where}: 쓰기가 잠금 앞이다"
-            reread, fresh = DIAG_REREAD[fn]
-            assert any(
-                c.name == reread
-                and lock < c.at < min(writes)
-                and (not fresh or c.keywords.get("fresh") == "True")
-                for c in calls
-            ), f"{where}: 잠근 뒤 {reread}{'(fresh=True)' if fresh else ''} 가 없다"
+            expected = DIAG_REREAD[fn]
+            if expected is not None:
+                reread, fresh = expected
+                assert any(
+                    c.name == reread
+                    and lock < c.at < min(writes)
+                    and (not fresh or c.keywords.get("fresh") == "True")
+                    for c in calls
+                ), f"{where}: 잠근 뒤 {reread}{'(fresh=True)' if fresh else ''} 가 없다"
+            else:  # 잠근 행으로 비교한다 — 잠그기 전 getter 가 없다
+                assert not any(c.name == "get_company" for c in calls), where
             assert not any(c.owner == "session" and c.name == "get" for c in calls)
             bare = [
                 c.name
@@ -743,8 +749,17 @@ def test_diagnosis_lock_call_sites() -> None:
         and not node.name.startswith("_")
         and any(c.name in DIAG_WRITE_CALLS for c in _calls(node))
     }
-    nine = {fn for functions in DIAG_WRITERS.values() for fn in functions}
-    assert writers == nine | UNLOCKED_WRITERS, writers
+    locked = {fn for functions in DIAG_WRITERS.values() for fn in functions}
+    assert writers == locked | UNLOCKED_WRITERS, writers
+    # 회사 삭제: 회사 → 활성 수 → 연결 강의 id 오름차순 잠금 → 연결 풀기·삭제(codex 1차 ③)
+    calls = _calls(_function("service/diagnosis/companies.py", "delete_company"))
+    where = "companies.delete_company"
+    assert (
+        _first(calls, "lock_company", where)
+        < _first(calls, "active_course_count", where)
+        < _first(calls, "lock_linked_courses", where)
+        < _first(calls, "delete_company", where)
+    )
     # ③ 개설: 회사 확인은 starts.load 한 곳(hold_company → 시작점 갈래) · ③ 은 hold_company → fresh 다시 읽기 ·
     #    세션 넣기에 강사·풀·커리큘럼 참조 없음
     load = _calls(_function("service/courses/starts.py", "load"))
@@ -767,7 +782,8 @@ def test_diagnosis_lock_call_sites() -> None:
     assert inserts
     for c in inserts:
         assert not {"instructor_id", "pool_course_id", "curriculum_id"} & set(c.keywords)
-    # ⑥ crud/company.py 의 행 잠금은 lock_company(FOR UPDATE)·hold_company(FOR KEY SHARE) 두 자리뿐
+    # ⑥ crud/company.py 의 행 잠금은 lock_company(FOR UPDATE)·hold_company(FOR KEY SHARE)·lock_linked_courses(강의 id
+    #    오름차순 FOR UPDATE) 세 자리뿐
     tree = _tree("crud/company.py")
     owners = [
         node.name
@@ -776,7 +792,9 @@ def test_diagnosis_lock_call_sites() -> None:
         for c in _calls(node)
         if c.name == "with_for_update"
     ]
-    assert sorted(owners) == ["hold_company", "lock_company"]
+    assert sorted(owners) == ["hold_company", "lock_company", "lock_linked_courses"]
+    linked_src = ast.unparse(_function("crud/company.py", "lock_linked_courses"))
+    assert "order_by(Course.id)" in linked_src
     hold_src = ast.unparse(_function("crud/company.py", "hold_company"))
     assert "key_share=True" in hold_src and "read=True" in hold_src
     # ⑦ owner_kind 글자는 등록부 한 곳에만

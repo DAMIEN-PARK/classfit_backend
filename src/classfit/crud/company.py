@@ -1,12 +1,15 @@
 """company(회사) 읽기·쓰기·잠금과 회차 요약(T9a 결정 iii·xi·xxiv). flush 까지만.
 
-- 잠금 꼴 둘(이 파일의 with_for_update 는 이 둘뿐이다): 진단 쪽 쓰기(링크·회차·회사 삭제)는 lock_company(FOR UPDATE +
-  populate_existing) 뒤 대상을 다시 읽고 쓴다. 강의 개설(회사 연결 · 시작점 ③)은 hold_company(FOR KEY SHARE)로 회사를
+- 잠금 꼴 셋(이 파일의 with_for_update 는 이 셋뿐이다): 진단 쪽 쓰기(링크·회차·회사 고치기·지우기)는 lock_company(FOR UPDATE
+  + populate_existing) 뒤 대상을 다시 읽고 쓴다. 강의 개설(회사 연결 · 시작점 ③)은 hold_company(FOR KEY SHARE)로 회사를
   잡은 뒤 새 course 를 넣는다 — KEY SHARE 끼리는 충돌하지 않아 같은 회사의 동시 개설은 줄 서지 않고, 회사 삭제의
-  FOR UPDATE 와는 줄 선다. company 는 T5 잠금 순서의 참조 행 층(①′)이다.
-- 회사 삭제 delete_company 는 보관 강의의 연결을 먼저 명시 UPDATE 로 풀고(그 수가 audit 의 unlinked_courses) 회사 행을
-  지운다. 그 UPDATE 는 강의 행 잠금(lock_course 보유자)을 기다릴 수 있다 — 순서는 company → course 한 방향이다.
-  회차·링크는 FK CASCADE 로 같이 지워진다. 활성 연결 강의 검사(409)는 service 몫이다.
+  FOR UPDATE 와는 줄 선다. company 는 T5 잠금 순서의 참조 행 층(①′)이다. 회사 삭제는 연결 강의 행을
+  lock_linked_courses(id 오름차순 FOR UPDATE)로 잡는다.
+- 회사 삭제는 회사 행 → 연결 강의 행(id 오름차순) → 연결 풀기 UPDATE → 회사 DELETE 순이다. 강의 행을 일괄 UPDATE 가 실행
+  계획 순서로 잡으면 강의를 id 오름차순으로 잡는 다른 경로(T8 양식 삭제 · 설문 배포)와 엇갈려 교착하므로(codex 구현 리뷰
+  1차 ③) 먼저 오름차순으로 잠근다. 그 잠금은 강의 행 잠금(lock_course 보유자)을 기다릴 수 있다 — company → course 한
+  방향이다. 연결 수가 audit 의 unlinked_courses 이고, 회차·링크는 FK CASCADE 로 같이 지워진다. 활성 연결 강의
+  검사(409)는 service 몫이다.
 - 목록 list_stmt 의 첫 WHERE 는 주체 범위 company_scope(관리자 전부)다.
 """
 
@@ -61,6 +64,21 @@ async def hold_company(session: AsyncSession, company_id: int) -> bool:
     return await session.scalar(stmt) is not None
 
 
+async def lock_linked_courses(session: AsyncSession, company_id: int) -> list[int]:
+    """그 회사에 연결된 강의 행을 id 오름차순 FOR UPDATE 로 잡고 그 id 를 돌려준다(회사 삭제 — lock_company 뒤).
+
+    LockRows 가 정렬 뒤에 있어 잡는 차례가 id 오름차순이다(T8 crud.survey_template.course_ids_using 순서와 같다).
+    그 사이 지워진 강의는 PG 가 돌려주지 않는다.
+    """
+    stmt = (
+        select(Course.id)
+        .where(Course.company_id == company_id)
+        .order_by(Course.id)
+        .with_for_update()
+    )
+    return list((await session.scalars(stmt)).all())
+
+
 async def update_company(session: AsyncSession, row: Company, **fields: Any) -> Company:
     """칸을 바꾸고 flush 한 뒤 다시 읽는다(updated_at 이 만료된다)."""
     for name, value in fields.items():
@@ -71,10 +89,10 @@ async def update_company(session: AsyncSession, row: Company, **fields: Any) -> 
 
 
 async def delete_company(session: AsyncSession, company_id: int) -> tuple[bool, int]:
-    """(지웠는가, 연결을 푼 강의 수). 회사 행은 lock_company 로 잡은 뒤에 부른다.
+    """(지웠는가, 연결을 푼 강의 수). lock_company · lock_linked_courses 로 회사와 연결 강의를 잡은 뒤에 부른다.
 
-    강의 연결을 먼저 명시적으로 푼다 — FK SET NULL 의 암묵 UPDATE 와 같은 행·같은 순서이고 그 수를 audit 이 쓴다.
-    원시 UPDATE 라 updated_at 을 직접 넣는다.
+    강의 연결을 먼저 명시적으로 푼다 — FK SET NULL 의 암묵 UPDATE 와 같은 행이고(이미 잡아 기다리지 않는다) 그 수를 audit
+    이 쓴다. 원시 UPDATE 라 updated_at 을 직접 넣는다.
     """
     unlinked = await session.scalars(
         update(Course)

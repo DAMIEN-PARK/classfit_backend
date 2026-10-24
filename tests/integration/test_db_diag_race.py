@@ -1,10 +1,12 @@
-"""T9a 동시성 행동 시험 일곱(T9a 결정 xi·xvi): 링크 발급 · 같은 토큰 제출 · 확정과 수정 · 회수와 제출 · 개설 ③ 과 회사 삭제
-(두 방향) · 회사 삭제와 보관 강의 쓰기. 라이브 PG, 커밋한다. 이름 접두는 test_diag_race_(E-11 의 test_concurrent_ 와 다르다).
+"""T9a 동시성 행동 시험 아홉(T9a 결정 xi·xvi + codex 구현 리뷰 1차 ③④): 링크 발급 · 같은 토큰 제출 · 확정과 수정 · 회수와
+제출 · 개설 ③ 과 회사 삭제(두 방향) · 회사 삭제와 보관 강의 쓰기 · 회사 삭제와 설문 양식 삭제(보관 강의 둘 — 강의 잠금 순서) ·
+회사 삭제와 회사 PATCH. 라이브 PG, 커밋한다. 이름 접두는 test_diag_race_(E-11 의 test_concurrent_ 와 다르다).
 
 틀은 T5 tests/integration/test_db_assign_race.py(T8 병합 판)의 도우미를 그대로 복사했다(그 파일은 고치지 않는다):
 커밋하는 NullPool 엔진 committing(끝에 SEED_TABLES 밖의 ORM 표를 TRUNCATE — 0005 document_type · 0009 survey_template 시드는
 남긴다) · factory · pg_stat_activity 로 "B 가 기다렸다" 를 재는 _waits_on_lock · B 가 기다린 행의 표 _blocked_on ·
-_commit_after · _lock_timeout · _race(A 가 함수를 끝내고 커밋 전에 선다) · _ok · _count · _seed. 장벽 도우미는 쓰지 않는다.
+_commit_after · _lock_timeout · _race(A 가 함수를 끝내고 커밋 전에 선다) · _ok · _count · _seed, 그리고 장벽 도우미
+_pause_after · _race_paused(A 를 crud 호출 하나 뒤에 세운다 — 양식 삭제가 강의 1 만 잡은 순간, codex 1차 ③).
 일곱 다 무엇을 기다렸는지(blocked)와 결과(행 수·칸 값·예외 종류·audit 수)를 따로 단언한다. 오늘은 today= 로 준다.
 순서는 시간이 아니라 Event 와 _waits_on_lock 폴링이 정한다(sleep 없음). A·B 둘 다 lock_timeout 10초.
 """
@@ -15,13 +17,16 @@ import asyncio
 import datetime as dt
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
+from types import ModuleType
 from typing import Any
 
+import pytest
 import pytest_asyncio
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
+import classfit.crud.course
 from classfit.core.errors import Conflict, Gone, NotFound
 from classfit.crud import course as crud_course
 from classfit.database.session import make_engine, make_session_factory
@@ -33,11 +38,14 @@ from classfit.models import (
     DiagLink,
     Diagnosis,
     InviteCode,
+    Survey,
+    SurveyTemplate,
 )
 from classfit.schemas.course import CourseOpenIn, CoursePatchIn
 from classfit.service.courses import days
 from classfit.service.courses.open import open_course
 from classfit.service.diagnosis import companies, links, public, rounds
+from classfit.service.surveys import templates
 from tests.fixtures.courses import open_test_course
 from tests.fixtures.diagnosis import (
     ACTOR,
@@ -184,6 +192,68 @@ async def _race(
                 await a.rollback()  # A 의 잠금을 풀어 B 가 끝나게 한다
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
+    return Raced(first, second, waited, blocked)
+
+
+def _pause_after(
+    monkeypatch: pytest.MonkeyPatch, module: ModuleType, name: str
+) -> tuple[asyncio.Event, asyncio.Event]:
+    """(held, release). module.name 의 첫 호출만 진짜 함수를 끝낸 뒤 held 를 켜고 release 를 기다린다."""
+    real = getattr(module, name)
+    held, release = asyncio.Event(), asyncio.Event()
+    calls = 0
+
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        result = await real(*args, **kwargs)
+        if calls == 1:
+            held.set()
+            await release.wait()
+        return result
+
+    monkeypatch.setattr(module, name, wrapper)
+    return held, release
+
+
+async def _race_paused(
+    factory: Factory,
+    engine: AsyncEngine,
+    held: asyncio.Event,
+    release: asyncio.Event,
+    hold: Work,
+    contend: Work,
+) -> Raced:
+    """A 를 장벽까지 보내고 B 를 띄워 기다림·대기 관계를 잰 뒤 장벽을 푼다. 둘 다 끝나면 결과를 모은다."""
+    async with factory() as a, factory() as b:
+        await _lock_timeout(a)
+        a_task = asyncio.create_task(_commit_after(a, hold))
+        b_task: asyncio.Task[Any] | None = None
+        try:
+            barrier = asyncio.create_task(held.wait())
+            await asyncio.wait(
+                {a_task, barrier},
+                timeout=WAIT_SECONDS,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            barrier.cancel()
+            if not held.is_set():
+                detail = a_task.exception() if a_task.done() else "5초 초과"
+                raise AssertionError(f"장벽에 닿지 않음: {detail!r}")
+            pid = await _lock_timeout(b)
+            b_task = asyncio.create_task(_commit_after(b, contend))
+            waited = await _waits_on_lock(engine, pid, b_task)
+            blocked = await _blocked_on(engine, pid) if waited else set()
+            release.set()
+            first, second = await asyncio.wait_for(
+                asyncio.gather(a_task, b_task, return_exceptions=True), GATHER_SECONDS
+            )
+        finally:
+            release.set()
+            pending = [t for t in (a_task, b_task) if t is not None and not t.done()]
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
     return Raced(first, second, waited, blocked)
 
 
@@ -470,3 +540,88 @@ async def test_diag_race_company_delete_waits_for_archived_course_write(
     assert await _audits(factory, "company.delete") == [
         {"rounds": 0, "links": 0, "unlinked_courses": 1}
     ]
+
+
+async def test_diag_race_company_delete_two_courses_vs_template_delete(
+    factory: Factory, committing: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """같은 회사에 연결된 보관 강의 K1 < K2 둘이 같은 설문 양식을 썼다. 양식 삭제(T8 — 양식 → 강의 id 오름차순 lock_course)가
+    K1 만 잡은 순간 회사 삭제가 오면, 회사 삭제도 연결 강의를 id 오름차순으로 잡아야 K1 에서 기다리고(K2 를 쥐지 않는다)
+    둘 다 끝난다. 일괄 UPDATE 가 물리 순서(K2 먼저)로 잠그면 K2 를 쥔 채 K1 을 기다려 40P01 이다(codex 1차 ③)."""
+
+    async def seed(s: AsyncSession) -> tuple[int, int, int, int]:
+        company = await make_company(s)
+        k1, _ = await open_test_course(s, company_id=company.id, title="강의 1")
+        k2, _ = await open_test_course(s, company_id=company.id, title="강의 2")
+        assert k1.id < k2.id
+        template = SurveyTemplate(name="양식 가", is_default=False, questions=[])
+        s.add(template)
+        await s.flush()
+        for course in (k1, k2):
+            s.add(
+                Survey(
+                    course_id=course.id,
+                    template_id=template.id,
+                    template_name=template.name,
+                    questions=[],
+                    open_on=TODAY,
+                    close_on=TODAY,
+                )
+            )
+        now = dt.datetime.now(dt.UTC)
+        for course in (k1, k2):
+            await crud_course.update_course(s, course, archived_at=now)
+        # K1 의 색인 칸을 두 번 바꿔(HOT 아님) 산 튜플을 힙·색인 모두 K2 뒤로 보낸다 — 실행 계획 순서 = K2 먼저
+        for value in (None, company.id):
+            await s.execute(
+                update(Course).where(Course.id == k1.id).values(company_id=value)
+            )
+        return company.id, template.id, k1.id, k2.id
+
+    company_id, template_id, k1_id, k2_id = await _seed(factory, seed)
+    held, release = _pause_after(monkeypatch, classfit.crud.course, "lock_course")
+
+    async def delete_template(s: AsyncSession) -> None:
+        await templates.delete_template(s, template_id=template_id, actor=ACTOR)
+
+    raced = await _race_paused(
+        factory,
+        committing,
+        held,
+        release,
+        delete_template,
+        _delete_company(company_id),
+    )
+    assert (raced.waited, raced.blocked) == (True, {"course"})
+    _ok(raced)  # 40P01 교착 · 55P03 없음
+    assert await _count(factory, Company, Company.id == company_id) == 0
+    assert await _count(factory, SurveyTemplate, SurveyTemplate.id == template_id) == 0
+    unlinked = Course.id.in_([k1_id, k2_id]), Course.company_id.is_(None)
+    assert await _count(factory, Course, *unlinked) == 2
+    assert await _audits(factory, "company.delete") == [
+        {"rounds": 0, "links": 0, "unlinked_courses": 2}
+    ]
+
+
+async def test_diag_race_company_delete_then_patch_404(
+    factory: Factory, committing: AsyncEngine
+) -> None:
+    """회사 삭제가 회사 행을 쥔 채 서 있으면 회사 PATCH 는 lock_company 에서 기다린 뒤 행이 없음을 보고 404 —
+    잠그지 않고 읽은 행을 flush 하면 UPDATE 0행 StaleDataError 500 이다(codex 1차 ④)."""
+
+    async def seed(s: AsyncSession) -> int:
+        return (await make_company(s)).id
+
+    company_id = await _seed(factory, seed)
+
+    async def patch(s: AsyncSession) -> Company:
+        return await companies.patch_company(
+            s, company_id=company_id, fields={"memo": "바뀐 메모"}, actor=ACTOR
+        )
+
+    raced = await _race(factory, committing, _delete_company(company_id), patch)
+    assert (raced.waited, raced.blocked) == (True, {"company"})
+    assert raced.first is None
+    assert isinstance(raced.second, NotFound), repr(raced.second)
+    assert await _count(factory, Company, Company.id == company_id) == 0
+    assert await _audits(factory, "company.update") == []
