@@ -2,11 +2,14 @@
 
 - 상한은 Content-Type 이 아니라 라우트로 고른다(업로드 연산 = openapi_extra requestBody 가 multipart 인 APIRoute,
   Match.FULL 만). ① 선언 길이가 넘으면 앱을 부르지 않고(인증 전) 413 ② 읽은 바이트가 넘으면 읽는 자리에서 413.
+- 응답이 시작된 뒤의 초과(본문을 안 읽는 FileResponse 의 disconnect 대기 루프)는 던지지 않고 응답을 끝낸다(리뷰 N1).
 - 정상 본문이 1MiB 를 넘는 JSON 연산은 라우트별 상한 표(ROUTE_MAX_BYTES — 차시표 PUT 5MiB)가 따로 정한다(codex 구현 1차).
 - CORS · 요청 기록 단언과 업로드 갈래는 시험용 앱(업로드 상한 다섯 = 1MiB → 끝점 한도 2MiB · 업로드 상한 3MiB,
   CORS 출처 하나)으로 본다. 앱·db 재정의는 contracts conftest 의 꼴이다(바깥 트랜잭션 + savepoint).
 """
 
+import ast
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -16,9 +19,11 @@ import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI, Request
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
+from starlette.types import Message, Receive, Scope, Send
 
 from classfit.app.deps import limited_json
 from classfit.app.errors import AppError
@@ -30,7 +35,7 @@ from classfit.database.session import make_session_factory
 from classfit.main import create_app
 from classfit.models import SessionAttachment, StoredFile
 from tests.fixtures.courses import admin_headers, learner_headers, open_test_course
-from tests.fixtures.enter import PDF, add_session
+from tests.fixtures.enter import PDF, add_pdf, add_session
 from tests.fixtures.instructors import problem_of
 from tests.fixtures.pool import curriculum_body, instructor_pair
 
@@ -47,6 +52,7 @@ SMALL_UPLOADS = {
 }
 UPLOAD_OPERATIONS_AT_LEAST = 8  # T11 착수 때 multipart 연산 8
 SLOTS = "/v1/me/curricula/{curriculum_id}/slots"
+ENDPOINTS = Path(__file__).resolve().parents[2] / "src/classfit/app/endpoints"
 
 
 @pytest.fixture
@@ -226,6 +232,105 @@ def test_body_limit_upload_routes_match_openapi() -> None:
     # 업로드 상한 = 업로드 상한 다섯 중 최댓값(기본 zip 100MiB) + 2MiB · 그 밖 1MiB
     assert entry.kwargs["upload_max"] == 102 * MIB
     assert entry.kwargs["default_max"] == MIB
+
+
+def _form_readers() -> set[tuple[str, str]]:
+    """endpoints 모듈마다 request.form( 을 부르는 함수와, 같은 모듈에서 그 함수를 (거쳐) 부르는 함수 — (모듈, 이름)."""
+    found: set[tuple[str, str]] = set()
+    for path in sorted(ENDPOINTS.glob("*.py")):
+        calls: dict[str, set[str]] = {}
+        readers: set[str] = set()
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            calls[node.name] = set()
+            for sub in ast.walk(node):
+                if not isinstance(sub, ast.Call):
+                    continue
+                func = sub.func
+                if (
+                    isinstance(func, ast.Attribute)
+                    and func.attr == "form"
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id == "request"
+                ):
+                    readers.add(node.name)
+                elif isinstance(func, ast.Name):
+                    calls[node.name].add(func.id)
+        grown = True
+        while grown:
+            grown = False
+            for name, called in calls.items():
+                if name not in readers and called & readers:
+                    readers.add(name)
+                    grown = True
+        found |= {(f"classfit.app.endpoints.{path.stem}", name) for name in readers}
+    return found
+
+
+def test_body_limit_upload_routes_match_form_readers() -> None:
+    """업로드 라우트 = 소스에서 request.form( 을 (도우미를 거쳐) 부르는 끝점 — openapi_extra 와 다른 근원이라 빠짐을 잡는다."""
+    app = create_app(Settings())
+    [entry] = [m for m in app.user_middleware if m.cls is BodyLimitMiddleware]
+    uploads = {
+        (r.endpoint.__module__, r.endpoint.__name__)
+        for r in entry.kwargs["upload_routes"]
+    }
+    endpoints = {
+        (r.endpoint.__module__, r.endpoint.__name__)
+        for router in ROUTERS
+        for r in router.routes
+        if isinstance(r, APIRoute)
+    }
+    readers = _form_readers() & endpoints
+    assert len(readers) >= UPLOAD_OPERATIONS_AT_LEAST, readers
+    assert uploads == readers
+
+
+async def test_body_limit_after_response_start_no_raise(
+    app: FastAPI,
+    db_session: AsyncSession,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """파일 GET(FileResponse 는 본문을 읽지 않고 disconnect 대기 루프로 receive 를 부른다)에 응답 시작 뒤 3MiB 를 흘려도
+    던지지 않고(response already started RuntimeError 없음) 3MiB 파일을 끝까지 준다. 시작 전 갈래의 413 은 그대로다."""
+    caplog.set_level(logging.INFO)
+    app.state.settings = Settings(file_store_root=tmp_path)
+    started = asyncio.Event()
+
+    async def watched(scope: Scope, receive: Receive, send: Send) -> None:
+        async def send_start(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                started.set()
+            await send(message)
+
+        await app(scope, receive, send_start)
+
+    transport = httpx.ASGITransport(app=watched)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        _, admin = await admin_headers(db_session)
+        course, _ = await open_test_course(db_session)
+        sid = await add_session(c, admin, course.id, day_no=1, slot=1, is_open=True)
+        # 여러 청크(64KiB)인 파일 — 초과 때 바로 disconnect 하면 FileResponse 가 중간에 끊는다
+        data = PDF + b"0" * (3 * MIB)
+        r = await add_pdf(c, admin, sid, data)
+        assert r.status_code == 201, r.text
+        href = r.json()["href"]
+        started.clear()
+
+        async def body() -> AsyncIterator[bytes]:
+            yield b" " * 1024
+            await started.wait()  # 응답이 시작된 뒤에 상한(1MiB)을 넘긴다
+            yield b" " * (3 * MIB)
+
+        r = await c.request("GET", href, headers=admin, content=body())
+        assert "content-length" not in r.request.headers
+        assert (r.status_code, r.content) == (200, data)
+        r = await c.post("/v1/admin/admins", headers=JSON, content=_spaces(MIB + 1))
+        _too_large(r, MIB)
+    assert [x.getMessage() for x in caplog.records if x.levelno >= logging.ERROR] == []
+    assert _logged(caplog, f"GET {href} -> 200")
 
 
 async def test_body_limit_under_cap_unchanged(

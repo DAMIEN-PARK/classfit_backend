@@ -10,6 +10,7 @@ TokenRedactFilter 를 건다(T11 결정 iii — 32자 이상 풀 과정 id 도 �
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Iterable, Mapping, Sequence
 from time import perf_counter
@@ -140,6 +141,9 @@ class BodyLimitMiddleware:
     ② 읽은 바이트: 그 밖이면 receive 를 감싸 http.request 본문 바이트를 세고 상한을 넘는 청크에서 Starlette
        HTTPException(413) 을 던진다. FastAPI 본문 읽기 · Starlette 폼 파서가 그대로 다시 던져 오류 처리기가 problem 으로
        바꾼다(다른 예외형이면 400·500 이 된다). 무언가 본문을 읽을 때만 돈다. http.disconnect 는 세지 않는다.
+       응답이 이미 시작된 뒤(본문을 안 읽는 FileResponse 의 disconnect 대기 루프가 receive 를 부른다)에는 413 을 보낼 수
+       없으니 던지지 않고, 넘는 본문은 건네지 않은 채 응답을 다 보낸 뒤 http.disconnect 를 돌려준다(바로 돌려주면
+       FileResponse 가 내려받기를 끊는다 · 던지면 "response already started" RuntimeError 다).
     http 밖 scope(websocket · lifespan)는 손대지 않는다.
     """
 
@@ -178,6 +182,17 @@ class BodyLimitMiddleware:
             await response(scope, receive, send)
             return
         received = 0
+        started = False
+        finished = asyncio.Event()
+
+        async def tracked_send(message: Message) -> None:
+            nonlocal started
+            started = started or message["type"] == "http.response.start"
+            await send(message)
+            if message["type"] == "http.response.body" and not message.get(
+                "more_body", False
+            ):
+                finished.set()
 
         async def limited_receive() -> Message:
             nonlocal received
@@ -185,10 +200,13 @@ class BodyLimitMiddleware:
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
                 if received > limit:
-                    raise HTTPException(413, _too_large(limit))
+                    if not started:
+                        raise HTTPException(413, _too_large(limit))
+                    await finished.wait()
+                    return {"type": "http.disconnect"}
             return message
 
-        await self.app(scope, limited_receive, send)
+        await self.app(scope, limited_receive, tracked_send)
 
 
 def install_middleware(app: FastAPI, settings: Settings) -> None:
