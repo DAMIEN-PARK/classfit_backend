@@ -483,6 +483,8 @@ async def test_diag_link_public_token_not_logged(
     check(await client.get(f"{AX}/%2F{t}"), 404, "/v1/ax/{token}")
     check(await client.get(f"/v1//ax/{t}"), 404, "/v1/ax/{token}")
     check(await client.get(f"{AX}/x/{t}"), 404, "/v1/ax/{token}/{token}")
+    check(await client.get(f"{AX}/x:{t}"), 404, "/v1/ax/{token}:{token}")
+    check(await client.get(f"{AX}/{t}/v1/ax/{n}"), 404, "/v1/ax/{token}/v1/ax/{token}")
     check(
         await client.post(f"{ADMIN}/links//{n}:revoke", headers=auth),
         404,
@@ -586,6 +588,9 @@ async def test_diag_link_public_500_redacted(
     assert (
         f.filter(rec) and rec.getMessage() == "Failing row contains (1, {token}, open)"
     )
+    # 형식 오류 레코드는 막지 않고 그대로 넘긴다(logging 의 handleError 몫)
+    rec = logging.LogRecord("t", logging.ERROR, __file__, 1, "bad %d", ("x",), None)
+    assert f.filter(rec) and (rec.msg, rec.args) == ("bad %d", ("x",))
 
     def installed() -> int:
         return sum(

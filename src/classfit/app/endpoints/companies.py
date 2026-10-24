@@ -24,6 +24,7 @@ from classfit.app.deps import AdminCaller, DbSession, Today
 from classfit.app.endpoints.admin_instructors import query_text
 from classfit.app.endpoints.assign import IdPath
 from classfit.app.endpoints.diagnoses import diagnosis_out
+from classfit.core.cursor import decode_cursor
 from classfit.schemas.company import (
     CompanyDetailOut,
     CompanyIn,
@@ -109,9 +110,8 @@ async def list_companies(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> Page[CompanyOut]:
     try:
-        views, next_cursor, has_more = await companies.company_list(
-            session, caller, q=query_text(q), cursor=cursor, limit=limit
-        )
+        if cursor is not None:
+            decode_cursor(cursor)  # 깨진 커서만 422 로 — 목록 읽기의 다른 ValueError 는 500 그대로
     except ValueError:
         raise RequestValidationError(
             [
@@ -122,6 +122,9 @@ async def list_companies(
                 }
             ]
         ) from None
+    views, next_cursor, has_more = await companies.company_list(
+        session, caller, q=query_text(q), cursor=cursor, limit=limit
+    )
     return Page[CompanyOut](
         items=[company_out(v) for v in views],
         next_cursor=next_cursor,

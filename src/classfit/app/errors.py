@@ -71,9 +71,11 @@ class TokenRedactFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        message = record.getMessage()
-        redacted = redact(message)
-        if redacted != message:
+        try:
+            message = record.getMessage()
+        except (TypeError, ValueError, KeyError):  # 형식 오류 — 메시지는 그대로 두고 logging 의 handleError 에 맡긴다
+            message = None
+        if message is not None and (redacted := redact(message)) != message:
             record.msg = redacted
             record.args = None
         if record.exc_info:

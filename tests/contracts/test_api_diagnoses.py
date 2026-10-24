@@ -343,6 +343,10 @@ async def test_diagnosis_reco_patch_and_lock(
         {**RECO_SAMPLE, "tracks": [track] * 21},
         {**RECO_SAMPLE, "tracks": [{**track, "courses": ["과정"] * 21}]},
         {**RECO_SAMPLE, "common": {**RECO_SAMPLE["common"], "focus": "가" * 501}},
+        # 공통 항목은 「공통교육」 세션 제목이 된다 — 세션 제목과 같은 1~200자
+        {**RECO_SAMPLE, "common": {**RECO_SAMPLE["common"], "items": [""]}},
+        {**RECO_SAMPLE, "common": {**RECO_SAMPLE["common"], "items": ["   "]}},
+        {**RECO_SAMPLE, "common": {**RECO_SAMPLE["common"], "items": ["가" * 201]}},
         {**RECO_SAMPLE, "extra": 1},
         {**RECO_SAMPLE, "tracks": [{**track, "extra": 1}]},
         {k: v for k, v in RECO_SAMPLE.items() if k != "poc"},

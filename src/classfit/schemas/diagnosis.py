@@ -6,8 +6,8 @@
 - 회차 PATCH 는 하나 이상이고 null 을 받지 않는다. 링크 회차의 진단일(= 제출일)은 지금 값과 다른 값이면 service 가
   FrozenField 를 던지고 끝점이 422 frozen_field 로 바꾼다(같은 값은 바뀐 칸이 아니다).
 - 권장 구성은 시안 buildReco 의 키 그대로다(leader · common · tracks · hoursPer · difficulty · capstone · poc · next). 글자 ≤ 500 ·
-  목록 ≤ 20 · 트랙 ≤ 20 · 트랙 과정 ≤ 20 이고 모르는 키는 422 다. 트랙 이름·과정은 개설 ③ 의 섹션·세션 제목이 되므로
-  섹션·세션 제목과 같은 한 줄 글자(1~200)다. 트랙 key 는 글자(≤ 50)일 뿐이다 — 직무군 키 8은 초안 생성만 쓴다.
+  목록 ≤ 20 · 트랙 ≤ 20 · 트랙 과정 ≤ 20 이고 모르는 키는 422 다. 공통 항목·트랙 이름·트랙 과정은 개설 ③ 의 섹션·세션
+  제목이 되므로 섹션·세션 제목과 같은 한 줄 글자(1~200)다. 트랙 key 는 글자(≤ 50)일 뿐이다 — 직무군 키 8은 초안 생성만 쓴다.
 - 리포트 산식·레벨 경계는 service/rules/diagnosis.py 한 곳이다. level 은 17지표를 다 답하기 전이면 null 이다.
 - 상태·구분 글자는 models.diagnosis 상수와 같은 값을 여기에 다시 선언한다(schemas 는 service 를 import 하지 않는다 — 계약 ①).
 """
@@ -188,7 +188,7 @@ class LeaderIn(_Strict):
 
 class CommonIn(_Strict):
     hours: RecoText
-    items: RecoItems
+    items: Annotated[list[Line], Field(max_length=LIST_MAX)]  # 「공통교육」 세션 제목
     focus: RecoText
 
 
