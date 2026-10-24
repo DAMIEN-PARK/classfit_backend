@@ -91,6 +91,8 @@ async def test_inquiry_delete_preview_changes_nothing(
         ["--apply"],
         ["--receipt", first.receipt_no, "--email", NORMALIZED_EMAIL],
         ["--older-than-days", "0"],
+        ["--older-than-days", "36501"],  # 날짜 넘침 전에 막는다(MAX_DAYS)
+        ["--older-than-days", "10000000000"],
         ["--older-than-days", "x"],
         ["--email", "  "],
     ):
@@ -135,6 +137,10 @@ async def test_inquiry_delete_apply_removes_inquiry_and_outbox(
     result = json.loads(capsys.readouterr().out)
     assert (result["deleted"], result["outbox_deleted"]) == (1, 2)
     assert await _counts(db) == (0, 0, 1)  # 인증 코드 outbox 는 그대로
+
+    # 상한 36500일(100년)은 받는다 — PG 범위 오류 없이 0건
+    assert await inquiry_gc.run(["--older-than-days", "36500"], factory) == 0
+    assert json.loads(capsys.readouterr().out)["selected"] == []
 
     # 값 없이 쓰면 365일
     assert await inquiry_gc.run(["--older-than-days"], factory) == 0

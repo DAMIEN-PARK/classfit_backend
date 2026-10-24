@@ -11,7 +11,8 @@
   6 진단 검토 대기 — crud.diagnosis.list_stmt(subject, "review") 를 그대로 센다(company_scope ∧ status 'review', 결정 xxvii)
   7 교육 기록 미기록 — course_scope ∧ 보관 아님 ∧ 'running' ∧ 일차 날짜 ≤ today ∧ 기록 없음(T7 관리자 기록 summary.missing 합,
     결정 xv — T7 강사 홈의 "종료 아님" 과 달리 진행 중만)
-  8 새 사진 — course_scope ∧ seen_at IS NULL(crud.photo_list.gallery_stmt(…, new_only=True))
+  8 새 사진 — crud.photo_list.gallery_stmt(subject, new_only=True) 를 그대로 센다(course_scope ∧ seen_at IS NULL — 모아보기
+    GET /v1/admin/photos?new_only=true 와 같은 문장, codex 구현 리뷰 1차 ②)
   9 최근 처리 이력 — audit_log (at, id) 내림차순 limit. 관리자 전용 표라 범위 함수가 없고, 그 밖 주체는 질의 없이 빈 목록이다.
     detail(반려 사유 같은 자유 글)은 읽지 않는다(결정 xiii).
 셈 여덟은 scalar subquery 여덟을 가진 SELECT 한 문장(counts)이고 이력은 한 문장(recent_audit)이다 — 홈 한 번에 문장 둘(결정 xviii).
@@ -27,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from classfit.crud import diagnosis as crud_diagnosis
 from classfit.crud.course import course_status_sql
+from classfit.crud.photo_list import gallery_stmt
 from classfit.crud.record import _same_day
 from classfit.crud.scope import (
     Subject,
@@ -43,7 +45,6 @@ from classfit.models import (
     CourseSession,
     Curriculum,
     Instructor,
-    Photo,
     PoolCourse,
     Section,
     SessionRecord,
@@ -166,12 +167,8 @@ def _records_missing(subject: Subject, today: dt.date) -> Select[tuple[int]]:
 
 
 def _new_photos(subject: Subject) -> Select[tuple[int]]:
-    return (
-        select(func.count())
-        .select_from(Photo)
-        .join(Course, Course.id == Photo.course_id)
-        .join(CourseSession, CourseSession.id == Photo.session_id)
-        .where(course_scope(subject), Photo.seen_at.is_(None))
+    return select(func.count()).select_from(
+        gallery_stmt(subject, new_only=True).subquery()
     )
 
 

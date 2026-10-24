@@ -1,7 +1,9 @@
 """관리자 홈 셈(T9b 결정 xiv·xv·xvi·xvii·xviii): 셈 == 상세 목록 문장의 길이(COM-004) · 주체별 자기 범위 · 비관리자 거절 ·
 홈 service 호출당 실행 문장 둘. 라이브 PG.
 
-상세 목록은 T2a~T9a 의 기존 crud 문장(과 T7 관리자 기록 service)이다 — 셈과 다른 길로 세어 대조한다.
+상세 목록은 T2a~T9a 의 기존 crud 문장(과 T7 관리자 기록·사진 모아보기 service)이다 — 셈과 다른 길로 세어 대조한다. 새 사진은
+모아보기 service(GET /v1/admin/photos?new_only=true 의 몸통 — 쪽 문장 + 파일·강의 칸 문장)를 한 장씩 끝까지 넘긴 항목 수다
+(codex 구현 리뷰 1차 ② — 셈과 같은 문장을 직접 세면 대조가 아니다).
 문장 수는 세션 연결(첫 SAVEPOINT)을 먼저 세운 뒤 Connection 의 before_cursor_execute 로 admin_home() 한 번만 감싸 센다
 (SAVEPOINT·RELEASE SAVEPOINT·ROLLBACK TO 는 세지 않는다 — codex 2차 #1).
 """
@@ -26,10 +28,10 @@ from classfit.crud import instructor as crud_instructor
 from classfit.crud import pool as crud_pool
 from classfit.crud import schedule as crud_schedule
 from classfit.crud import survey as crud_survey
-from classfit.crud.photo_list import gallery_stmt
 from classfit.models import AuditLog
 from classfit.service.auth.sessions import Principal
 from classfit.service.courses import record_views
+from classfit.service.files import photo_views
 from classfit.service.home.admin import HOME_AUDIT_MAX, admin_home
 from tests.fixtures.inquiry import (
     HOME_TODAY,
@@ -48,6 +50,27 @@ async def _rows(db: AsyncSession, stmt: Select[Any]) -> list[Any]:
 
 async def _counts(db: AsyncSession, subject: Any, today: dt.date) -> dict[str, int]:
     return dataclasses.asdict(await crud_home_admin.counts(db, subject, today=today))
+
+
+async def _gallery_items(db: AsyncSession) -> int:
+    """관리자 모아보기 새 사진만(new_only)을 한 장씩 끝까지 넘긴 항목 수."""
+    total, cursor = 0, None
+    for _ in range(50):  # 끝나지 않는 커서가 시험을 멈추지 않게 상한을 둔다
+        page = await photo_views.gallery(
+            db,
+            ADMIN,
+            company=None,
+            course_id=None,
+            q=None,
+            new_only=True,
+            cursor=cursor,
+            limit=1,
+        )
+        total += len(page.items)
+        if not page.has_more:
+            return total
+        cursor = page.next_cursor
+    raise AssertionError("모아보기 쪽이 끝나지 않는다")
 
 
 async def _listed(db: AsyncSession, today: dt.date) -> dict[str, int]:
@@ -80,7 +103,7 @@ async def _listed(db: AsyncSession, today: dt.date) -> dict[str, int]:
             await _rows(db, crud_diagnosis.list_stmt(ADMIN, "review"))
         ),
         "records_missing": missing,
-        "new_photos": len(await _rows(db, gallery_stmt(ADMIN, new_only=True))),
+        "new_photos": await _gallery_items(db),
     }
 
 

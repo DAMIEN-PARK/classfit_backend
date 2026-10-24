@@ -16,7 +16,9 @@
 - `--limit N`(기본 200, 1 이상): 안 보낸 행을 앞(id 순) N 건만 읽는다 — 공개 문의가 쌓여도 전부를 메모리에 올리지 않는다.
 - 미리 보기(기본): 끝까지 돈 뒤 롤백한다. 해시가 저장되지 않으니 코드 자리는 `******` 로 가리고 "무효 코드(미리 보기)" 라고 찍는다.
   실제 숫자는 `--apply` 때만 stdout 에 나온다.
-- `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다.
+- `--apply`: 해시를 저장하고 sent_at 을 채운 뒤 커밋한다. 다시 보내면 새 코드가 이전 해시를 덮는다. 행마다 id 오름차순으로
+  잡고(crud.outbox.lock_unsent — FOR UPDATE 뒤 다시 읽기) 렌더한다 — 그 사이 inquiry_gc 가 지웠거나 다른 --apply 가 보낸
+  행은 건너뛰고 stderr 에 그 수를 찍는다(T9b codex 구현 리뷰 1차 ①). 미리 보기는 커밋하지 않으니 잡지 않는다.
 - 모르는 kind · params 모양 틀림은 3(전제 거절)이고 아무것도 커밋하지 않는다.
 - 종료 코드 0 끝 · 2 인자 틀림 · 3 전제 거절. 결과 JSON 은 stdout, 안내는 stderr.
 """
@@ -36,7 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from classfit.core.config import get_settings
 from classfit.core.errors import DomainError, NotFound
 from classfit.crud.inquiry import get_inquiry
-from classfit.crud.outbox import mark_sent, unsent
+from classfit.crud.outbox import lock_unsent, mark_sent, unsent
 from classfit.database.session import make_engine, make_session_factory
 from classfit.models import AuditLog, Inquiry, Instructor
 from classfit.models.inquiry import INQUIRY_SIZE_LABELS
@@ -212,8 +214,15 @@ async def run(
     except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else 2
     messages: list[dict[str, Any]] = []
+    skipped = 0
     async with session_factory() as session:
         for row in await unsent(session, limit=args.limit):
+            if args.apply:
+                locked = await lock_unsent(session, row.id)
+                if locked is None:  # 그 사이 지워졌거나(inquiry_gc) 보냈다
+                    skipped += 1
+                    continue
+                row = locked
             render = RENDERERS.get(row.kind)
             if render is None:
                 _err(
@@ -243,6 +252,8 @@ async def run(
         else:
             await session.rollback()
     print(json.dumps({"applied": args.apply, "messages": messages}, ensure_ascii=False))
+    if skipped:
+        _err(f"건너뜀: 읽은 뒤 지워졌거나 이미 보낸 행 {skipped}건")
     if not args.apply:
         _err(
             f"미리 보기: {len(messages)}건(--limit {args.limit} 까지), 롤백했다."

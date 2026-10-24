@@ -7,8 +7,9 @@
 - age_inquiry: 시험은 바깥 트랜잭션 하나라 now() 가 고정이다. 1분 창 안·밖과 하루 밖은 행의 created_at 을 밀어 만든다.
 - home_fixtures: 관리자 홈 셈 여덟의 양성·음성 행을 만들고 주체별 기대값을 돌려준다(T9b 결정 xiv·xv·xvi·xvii). today 는
   평일이어야 한다(강의 A·B 는 today 에 시작해 평일 2일이다). today + LATER_DAYS 에는 A·B 가 끝나고 준비 강의는 그대로다.
-  설문은 부작용 없는 crud.survey.insert_survey, 진단은 T9a make_company + insert_round(crud 전용), 사진은 crud.photo
-  (file_id 없음 — 셈은 seen_at 만 본다), 세션 배정은 crud.schedule.insert_session 의 instructor_id 칸이다(audit·outbox 없음).
+  설문은 부작용 없는 crud.survey.insert_survey, 진단은 T9a make_company + insert_round(crud 전용), 사진은 운영 경로
+  service.files.photos.add_my_photo 와 같은 행 셋(사진 → stored_file → file_id, 바이트는 디스크에 두지 않는다 — 모아보기 목록은
+  행만 읽는다, codex 구현 리뷰 1차 ②), 세션 배정은 crud.schedule.insert_session 의 instructor_id 칸이다(audit·outbox 없음).
   audit 은 at 을 명시한 12행(서로 다른 시각 10 + 같은 시각 둘)이다 — 트랜잭션 안 now() 가 고정이라 기본값으로는 순서가 안
   갈린다. 시각은 now() 뒤라 다른 픽스처가 남긴 audit 보다 늘 위다.
 """
@@ -16,6 +17,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -30,6 +32,7 @@ from classfit.crud import course as crud_course
 from classfit.crud import photo as crud_photo
 from classfit.crud import record as crud_record
 from classfit.crud import schedule as crud_schedule
+from classfit.crud import stored_file as crud_stored_file
 from classfit.crud import survey as crud_survey
 from classfit.models import AuditLog, Course, MailOutbox
 from classfit.service.rules.inquiry import InquiryFields
@@ -212,6 +215,37 @@ async def _session(
     return row.id
 
 
+async def _photo(
+    session: AsyncSession,
+    course_id: int,
+    session_id: int,
+    *,
+    by_id: int,
+    taken_on: dt.date,
+    n: int,
+) -> int:
+    """사진 한 장의 행 셋(add_my_photo 의 DB 쪽 그대로): 사진 → stored_file(owner photo) → file_id. 사진 id."""
+    photo = await crud_photo.insert_photo(
+        session,
+        course_id=course_id,
+        session_id=session_id,
+        by_kind="instructor",
+        by_id=by_id,
+        caption=None,
+        taken_on=taken_on,
+    )
+    stored = await crud_stored_file.insert_stored_file(
+        session,
+        sha256=hashlib.sha256(f"t9b-home-photo-{n}".encode()).hexdigest(),
+        owner_kind=crud_photo.OWNER_KIND,
+        owner_id=photo.id,
+        content_type="image/png",
+        size=16,
+    )
+    await crud_photo.set_photo_file(session, photo, stored.id)
+    return photo.id
+
+
 async def seed_audit(session: AsyncSession) -> list[int]:
     """at 을 명시한 audit 12행. 돌려주는 것은 최근 이력의 기대 순서 앞 10 — (at, id) 내림차순."""
     rows: list[tuple[int, AuditLog]] = []
@@ -255,18 +289,10 @@ async def home_fixtures(
     x_session = await _session(session, sec_a, day_no=1, instructor_id=x_id)
     await _session(session, sec_a, day_no=2, instructor_id=None)
     photos = [
-        await crud_photo.insert_photo(
-            session,
-            course_id=course_a.id,
-            session_id=x_session,
-            by_kind="instructor",
-            by_id=x_id,
-            caption=None,
-            taken_on=today,
-        )
-        for _ in range(3)
+        await _photo(session, course_a.id, x_session, by_id=x_id, taken_on=today, n=n)
+        for n in range(3)
     ]
-    assert await crud_photo.mark_seen(session, [photos[0].id]) == 1
+    assert await crud_photo.mark_seen(session, [photos[0]]) == 1
     # 진행 강의 B(X 범위 밖): 미배정 2일차(예정 — 미기록 아님) + Y 의 1일차(기록 있음 — 미기록 아님)
     course_b, sec_b = await _course(session, today, title="홈 강의 B", client="B사")
     await _session(session, sec_b, day_no=2, instructor_id=None)

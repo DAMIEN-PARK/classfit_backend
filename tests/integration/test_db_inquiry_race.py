@@ -1,5 +1,8 @@
-"""문의 접수 동시성 행동 시험 하나(T9b 결정 vi): 같은 이메일 + 같은 내용 동시 둘 → 행 1 · 같은 영수증. 라이브 PG, 커밋한다.
-이름 접두는 test_inquiry_race_(E-11 의 test_concurrent_ 와 다르다).
+"""문의 동시성 행동 시험 둘. 라이브 PG, 커밋한다. 이름 접두는 test_inquiry_race_(E-11 의 test_concurrent_ 와 다르다 ·
+규약 이름 셈 E-14 의 gc_ 를 쓰지 않는다).
+- 같은 이메일 + 같은 내용 동시 둘 → 행 1 · 같은 영수증(T9b 결정 vi).
+- 문의 삭제(inquiry_gc 의 crud 경로)가 이긴 뒤의 outbox_preview --apply → 지워진 행은 건너뛰고 나머지를 보냄 표시한다.
+  잠그지 않고 읽은 행을 mark_sent 하면 0행 UPDATE → StaleDataError 로 묶음 전체가 롤백됐다(codex 구현 리뷰 1차 ①).
 
 틀은 T5 tests/integration/test_db_assign_race.py 를 복사했다(그 파일은 고치지 않는다): 커밋하는 NullPool 엔진
 committing(끝에 SEED_TABLES 밖의 ORM 표를 TRUNCATE) · factory · pg_stat_activity 로 "B 가 기다렸다" 를 재는 _waits_on_lock ·
@@ -12,18 +15,23 @@ _commit_after · _lock_timeout · _race(A 가 함수를 끝내고 커밋 전에 
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
+import pytest
 import pytest_asyncio
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
+from classfit.crud import inquiry as crud_inquiry
 from classfit.database.session import make_engine, make_session_factory
 from classfit.models import Base, Inquiry, MailOutbox
 from classfit.service.inquiries import receive
+from scripts import outbox_preview
 from tests.fixtures.inquiry import NOTIFY_TO, fields
 
 WAIT_SECONDS = 5.0
@@ -177,3 +185,74 @@ async def test_inquiry_race_duplicate_one_row_same_receipt(
     assert first.created and not second.created
     assert await _count(factory, Inquiry) == 1
     assert await _count(factory, MailOutbox) == 2
+
+
+async def _seed[T](factory: Factory, work: Callable[[AsyncSession], Awaitable[T]]) -> T:
+    async with factory() as s, s.begin():
+        return await work(s)
+
+
+@asynccontextmanager
+async def _same(session: AsyncSession) -> AsyncIterator[AsyncSession]:
+    """관리 명령의 session_factory 자리에 B 세션을 그대로 준다(pid·lock_timeout 이 그 세션의 것이 되게)."""
+    yield session
+
+
+async def _outbox_of(factory: Factory, receipt_no: str) -> list[int]:
+    """그 영수증 문의의 outbox 행 id(id 순)."""
+    async with factory() as s:
+        inquiry_id = await s.scalar(
+            select(Inquiry.id).where(Inquiry.receipt_no == receipt_no)
+        )
+        ids = await s.scalars(
+            select(MailOutbox.id)
+            .where(MailOutbox.params["inquiry_id"].astext == str(inquiry_id))
+            .order_by(MailOutbox.id)
+        )
+        return list(ids)
+
+
+async def test_inquiry_race_delete_wins_preview_skips_row(
+    factory: Factory, committing: AsyncEngine, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def seed(s: AsyncSession) -> tuple[str, str]:
+        gone = await _submit(
+            s
+        )  # 먼저 넣어 outbox id 가 앞이다 — 미리 보기가 이 행부터 잡는다
+        kept = await receive.receive_inquiry(
+            s,
+            fields=fields(email="b@example.com"),
+            honeypot=False,
+            notify_to=NOTIFY_TO,
+            daily_max=20,
+        )
+        return gone.receipt_no, kept.receipt_no
+
+    gone, kept = await _seed(factory, seed)
+    gone_outbox = await _outbox_of(factory, gone)
+    kept_outbox = await _outbox_of(factory, kept)
+    assert len(gone_outbox) == len(kept_outbox) == 2
+    assert max(gone_outbox) < min(kept_outbox)
+
+    async def delete_gone(a: AsyncSession) -> tuple[int, int]:
+        """A: inquiry_gc --receipt 의 crud 경로(문의 → outbox 를 id 오름차순으로 잡고 지움). 커밋 전에 선다."""
+        rows = await crud_inquiry.select_for_gc(a, receipt_no=gone)
+        return await crud_inquiry.delete_inquiries(a, [r.id for r in rows])
+
+    async def apply_preview(b: AsyncSession) -> int:
+        """B: outbox_preview --apply — A 가 지운(미커밋) outbox 행을 읽고 그 행에서 기다린다."""
+        return await outbox_preview.run(["--apply"], lambda: _same(b))  # type: ignore[arg-type]
+
+    raced = await _race(factory, committing, delete_gone, apply_preview)
+    assert raced.waited, "미리 보기가 지운 행의 잠금을 기다리지 않았다"
+    _ok(raced)  # StaleDataError 없음
+    assert raced.first == (2, 1)  # (outbox, 문의)
+    assert raced.second == 0
+    out = capsys.readouterr()
+    # 지워진 문의의 outbox 둘은 건너뛰고, 남은 문의의 둘만 보냄 표시했다
+    assert [m["id"] for m in json.loads(out.out)["messages"]] == kept_outbox
+    assert "건너뜀" in out.err and "2건" in out.err
+    assert await _count(factory, Inquiry) == 1
+    assert await _count(factory, Inquiry, Inquiry.receipt_no == kept) == 1
+    assert await _count(factory, MailOutbox) == 2
+    assert await _count(factory, MailOutbox, MailOutbox.sent_at.is_(None)) == 0

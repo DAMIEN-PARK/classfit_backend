@@ -2,7 +2,8 @@
 
 - 1차 보유 규칙(T9b 결정 xxv): 문의 행은 접수 시각(created_at) + 365일이 지나면 만료다. 운영자가 월 1회
   `--older-than-days 365 --apply` 를 수동 실행한다. 요청 시 즉시 삭제는 `--receipt`(영수증 하나) · `--email`(그 이메일 전부).
-- 선택자는 셋 중 하나다(상호 배타 필수). `--older-than-days` 를 값 없이 쓰면 365, 값은 1 이상이다. 이메일은 앞뒤 공백을
+- 선택자는 셋 중 하나다(상호 배타 필수). `--older-than-days` 를 값 없이 쓰면 365, 값은 1 이상 MAX_DAYS(36500 = 100년)
+  이하다 — 더 크면 timedelta 넘침(OverflowError)·PG timestamp 범위 오류가 나므로 인자 틀림 2 로 막는다. 이메일은 앞뒤 공백을
   지우고 소문자로 비교하고(scripts → schemas 의존을 피해 normalize_email 을 거치지 않는다), 영수증은 대문자로 비교한다.
 - 대상 문의 행마다 그 outbox 행(kind inquiry_* · params inquiry_id)도 지운다 — 남기면 매달린 참조가 되어 outbox_preview 가
   3 으로 멈춘다(mail_outbox 에 FK 가 없다). 문의 행을 지우는 곳은 이 명령 하나다(crud.inquiry.delete_inquiries).
@@ -27,12 +28,13 @@ from classfit.crud.inquiry import delete_inquiries, select_for_gc
 from classfit.database.session import make_engine, make_session_factory
 
 RETENTION_DAYS = 365
+MAX_DAYS = 36500  # 100년
 
 
 def _days(value: str) -> int:
     n = int(value)
-    if n < 1:
-        raise argparse.ArgumentTypeError("1 이상이어야 합니다")
+    if not 1 <= n <= MAX_DAYS:
+        raise argparse.ArgumentTypeError(f"1 이상 {MAX_DAYS} 이하여야 합니다")
     return n
 
 
