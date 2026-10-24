@@ -162,7 +162,8 @@ class BodyLimitMiddleware:
        본문과 무관한 연산(본문 없는 라우트 · 없는 경로)은 응답 시작 전이든 뒤든 던지지 않고, 넘는 본문을 건네지 않은 채
        응답을 다 보낸 뒤 http.disconnect 를 돌려준다. 그 receive 는 FileResponse 의 disconnect 대기 루프가 부른다 —
        던지면 자식 태스크가 그 사이 응답을 시작해 500 이 되고(verifier 관찰), 바로 돌려주면 내려받기가 끊긴다.
-       본문을 손으로 읽는 끝점(request.form · limited_json)은 openapi_extra 에 requestBody 를 달아 본문 연산이 된다.
+       본문을 손으로 읽는 끝점(request.body·json·stream·form · limited_json)은 openapi_extra 에 requestBody 를 달아 본문
+       연산이 된다 — 빠지면 구조 시험(test_body_limit_manual_body_readers_are_body_routes)이 막는다.
     http 밖 scope(websocket · lifespan)는 손대지 않는다.
     """
 

@@ -52,6 +52,7 @@ SMALL_UPLOADS = {
 }
 UPLOAD_OPERATIONS_AT_LEAST = 8  # T11 착수 때 multipart 연산 8
 BODY_OPERATIONS_AT_LEAST = 64  # T11 착수 때 본문을 받는 연산 64(JSON 56 · multipart 8)
+MANUAL_BODY_READERS_AT_LEAST = 10  # 본문을 손으로 읽는 끝점: 업로드 8 · limited_json 2
 SLOTS = "/v1/me/curricula/{curriculum_id}/slots"
 ENDPOINTS = Path(__file__).resolve().parents[2] / "src/classfit/app/endpoints"
 
@@ -235,59 +236,78 @@ def test_body_limit_upload_routes_match_openapi() -> None:
     assert entry.kwargs["default_max"] == MIB
 
 
-def _form_readers() -> set[tuple[str, str]]:
-    """endpoints 모듈마다 request.form( 을 부르는 함수와, 같은 모듈에서 그 함수를 (거쳐) 부르는 함수 — (모듈, 이름)."""
+def _readers(
+    attrs: frozenset[str], funcs: frozenset[str] = frozenset()
+) -> set[tuple[str, str]]:
+    """endpoints 모듈마다 request.<attrs>( · <funcs>( 를 부르는 함수와, 같은 모듈에서 그 함수를 (부르거나 Depends 로 넘겨)
+    쓰는 함수 — (모듈, 이름). 같은 모듈 도우미만 따라간다."""
     found: set[tuple[str, str]] = set()
     for path in sorted(ENDPOINTS.glob("*.py")):
-        calls: dict[str, set[str]] = {}
+        uses: dict[str, set[str]] = {}
         readers: set[str] = set()
         for node in ast.walk(ast.parse(path.read_text())):
             if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
-            calls[node.name] = set()
+            uses[node.name] = set()
             for sub in ast.walk(node):
+                if isinstance(sub, ast.Name):
+                    uses[node.name].add(sub.id)
                 if not isinstance(sub, ast.Call):
                     continue
                 func = sub.func
                 if (
                     isinstance(func, ast.Attribute)
-                    and func.attr == "form"
+                    and func.attr in attrs
                     and isinstance(func.value, ast.Name)
                     and func.value.id == "request"
-                ):
+                ) or (isinstance(func, ast.Name) and func.id in funcs):
                     readers.add(node.name)
-                elif isinstance(func, ast.Name):
-                    calls[node.name].add(func.id)
         grown = True
         while grown:
             grown = False
-            for name, called in calls.items():
-                if name not in readers and called & readers:
+            for name, used in uses.items():
+                if name not in readers and used & readers:
                     readers.add(name)
                     grown = True
         found |= {(f"classfit.app.endpoints.{path.stem}", name) for name in readers}
     return found
 
 
-def test_body_limit_upload_routes_match_form_readers() -> None:
-    """업로드 라우트 = 소스에서 request.form( 을 (도우미를 거쳐) 부르는 끝점 — openapi_extra 와 다른 근원이라 빠짐을 잡는다.
-
-    한계: 같은 모듈의 도우미만 따라간다 — 다른 모듈에서 들여온 도우미 · 별칭(form = request.form 등)으로 읽으면 못 본다."""
-    app = create_app(Settings())
-    [entry] = [m for m in app.user_middleware if m.cls is BodyLimitMiddleware]
-    uploads = {
-        (r.endpoint.__module__, r.endpoint.__name__)
-        for r in entry.kwargs["upload_routes"]
-    }
-    endpoints = {
+def _endpoints() -> set[tuple[str, str]]:
+    return {
         (r.endpoint.__module__, r.endpoint.__name__)
         for router in ROUTERS
         for r in router.routes
         if isinstance(r, APIRoute)
     }
-    readers = _form_readers() & endpoints
+
+
+def _collected(name: str) -> set[tuple[str, str]]:
+    """미들웨어가 앱을 만들 때 모은 라우트(upload_routes · body_routes)의 끝점 함수."""
+    app = create_app(Settings())
+    [entry] = [m for m in app.user_middleware if m.cls is BodyLimitMiddleware]
+    return {(r.endpoint.__module__, r.endpoint.__name__) for r in entry.kwargs[name]}
+
+
+def test_body_limit_upload_routes_match_form_readers() -> None:
+    """업로드 라우트 = 소스에서 request.form( 을 (도우미를 거쳐) 부르는 끝점 — openapi_extra 와 다른 근원이라 빠짐을 잡는다.
+
+    한계: 같은 모듈의 도우미만 따라간다 — 다른 모듈에서 들여온 도우미 · 별칭(form = request.form 등)으로 읽으면 못 본다."""
+    readers = _readers(frozenset({"form"})) & _endpoints()
     assert len(readers) >= UPLOAD_OPERATIONS_AT_LEAST, readers
-    assert uploads == readers
+    assert _collected("upload_routes") == readers
+
+
+def test_body_limit_manual_body_readers_are_body_routes() -> None:
+    """본문을 손으로 읽는 끝점(request.body · json · stream · form 이나 limited_json 의존성 — 같은 모듈 도우미를 거쳐도)은
+    미들웨어 body_routes 에 있어야 한다. 없으면 본문 무관 연산으로 분류돼 상한을 넘을 때 응답 끝을 기다리며 멈춘다.
+    지금 form 6자리(끝점 8) · limited_json 2자리(끝점 2). 한계는 위 시험과 같다."""
+    readers = _readers(
+        frozenset({"body", "json", "stream", "form"}), frozenset({"limited_json"})
+    )
+    readers &= _endpoints()
+    assert len(readers) >= MANUAL_BODY_READERS_AT_LEAST, readers
+    assert readers - _collected("body_routes") == set()
 
 
 async def test_body_limit_after_response_start_no_raise(
