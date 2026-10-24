@@ -25,9 +25,8 @@ from tests.fixtures.courses import learner_headers, open_test_course
 from tests.fixtures.instructors import instructor_headers
 
 METHODS = {"get", "post", "put", "patch", "delete"}
-ADMIN_OPERATIONS_AT_LEAST = (
-    92  # 1차 끝(T10)의 관리자 연산 수 — 빈 목록을 돌아 통과하지 않게
-)
+# 1차 끝(T10)의 관리자 연산 수 — 빈 목록을 돌아 통과하지 않게
+ADMIN_OPERATIONS_AT_LEAST = 92
 ADMIN_PREFIX = "/v1/admin"
 
 
