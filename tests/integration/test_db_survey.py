@@ -556,6 +556,7 @@ async def test_survey_patch_close_on_not_before_today(db_session: AsyncSession) 
     ) == "open"
     assert await count(db, AuditLog, *updates) == 1
 
+
 async def test_survey_instructor_results_single_statement(
     db_connection: AsyncConnection, db_session: AsyncSession
 ) -> None:
