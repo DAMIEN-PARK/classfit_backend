@@ -328,6 +328,20 @@ async def test_diagnosis_reco_patch_and_lock(
     assert (
         _ok(await client.get(f"{ADMIN}/diagnoses/{rid}", headers=auth))["reco"] is None
     )
+    # 리포트 초안은 그대로 저장된다 — 현장 칸이 한도(글자 200 · 목록 20 × 50자)까지 차도 초안이 RecoIn 한도 안이다
+    full_field = {
+        **dict.fromkeys(
+            ("ratio", "freq", "toolsEtc", "work", "wfreq", "whours", "wnow", "wpain"),
+            "가" * 200,
+        ),
+        **{k: ["나" * 50] * 20 for k in ("tools", "uses", "works")},
+    }
+    await _patch(client, auth, rid, field=full_field)
+    draft = (await _report(client, auth, rid))["reco"]
+    roundtrip = _ok(
+        await client.patch(f"{ADMIN}/diagnoses/{rid}/reco", headers=auth, json=draft)
+    )
+    assert roundtrip["reco"] == draft
 
     saved = _ok(
         await client.patch(
@@ -359,7 +373,8 @@ async def test_diagnosis_reco_patch_and_lock(
         _ok(await client.get(f"{ADMIN}/diagnoses/{rid}", headers=auth))["reco"]
         == RECO_SAMPLE
     )
-    assert len(await _audits(db_session, "diagnosis.reco")) == 1
+    # 초안 왕복 · RECO_SAMPLE 둘
+    assert len(await _audits(db_session, "diagnosis.reco")) == 2
 
     final = _ok(await client.post(f"{ADMIN}/diagnoses/{rid}:finalize", headers=auth))
     assert final["reco"] == RECO_SAMPLE  # 저장한 것을 그대로 남긴다
