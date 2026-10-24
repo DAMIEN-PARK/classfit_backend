@@ -6,7 +6,9 @@
   2 진행 중 강의 — course_scope ∧ 보관 아님 ∧ course_status_sql(today) 'running'(crud.course.list_stmt(…, "running", False, today))
   3 미배정 세션 — course_scope ∧ 보관 아님 ∧ 상태 ≠ 'ended' ∧ session.instructor_id IS NULL(그 강의들의 일정 list_sessions)
   4 미검토 강사 등록 — own_course_scope ∧ source 'own' ∧ active ∧ NOT reviewed + curriculum_scope ∧ active ∧ NOT reviewed
-    (crud.pool.list_stmt(source="own", active=True, reviewed=False) + crud.curriculum.list_stmt(reviewed=False, active=True))
+    (crud.pool.list_stmt(source="own", active=True, reviewed=False) + crud.curriculum.list_stmt(reviewed=False, active=True)).
+    관리자 전용 — 끝점이 AdminCaller 라 관리자만 부른다. 고유 과정 쪽 첫 WHERE 는 own_course_scope 이고 상세 목록은 pool_scope 라
+    비관리자 주체의 셈은 상세 목록 범위와 같지 않다(관리자는 둘 다 전부 — 리뷰 Nit 2)
   5 열린 설문 — course_scope ∧ survey_status_sql(today) 'open'(crud.survey.list_stmt(…, status="open"))
   6 진단 검토 대기 — crud.diagnosis.list_stmt(subject, "review") 를 그대로 센다(company_scope ∧ status 'review', 결정 xxvii)
   7 교육 기록 미기록 — course_scope ∧ 보관 아님 ∧ 'running' ∧ 일차 날짜 ≤ today ∧ 기록 없음(T7 관리자 기록 summary.missing 합,
@@ -175,7 +177,11 @@ def _new_photos(subject: Subject) -> Select[tuple[int]]:
 async def counts(
     session: AsyncSession, subject: Subject, *, today: dt.date
 ) -> HomeCounts:
-    """셈 여덟 — 한 문장(결정 xviii)."""
+    """셈 여덟 — 한 문장(결정 xviii).
+
+    관리자 전용 — 끝점이 AdminCaller 라 관리자만 부른다. 비관리자 주체의 셈은 상세 목록 범위와 같지 않다(카드 4 의 고유 과정 쪽
+    own_course_scope ↔ 상세 목록 pool_scope). 범위 함수를 주체마다 그대로 쓰므로 범위 밖 행은 세지 않는다.
+    """
     builders = (
         _pending_instructors(subject),
         _running_courses(subject, today),
