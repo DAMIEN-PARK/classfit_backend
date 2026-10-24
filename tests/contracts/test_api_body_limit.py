@@ -336,6 +336,38 @@ async def test_body_limit_after_response_start_no_raise(
     assert _logged(caplog, f"GET {href} -> 200")
 
 
+async def test_body_limit_body_free_before_start_no_raise(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """verifier 관찰 O1: 본문과 무관한 파일 GET 에 길이 선언 없는 3MiB 를 첫 receive 에 한 청크로 바로 준다(응답 시작
+    전 초과) — 던지지 않고(FileResponse 자식 태스크가 그 사이 응답을 시작하면 500) 3MiB 파일을 끝까지 준다. 여러 번 같다.
+    본문 연산의 스트림 413 은 그대로다."""
+    caplog.set_level(logging.INFO)
+    app.state.settings = Settings(file_store_root=tmp_path)
+    _, admin = await admin_headers(db_session)
+    course, _ = await open_test_course(db_session)
+    sid = await add_session(client, admin, course.id, day_no=1, slot=1, is_open=True)
+    data = PDF + b"0" * (3 * MIB)
+    r = await add_pdf(client, admin, sid, data)
+    assert r.status_code == 201, r.text
+    href = r.json()["href"]
+
+    async def eager() -> AsyncIterator[bytes]:
+        yield b" " * (3 * MIB)
+
+    for _ in range(5):
+        r = await client.request("GET", href, headers=admin, content=eager())
+        assert "content-length" not in r.request.headers
+        assert (r.status_code, r.content) == (200, data)
+    r = await client.post("/v1/admin/admins", headers=JSON, content=eager())
+    _too_large(r, MIB)
+    assert [x.getMessage() for x in caplog.records if x.levelno >= logging.ERROR] == []
+
+
 async def test_body_limit_after_start_body_route_no_deadlock() -> None:
     """본문을 받는 연산이 응답을 시작한 뒤 상한을 넘는 본문을 기다려도 교착이 없다 — 응답 끝을 기다리지 않고 바로
     http.disconnect(그 응답을 끝낼 쪽이 receive 를 기다리는 앱 자신이다). 본문 연산 판정은 앱을 만들 때 ROUTERS 에서
