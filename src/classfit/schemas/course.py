@@ -219,6 +219,7 @@ class CourseOut(BaseModel):
     status_manual: bool
     archived_at: dt.datetime | None
     created_at: dt.datetime
+    company_id: int | None
 
 
 class CourseOpenedOut(BaseModel):
