@@ -5,8 +5,11 @@ golden score 는 scripts/golden/extract.mjs 가 시안 calc 를 합성 사례로
 """
 
 import json
+import re
+from collections.abc import Iterator
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -199,6 +202,18 @@ def test_diagnosis_rules_missing_and_edit() -> None:
     assert item_points({"0-0": 3, "1-1": 1}) == {"0-0": 24, "1-1": 10}
 
 
+def _strings(value: Any, path: str = "") -> Iterator[tuple[str, str]]:
+    """초안 안의 모든 글자 (경로, 값)."""
+    if isinstance(value, str):
+        yield path, value
+    elif isinstance(value, dict):
+        for key, inner in value.items():
+            yield from _strings(inner, f"{path}.{key}")
+    elif isinstance(value, list):
+        for i, inner in enumerate(value):
+            yield from _strings(inner, f"{path}[{i}]")
+
+
 def _reco(
     answers: dict[str, int],
     *,
@@ -318,3 +333,64 @@ def test_diagnosis_rules_build_reco() -> None:
     ]
     no_capstone = {**RECO_SAMPLE, "capstone": False}
     assert [len(t) for _, t in reco.reco_sections(no_capstone)] == [3, 2, 2]
+
+    # 초안 글자 한도(리뷰 N4) — 초안을 그대로 PATCH …/reco 로 돌려보내도 RecoIn 한도 안이다:
+    # 공통 과정·트랙 과정·트랙 이름(섹션·세션 제목)은 비지 않고 200 자까지, 그 밖 글자는 500 자까지
+    assert (reco.RECO_TEXT_MAX, reco.RECO_LINE_MAX) == (500, 200)
+    assert reco.clip("가" * 500, 500) == "가" * 500
+    assert reco.clip("가" * 501, 500) == "가" * 499 + "…"
+    assert reco.clip("  앞뒤 공백  ", 500) == "앞뒤 공백"
+    assert reco.clip("가" * 198 + "  나다", 200) == "가" * 198 + "…"  # 자른 끝의 공백은 뗀다
+    long_field = {
+        "work": "업" * 200,
+        "wfreq": "빈" * 200,
+        "whours": "시" * 200,
+        "works": ["영" * 50] * 20,
+    }  # 현장 활용 칸마다 스키마 상한(글자 200 · 항목 50 · 목록 20)
+    exact = {"work": "업" * 484, "wfreq": "매일", "whours": "40시간"}  # 이어 붙이면 정확히 500
+    over = {**exact, "work": "업" * 485}  # 501
+    long_titles = {
+        "cs": ["가" * 200, "나" * 201, "   ", " 앞뒤 공백 과정 "],
+        "prod": ["다" * 500],
+    }
+    for field, candidates in (
+        (long_field, long_titles),
+        (exact, {}),
+        (over, {}),
+    ):
+        built = _reco(
+            ANSWERS_MIXED,
+            field=field,
+            depts=DEPTS_20,
+            candidates=candidates,
+            matrix=MATRIX_SAMPLE,
+        )
+        line_paths = {"common.items", "tracks.courses", "tracks.name"}
+        for path, text in _strings(built):
+            bare = re.sub(r"\[\d+\]", "", path).lstrip(".")  # ".tracks[0].courses[1]" → "tracks.courses"
+            limit = reco.RECO_LINE_MAX if bare in line_paths else reco.RECO_TEXT_MAX
+            assert len(text) <= limit, (path, len(text))
+            if bare in line_paths:
+                assert text.strip() == text and text, path
+        assert len(built["poc"]["items"]) <= 3
+    poc = _reco(ANSWERS_MIXED, field=long_field)["poc"]["items"]
+    assert len(poc[0]) == 500 and poc[0].endswith("…")
+    assert poc[1:] == ["영" * 50 + " 영역의 반복 문서·데이터 정리 보조"] * 2
+    assert _reco(ANSWERS_MIXED, field=exact)["poc"]["items"] == [
+        "업" * 484 + " 자동화 (매일 · 40시간)"
+    ]
+    assert _reco(ANSWERS_MIXED, field=over)["poc"]["items"][0].endswith("…")
+    tracks = {
+        t["key"]: t
+        for t in _reco(ANSWERS_MIXED, depts=["영업", "생산"], candidates=long_titles)[
+            "tracks"
+        ]
+    }
+    # 200 자는 그대로 · 201 자는 잘림 · 빈 글자는 빠지고 다음 후보가 들어온다 · 앞뒤 공백은 뗀다
+    assert tracks["cs"]["courses"] == ["가" * 200, "나" * 199 + "…", "앞뒤 공백 과정"]
+    assert tracks["prod"]["courses"] == ["다" * 199 + "…"]
+    assert all(t["candidates_missing"] is False for t in tracks.values())
+    blank = reco.tracks_for(["영업"], {"cs": ["  ", ""]})
+    assert blank[0]["courses"] == [] and blank[0]["candidates_missing"] is True
+    common = _reco(ANSWERS_MIXED)["common"]["items"]
+    assert common and all(0 < len(t) <= reco.RECO_LINE_MAX for t in common)

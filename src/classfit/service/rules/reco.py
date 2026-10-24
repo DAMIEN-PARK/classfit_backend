@@ -11,6 +11,10 @@
   CANDIDATES_MAX 개다. 후보가 없으면 courses [] · candidates_missing True(관리자가 PATCH …/reco 로 채운다).
 - 시작 난이도는 직군별 역량 평균의 최댓값 ≥ 3 이면 중 · 심화(시안 :1953). PoC 방식은 데이터 확보 지표(답 "1-0",
   없으면 2) 로 고른다.
+- 초안은 PATCH …/reco 본문(RecoIn)으로 그대로 돌려보낼 수 있어야 한다 — 모든 글자가 그 한도 안이다(리뷰 N4): 공통 과정·
+  트랙 과정·트랙 이름(개설 ③ 의 섹션·세션 제목)은 비지 않고 RECO_LINE_MAX(200) 자까지, 그 밖 글자는 RECO_TEXT_MAX(500)
+  자까지. 입력에서 오는 글자(현장 활용 칸으로 만든 PoC 항목 · 풀 과정 제목 후보)는 clip 으로 자른다. 한도 상수는 여기 두고
+  schemas 를 import 하지 않는다(rules 순수성).
 """
 
 from __future__ import annotations
@@ -21,9 +25,12 @@ from typing import Any
 
 from classfit.service.rules.diagnosis import AREAS, COMPETENCIES, ROLES, Score
 
-CANDIDATES_MAX = (
-    3  # 트랙마다 대표 과정 수(기획안 :844 "3~5" 의 아래 끝, models.diagnosis 와 같다)
-)
+# 트랙마다 대표 과정 수(기획안 :844 "3~5" 의 아래 끝, models.diagnosis 와 같다)
+CANDIDATES_MAX = 3
+RECO_TEXT_MAX = 500  # 권장 구성 글자 칸 상한(schemas.diagnosis RecoText 와 같다)
+# 공통 과정·트랙 과정·트랙 이름 — 개설 ③ 의 섹션·세션 제목이 된다(schemas.course Line 과 같다)
+RECO_LINE_MAX = 200
+CLIP_MARK = "…"
 DEFAULT_GROUP_KEY = "mgt"
 TRACK_DEFAULT_DEPT = "경영지원"  # 부서가 없는 회사의 트랙 하나(시안 :1954)
 COMMON_SECTION = "공통교육"  # 개설 ③ 의 첫 섹션(시안 :1564)
@@ -127,6 +134,14 @@ NEXT_STEPS = (
 )
 
 
+def clip(text: str, limit: int) -> str:
+    """앞뒤 공백을 떼고, limit 자를 넘으면 limit − 1 자 + "…" 로 자른다(결과는 늘 limit 자 이하)."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + CLIP_MARK
+
+
 def group_of(dept: str) -> DeptGroup:
     """부서 이름에 키워드가 든 첫 직무군(표 순서 · 부분 문자열 · 대소문자 구분), 없으면 mgt."""
     for group in DEPT_GROUPS:
@@ -145,7 +160,8 @@ def tracks_for(
         if group.key in tracks:
             tracks[group.key]["depts"].append(dept)
             continue
-        courses = list(candidates.get(group.key, ()))[:CANDIDATES_MAX]
+        titles = (clip(t, RECO_LINE_MAX) for t in candidates.get(group.key, ()))
+        courses = [t for t in titles if t][:CANDIDATES_MAX]
         tracks[group.key] = {
             "key": group.key,
             "name": group.name,
@@ -167,6 +183,7 @@ def _role_averages(matrix: Mapping[str, Any]) -> list[float]:
 
 
 def _poc_items(field: Mapping[str, Any]) -> list[str]:
+    """현장 활용 칸으로 만든 PoC 후보(시안 :1957). 칸마다 200자라 이어 붙이면 500자를 넘을 수 있어 자른다."""
     items = []
     if field.get("work"):
         freq = field.get("wfreq") or "빈도 미입력"
@@ -174,7 +191,8 @@ def _poc_items(field: Mapping[str, Any]) -> list[str]:
         items.append(f"{field['work']} 자동화 ({freq} · {hours})")
     for work in list(field.get("works") or [])[:2]:
         items.append(f"{work} 영역의 반복 문서·데이터 정리 보조")
-    return items or [POC_EMPTY]
+    clipped = [clip(item, RECO_TEXT_MAX) for item in items]
+    return [item for item in clipped if item] or [POC_EMPTY]
 
 
 def build_reco(
