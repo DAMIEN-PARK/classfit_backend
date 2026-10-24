@@ -51,6 +51,7 @@ SMALL_UPLOADS = {
     "document_pdf_max_mb": 1,
 }
 UPLOAD_OPERATIONS_AT_LEAST = 8  # T11 착수 때 multipart 연산 8
+BODY_OPERATIONS_AT_LEAST = 64  # T11 착수 때 본문을 받는 연산 64(JSON 56 · multipart 8)
 SLOTS = "/v1/me/curricula/{curriculum_id}/slots"
 ENDPOINTS = Path(__file__).resolve().parents[2] / "src/classfit/app/endpoints"
 
@@ -269,7 +270,9 @@ def _form_readers() -> set[tuple[str, str]]:
 
 
 def test_body_limit_upload_routes_match_form_readers() -> None:
-    """업로드 라우트 = 소스에서 request.form( 을 (도우미를 거쳐) 부르는 끝점 — openapi_extra 와 다른 근원이라 빠짐을 잡는다."""
+    """업로드 라우트 = 소스에서 request.form( 을 (도우미를 거쳐) 부르는 끝점 — openapi_extra 와 다른 근원이라 빠짐을 잡는다.
+
+    한계: 같은 모듈의 도우미만 따라간다 — 다른 모듈에서 들여온 도우미 · 별칭(form = request.form 등)으로 읽으면 못 본다."""
     app = create_app(Settings())
     [entry] = [m for m in app.user_middleware if m.cls is BodyLimitMiddleware]
     uploads = {
@@ -331,6 +334,57 @@ async def test_body_limit_after_response_start_no_raise(
         _too_large(r, MIB)
     assert [x.getMessage() for x in caplog.records if x.levelno >= logging.ERROR] == []
     assert _logged(caplog, f"GET {href} -> 200")
+
+
+async def test_body_limit_after_start_body_route_no_deadlock() -> None:
+    """본문을 받는 연산이 응답을 시작한 뒤 상한을 넘는 본문을 기다려도 교착이 없다 — 응답 끝을 기다리지 않고 바로
+    http.disconnect(그 응답을 끝낼 쪽이 receive 를 기다리는 앱 자신이다). 본문 연산 판정은 앱을 만들 때 ROUTERS 에서
+    모은 body_routes 이고 OpenAPI requestBody 연산과 같다."""
+    app = create_app(Settings())
+    [entry] = [m for m in app.user_middleware if m.cls is BodyLimitMiddleware]
+    collected = {
+        (method, r.path) for r in entry.kwargs["body_routes"] for method in r.methods
+    }
+    expected = {
+        (method.upper(), path)
+        for path, item in app.openapi()["paths"].items()
+        for method, op in item.items()
+        if "requestBody" in op
+    }
+    assert len(expected) >= BODY_OPERATIONS_AT_LEAST, len(expected)
+    assert collected == expected
+
+    async def echo(body: _Empty) -> None:
+        return None
+
+    sent: list[str] = []
+
+    async def reader(scope: Scope, receive: Receive, send: Send) -> None:
+        # 응답을 먼저 시작하고, 끝내기 전에 본문을 끝까지(또는 끊길 때까지) 읽는다
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect" or not message["more_body"]:
+                break
+        await send({"type": "http.response.body", "body": b"done"})
+
+    async def receive() -> Message:
+        await asyncio.sleep(0)
+        return {"type": "http.request", "body": b" " * 512, "more_body": True}
+
+    async def send(message: Message) -> None:
+        sent.append(message["type"])
+
+    limited = BodyLimitMiddleware(
+        reader,
+        upload_routes=(),
+        upload_max=MIB,
+        default_max=1024,
+        body_routes=[APIRoute("/echo", echo, methods=["POST"])],
+    )
+    scope = {"type": "http", "method": "POST", "path": "/echo", "headers": []}
+    await asyncio.wait_for(limited(scope, receive, send), timeout=2)
+    assert sent == ["http.response.start", "http.response.body"]
 
 
 async def test_body_limit_under_cap_unchanged(

@@ -103,6 +103,19 @@ def upload_routes(routers: Iterable[APIRouter]) -> list[APIRoute]:
     ]
 
 
+def body_routes(routers: Iterable[APIRouter]) -> list[APIRoute]:
+    """본문을 받는 연산: 본문 매개변수(body_field)가 있거나 openapi_extra 에 requestBody 가 있는 APIRoute(limited_json · 업로드)."""
+    return [
+        route
+        for router in routers
+        for route in router.routes
+        if isinstance(route, APIRoute)
+        and (
+            route.body_field is not None or "requestBody" in (route.openapi_extra or {})
+        )
+    ]
+
+
 def route_limits(
     routers: Iterable[APIRouter], table: Mapping[tuple[str, str], int]
 ) -> list[tuple[APIRoute, int]]:
@@ -143,9 +156,11 @@ class BodyLimitMiddleware:
     ② 읽은 바이트: 그 밖이면 receive 를 감싸 http.request 본문 바이트를 세고 상한을 넘는 청크에서 Starlette
        HTTPException(413) 을 던진다. FastAPI 본문 읽기 · Starlette 폼 파서가 그대로 다시 던져 오류 처리기가 problem 으로
        바꾼다(다른 예외형이면 400·500 이 된다). 무언가 본문을 읽을 때만 돈다. http.disconnect 는 세지 않는다.
-       응답이 이미 시작된 뒤(본문을 안 읽는 FileResponse 의 disconnect 대기 루프가 receive 를 부른다)에는 413 을 보낼 수
-       없으니 던지지 않고, 넘는 본문은 건네지 않은 채 응답을 다 보낸 뒤 http.disconnect 를 돌려준다(바로 돌려주면
-       FileResponse 가 내려받기를 끊는다 · 던지면 "response already started" RuntimeError 다).
+       응답이 이미 시작된 뒤에는 413 을 보낼 수 없으니 던지지 않고(던지면 "response already started" RuntimeError) 넘는
+       본문을 건네지 않은 채 http.disconnect 를 돌려준다. 본문과 무관한 연산(body_routes 에 Match.FULL 로 맞지 않음 —
+       본문 없는 라우트 · 없는 경로)은 응답을 다 보낸 뒤에 돌려준다: FileResponse 의 disconnect 대기 루프가 receive 를
+       부르는데 바로 돌려주면 내려받기가 끊긴다. 본문을 받는 연산은 바로 돌려준다 — 응답을 끝낼 쪽이 그 receive 를
+       기다리는 앱 자신이면 응답 끝을 기다리는 것이 교착이다(codex 구현 3차).
     http 밖 scope(websocket · lifespan)는 손대지 않는다.
     """
 
@@ -157,8 +172,10 @@ class BodyLimitMiddleware:
         upload_max: int,
         default_max: int,
         route_limits: Sequence[tuple[APIRoute, int]] = (),
+        body_routes: Sequence[APIRoute] = (),
     ) -> None:
         self.app = app
+        self.body_routes = tuple(body_routes)
         self.route_limits = tuple(route_limits)
         self.upload_routes = tuple(upload_routes)
         self.upload_max = upload_max
@@ -173,6 +190,9 @@ class BodyLimitMiddleware:
             if route.matches(scope)[0] == Match.FULL:
                 return self.upload_max
         return self.default_max
+
+    def _reads_body(self, scope: Scope) -> bool:
+        return any(r.matches(scope)[0] == Match.FULL for r in self.body_routes)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -204,7 +224,8 @@ class BodyLimitMiddleware:
                 if received > limit:
                     if not started:
                         raise HTTPException(413, _too_large(limit))
-                    await finished.wait()
+                    if not self._reads_body(scope):
+                        await finished.wait()
                     return {"type": "http.disconnect"}
             return message
 
@@ -226,6 +247,7 @@ def install_middleware(app: FastAPI, settings: Settings) -> None:
         upload_max=(upload_mb + UPLOAD_SLACK_MIB) * MIB,
         default_max=BODY_MAX_BYTES,
         route_limits=route_limits(ROUTERS, ROUTE_MAX_BYTES),
+        body_routes=body_routes(ROUTERS),
     )
     if settings.cors_origins:
         app.add_middleware(
