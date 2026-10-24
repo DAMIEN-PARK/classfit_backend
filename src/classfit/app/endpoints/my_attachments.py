@@ -31,8 +31,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from starlette.datastructures import FormData, UploadFile
 
-from classfit.app.deps import DbSession, InstructorCaller
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import DbSession, IdPath, InstructorCaller
 from classfit.app.endpoints.attachments import attachment_out
 from classfit.app.errors import AppError
 from classfit.app.upload import check_length, invalid

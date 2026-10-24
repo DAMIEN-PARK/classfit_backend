@@ -19,12 +19,18 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import fields
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Path
+from fastapi import APIRouter
 
-from classfit.app.deps import AdminCaller, DbSession, InstructorCaller, Today
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import (
+    AdminCaller,
+    DayPath,
+    DbSession,
+    IdPath,
+    InstructorCaller,
+    Today,
+)
 from classfit.app.endpoints.courses import course_or_404
 from classfit.schemas.record import (
     AdminCourseRecordsOut,
@@ -41,9 +47,6 @@ from classfit.service.files.store import href_for
 from classfit.service.rules.record import RecordFields
 
 router = APIRouter(prefix="/v1", tags=["records"])
-
-# 일차 번호 경로(본문 DayNo 1..60 의 경로 판). 밖이면 DB 를 치지 않고 422 loc ["path", "day_no"]
-DayPath = Annotated[int, Path(ge=1, le=60)]
 
 _SESSION = {
     403: {"description": "내 세션이 아님(남의 세션 · 미배정)"},

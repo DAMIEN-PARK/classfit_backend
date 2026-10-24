@@ -21,7 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from starlette.datastructures import FormData, UploadFile
 
-from classfit.app.deps import AdminCaller, DbSession, LearnerCaller
+from classfit.app.deps import AdminCaller, DbSession, IdPath, LearnerCaller
 from classfit.app.errors import AppError
 from classfit.app.upload import MIB, check_length, invalid
 from classfit.core.config import Settings
@@ -118,7 +118,7 @@ def _form_fields(form: FormData) -> AttachmentFormIn:
     },
 )
 async def list_learner_attachments(
-    session_id: int, session: DbSession, caller: LearnerCaller
+    session_id: IdPath, session: DbSession, caller: LearnerCaller
 ) -> Page[AttachmentOut]:
     items = await session_attachments(session, caller, session_id=session_id)
     return Page[AttachmentOut](
@@ -141,7 +141,7 @@ async def list_learner_attachments(
     },
 )
 async def add_attachment(
-    session_id: int, request: Request, session: DbSession, caller: AdminCaller
+    session_id: IdPath, request: Request, session: DbSession, caller: AdminCaller
 ) -> AttachmentOut:
     settings: Settings = request.app.state.settings
     if await get_session_and_course(session, session_id) is None:
@@ -198,7 +198,7 @@ async def add_attachment(
     responses={404: {"description": "첨부가 없음"}},
 )
 async def delete_attachment(
-    attachment_id: int, session: DbSession, caller: AdminCaller
+    attachment_id: IdPath, session: DbSession, caller: AdminCaller
 ) -> Response:
     await files_attachments.delete_attachment(
         session, attachment_id=attachment_id, actor=f"admin:{caller.id}"

@@ -20,7 +20,7 @@ from fastapi import APIRouter, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from classfit.app.deps import AdminCaller, DbSession, Today
+from classfit.app.deps import AdminCaller, DbSession, IdPath, Today
 from classfit.core.config import Settings
 from classfit.core.errors import NotFound
 from classfit.crud import course as crud_course
@@ -158,7 +158,7 @@ async def open_blank_course(
 
 @router.get("/courses/{course_id}", response_model=CourseOut, responses=_NOT_FOUND)
 async def get_course(
-    course_id: int, session: DbSession, _: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, _: AdminCaller, today: Today
 ) -> CourseOut:
     return course_out(await course_or_404(session, course_id), today)
 
@@ -172,7 +172,7 @@ async def get_course(
     },
 )
 async def patch_course_info(
-    course_id: int,
+    course_id: IdPath,
     body: CoursePatchIn,
     session: DbSession,
     caller: AdminCaller,
@@ -194,7 +194,7 @@ async def patch_course_info(
     responses={**_NOT_FOUND, 409: {"description": "수강생이 있는 강의"}},
 )
 async def delete_course(
-    course_id: int, session: DbSession, caller: AdminCaller
+    course_id: IdPath, session: DbSession, caller: AdminCaller
 ) -> Response:
     await course_or_404(session, course_id)
     await remove_course(session, course_id)
@@ -206,7 +206,7 @@ async def delete_course(
     "/courses/{course_id}:archive", response_model=CourseOut, responses=_NOT_FOUND
 )
 async def archive_course(
-    course_id: int, session: DbSession, caller: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: AdminCaller, today: Today
 ) -> CourseOut:
     """보관한 강의는 기본 목록(archived=false)에서 빠진다. 이미 보관했으면 그대로 200."""
     course = await course_or_404(session, course_id)
@@ -220,7 +220,7 @@ async def archive_course(
     "/courses/{course_id}:set-status", response_model=CourseOut, responses=_NOT_FOUND
 )
 async def set_course_status(
-    course_id: int,
+    course_id: IdPath,
     body: StatusSetIn,
     session: DbSession,
     caller: AdminCaller,
@@ -241,7 +241,7 @@ async def set_course_status(
     "/courses/{course_id}:reset-status", response_model=CourseOut, responses=_NOT_FOUND
 )
 async def reset_course_status(
-    course_id: int, session: DbSession, caller: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: AdminCaller, today: Today
 ) -> CourseOut:
     """수동 지정을 풀어 날짜 규칙으로 되돌린다."""
     course = await course_or_404(session, course_id)

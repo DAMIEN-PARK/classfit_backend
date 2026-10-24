@@ -24,8 +24,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, Request
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import AdminCaller, DbSession, Today
-from classfit.app.endpoints.assign import IdPath
+from classfit.app.deps import AdminCaller, DbSession, IdPath, Today
 from classfit.app.endpoints.survey_templates import questions_invalid
 from classfit.core.config import Settings
 from classfit.schemas.course import DB_ID_LIMIT

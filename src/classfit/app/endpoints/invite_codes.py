@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from classfit.app.deps import AdminCaller, DbSession, Today
+from classfit.app.deps import AdminCaller, DbSession, IdPath, Today
 from classfit.app.endpoints.courses import audit_course, code_out, course_or_404
 from classfit.schemas.invite_code import InviteCodeOut, InviteCodePatchIn, NoticeOut
 from classfit.service.courses import codes
@@ -24,7 +24,7 @@ _404 = {404: {"description": "강의나 그 강의의 산 초대코드가 없음
     "/courses/{course_id}/invite-code", response_model=InviteCodeOut, responses=_404
 )
 async def get_invite_code(
-    course_id: int, session: DbSession, _: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, _: AdminCaller, today: Today
 ) -> InviteCodeOut:
     course = await course_or_404(session, course_id)
     return code_out(await codes.live_code(session, course_id), course, today)
@@ -34,7 +34,7 @@ async def get_invite_code(
     "/courses/{course_id}/invite-code", response_model=InviteCodeOut, responses=_404
 )
 async def patch_invite_code(
-    course_id: int,
+    course_id: IdPath,
     body: InviteCodePatchIn,
     session: DbSession,
     caller: AdminCaller,
@@ -56,7 +56,7 @@ async def patch_invite_code(
     responses=_404,
 )
 async def reissue_invite_code(
-    course_id: int, session: DbSession, caller: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: AdminCaller, today: Today
 ) -> InviteCodeOut:
     """옛 코드는 바로 무효(replaced)가 되고 새 코드가 만료일·정원을 이어받는다."""
     course = await course_or_404(session, course_id)
@@ -73,7 +73,7 @@ async def reissue_invite_code(
     responses=_404,
 )
 async def pause_invite_code(
-    course_id: int, session: DbSession, caller: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: AdminCaller, today: Today
 ) -> InviteCodeOut:
     course = await course_or_404(session, course_id)
     row, changed = await codes.pause_invite_code(session, course_id)
@@ -90,7 +90,7 @@ async def pause_invite_code(
     responses={**_404, 409: {"description": "종료된 강의의 코드"}},
 )
 async def resume_invite_code(
-    course_id: int, session: DbSession, caller: AdminCaller, today: Today
+    course_id: IdPath, session: DbSession, caller: AdminCaller, today: Today
 ) -> InviteCodeOut:
     course = await course_or_404(session, course_id)
     row, changed = await codes.resume_invite_code(session, course.id, today=today)
@@ -107,7 +107,7 @@ async def resume_invite_code(
     responses=_404,
 )
 async def invite_code_notice(
-    course_id: int, session: DbSession, _: AdminCaller
+    course_id: IdPath, session: DbSession, _: AdminCaller
 ) -> NoticeOut:
     """고객사 담당자에게 보낼 안내문 글자: 강의명·기간·코드·만료일."""
     course = await course_or_404(session, course_id)

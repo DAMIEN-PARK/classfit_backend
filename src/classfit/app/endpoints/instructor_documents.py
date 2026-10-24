@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 
-from classfit.app.deps import AdminCaller, DbSession, InstructorCaller
+from classfit.app.deps import AdminCaller, DbSession, IdPath, InstructorCaller
 from classfit.app.endpoints.admin_instructors import instructor_or_404
 from classfit.app.endpoints.files import SAFE_HEADERS
 from classfit.app.errors import AppError
@@ -177,7 +177,7 @@ async def delete_document(
     },
 )
 async def view_document(
-    instructor_id: int,
+    instructor_id: IdPath,
     type_id: str,
     request: Request,
     session: DbSession,

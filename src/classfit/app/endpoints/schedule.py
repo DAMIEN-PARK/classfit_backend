@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Response
 
-from classfit.app.deps import AdminCaller, DbSession
+from classfit.app.deps import AdminCaller, DayPath, DbSession, IdPath
 from classfit.app.endpoints.courses import course_or_404
 from classfit.schemas.course import (
     DayPatchIn,
@@ -36,7 +36,7 @@ _409 = {
 
 @router.put("/courses/{course_id}/days", response_model=ScheduleOut, responses=_404)
 async def put_days(
-    course_id: int, body: DaysPutIn, session: DbSession, _: AdminCaller
+    course_id: IdPath, body: DaysPutIn, session: DbSession, _: AdminCaller
 ) -> ScheduleOut:
     """일차를 통째로 바꾸고 1..n 으로 다시 매긴다. 없어진 일차의 세션은 일차 미정이 된다."""
     course = await course_or_404(session, course_id)
@@ -50,7 +50,11 @@ async def put_days(
     responses={**_404, **_409},
 )
 async def patch_day(
-    course_id: int, day_no: int, body: DayPatchIn, session: DbSession, _: AdminCaller
+    course_id: IdPath,
+    day_no: DayPath,
+    body: DayPatchIn,
+    session: DbSession,
+    _: AdminCaller,
 ) -> ScheduleOut:
     course = await course_or_404(session, course_id)
     await days.patch_day(session, course, day_no, body)
@@ -64,7 +68,7 @@ async def patch_day(
     responses=_404,
 )
 async def delete_day(
-    course_id: int, day_no: int, session: DbSession, _: AdminCaller
+    course_id: IdPath, day_no: DayPath, session: DbSession, _: AdminCaller
 ) -> Response:
     """번호는 다시 매기지 않는다. 그날 세션은 일차 미정이 된다."""
     course = await course_or_404(session, course_id)
@@ -79,7 +83,7 @@ async def delete_day(
     responses=_404,
 )
 async def add_section(
-    course_id: int, body: SectionIn, session: DbSession, _: AdminCaller
+    course_id: IdPath, body: SectionIn, session: DbSession, _: AdminCaller
 ) -> SectionOut:
     await course_or_404(session, course_id)
     row = await sections.add_section(session, course_id, body)
@@ -92,8 +96,8 @@ async def add_section(
     responses=_404,
 )
 async def patch_section(
-    course_id: int,
-    section_id: int,
+    course_id: IdPath,
+    section_id: IdPath,
     body: SectionPatchIn,
     session: DbSession,
     _: AdminCaller,
@@ -109,7 +113,7 @@ async def patch_section(
     responses=_404,
 )
 async def delete_section(
-    course_id: int, section_id: int, session: DbSession, _: AdminCaller
+    course_id: IdPath, section_id: IdPath, session: DbSession, _: AdminCaller
 ) -> Response:
     """그 섹션의 세션도 같이 지운다."""
     await sections.remove_section(session, course_id, section_id)
@@ -123,8 +127,8 @@ async def delete_section(
     responses={**_404, **_409},
 )
 async def add_session(
-    course_id: int,
-    section_id: int,
+    course_id: IdPath,
+    section_id: IdPath,
     body: SessionIn,
     session: DbSession,
     _: AdminCaller,
@@ -145,7 +149,7 @@ async def add_session(
     },
 )
 async def patch_session(
-    session_id: int, body: SessionPatchIn, session: DbSession, caller: AdminCaller
+    session_id: IdPath, body: SessionPatchIn, session: DbSession, caller: AdminCaller
 ) -> SessionOut:
     """instructor_id 를 주면 담당 강사를 바꾼다(null 은 해제). 배정은 audit·배정 알림 outbox 를 쓴다(T5)."""
     row = await sections.patch_session(
@@ -161,7 +165,7 @@ async def patch_session(
     responses=_404,
 )
 async def delete_session(
-    session_id: int, session: DbSession, _: AdminCaller
+    session_id: IdPath, session: DbSession, _: AdminCaller
 ) -> Response:
     await sections.remove_session(session, session_id)
     return Response(status_code=204)
@@ -169,7 +173,7 @@ async def delete_session(
 
 @router.get("/courses/{course_id}/schedule", response_model=ScheduleOut, responses=_404)
 async def get_schedule(
-    course_id: int, session: DbSession, _: AdminCaller
+    course_id: IdPath, session: DbSession, _: AdminCaller
 ) -> ScheduleOut:
     course = await course_or_404(session, course_id)
     return await days.schedule_of(session, course)

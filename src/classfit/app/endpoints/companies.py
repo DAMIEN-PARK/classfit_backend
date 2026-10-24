@@ -20,9 +20,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, Response
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import AdminCaller, DbSession, Today
+from classfit.app.deps import AdminCaller, DbSession, IdPath, Today
 from classfit.app.endpoints.admin_instructors import query_text
-from classfit.app.endpoints.assign import IdPath
 from classfit.app.endpoints.diagnoses import diagnosis_out
 from classfit.core.cursor import decode_cursor
 from classfit.schemas.company import (

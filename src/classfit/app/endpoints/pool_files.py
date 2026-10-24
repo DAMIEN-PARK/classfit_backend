@@ -26,7 +26,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import FormData, UploadFile
 
-from classfit.app.deps import DbSession, InstructorCaller
+from classfit.app.deps import DbSession, IdPath, InstructorCaller
 from classfit.app.endpoints.pool import file_outs, id_or_404
 from classfit.app.errors import AppError
 from classfit.app.upload import MIB, check_length, invalid
@@ -235,7 +235,7 @@ async def _remove(
     responses=_DELETE,
 )
 async def delete_pool_course_file(
-    pool_course_file_id: int, session: DbSession, caller: InstructorCaller
+    pool_course_file_id: IdPath, session: DbSession, caller: InstructorCaller
 ) -> Response:
     return await _remove(session, caller, "pool_course_file", pool_course_file_id)
 
@@ -247,7 +247,7 @@ async def delete_pool_course_file(
     responses=_DELETE,
 )
 async def delete_capability_file(
-    capability_file_id: int, session: DbSession, caller: InstructorCaller
+    capability_file_id: IdPath, session: DbSession, caller: InstructorCaller
 ) -> Response:
     return await _remove(session, caller, "capability_file", capability_file_id)
 
@@ -259,6 +259,6 @@ async def delete_capability_file(
     responses=_DELETE,
 )
 async def delete_curriculum_file(
-    curriculum_file_id: int, session: DbSession, caller: InstructorCaller
+    curriculum_file_id: IdPath, session: DbSession, caller: InstructorCaller
 ) -> Response:
     return await _remove(session, caller, "curriculum_file", curriculum_file_id)

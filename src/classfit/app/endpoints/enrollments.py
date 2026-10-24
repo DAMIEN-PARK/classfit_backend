@@ -16,7 +16,7 @@ from fastapi import APIRouter, Query
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from classfit.app.deps import AdminCaller, DbSession
+from classfit.app.deps import AdminCaller, DbSession, IdPath
 from classfit.app.endpoints.courses import course_or_404
 from classfit.crud import enrollment as crud_enrollment
 from classfit.crud import survey as crud_survey
@@ -48,7 +48,7 @@ async def survey_responders(
     responses={404: {"description": "강의가 없음"}},
 )
 async def list_enrollments(
-    course_id: int,
+    course_id: IdPath,
     session: DbSession,
     caller: AdminCaller,
     cursor: str | None = None,
