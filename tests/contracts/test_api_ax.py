@@ -523,6 +523,44 @@ async def test_diag_link_public_token_not_logged(
         assert template in joined, template
 
 
+async def test_request_log_masks_token_runs(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    caplog: Any,
+) -> None:
+    """T11 결정 iii: 네임스페이스 판정에 안 맞는 꼴(%2e 점 세그먼트)도 요청 기록에 날 토큰이 없다.
+
+    요청 기록 경로는 모든 경로에 mask_runs(32자 이상 토큰 글자 줄)를 걸어 토큰 앞뒤에 글자를 붙인 꼴도 가린다.
+    httpx 는 /./·/../ 를 보내기 전에 지우고 %2e 는 그대로 보낸다(앱의 scope path 는 /v1/./ax/…).
+    """
+    assert any(
+        isinstance(f, TokenRedactFilter)
+        for f in logging.getLogger("classfit.request").filters
+    )
+    caplog.set_level(logging.INFO)
+    set_today(app, TODAY)
+    _, auth = await admin_headers(db_session)
+    co = await _company(client, auth)
+    t = (await _link(client, auth, co))["token"]
+    for tail in (t, f"{t}x", f"x{t}"):
+        r = await client.get(f"/v1/%2e/ax/{tail}")
+        assert r.status_code == 404, r.text
+    r = await client.post(f"/v1/admin/%2e/links/{t}:revoke", headers=auth)
+    assert r.status_code == 404, r.text
+
+    lines = [r.getMessage() for r in caplog.records if r.name == "classfit.request"]
+    joined = "\n".join(lines)
+    assert t not in joined
+    for template in (
+        "GET /v1/./ax/{token} -> 404",
+        "POST /v1/admin/./links/{token}:revoke -> 404",
+    ):
+        assert template in joined, (template, joined)
+    # 앞뒤에 글자를 붙인 꼴도 줄 전체가 {token} 이다(정확히 32자만 보는 TOKEN_RE 로는 안 가려진다)
+    assert joined.count("GET /v1/./ax/{token} -> 404") == 3
+
+
 async def test_diag_link_public_500_redacted(
     app: FastAPI,
     client_noraise: httpx.AsyncClient,

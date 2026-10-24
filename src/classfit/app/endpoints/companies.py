@@ -17,10 +17,10 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from fastapi.exceptions import RequestValidationError
 
-from classfit.app.deps import AdminCaller, DbSession, IdPath, Today
+from classfit.app.deps import AdminCaller, DbSession, IdPath, Today, no_store
 from classfit.app.endpoints.admin_instructors import query_text
 from classfit.app.endpoints.diagnoses import diagnosis_out
 from classfit.core.cursor import decode_cursor
@@ -144,7 +144,12 @@ async def create_company(
     )
 
 
-@router.get("/companies/{company_id}", response_model=CompanyDetailOut, responses=_ONE)
+@router.get(
+    "/companies/{company_id}",
+    response_model=CompanyDetailOut,
+    responses=_ONE,
+    dependencies=[Depends(no_store)],
+)
 async def get_company(
     company_id: IdPath, session: DbSession, _: AdminCaller, today: Today
 ) -> CompanyDetailOut:
@@ -153,7 +158,10 @@ async def get_company(
 
 
 @router.patch(
-    "/companies/{company_id}", response_model=CompanyDetailOut, responses=_ONE
+    "/companies/{company_id}",
+    response_model=CompanyDetailOut,
+    responses=_ONE,
+    dependencies=[Depends(no_store)],
 )
 async def patch_company(
     company_id: IdPath,
@@ -217,6 +225,7 @@ async def create_diagnosis(
     "/companies/{company_id}/links",
     response_model=LinkOut,
     status_code=201,
+    dependencies=[Depends(no_store)],
     responses={**_ONE, 409: {"description": "만료 전 open 링크가 있음(먼저 회수)"}},
 )
 async def issue_link(

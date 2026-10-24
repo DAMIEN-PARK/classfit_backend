@@ -15,10 +15,10 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 
-from classfit.app.deps import DbSession, Today
+from classfit.app.deps import DbSession, Today, no_store
 from classfit.app.errors import problem
 from classfit.core.config import Settings
 from classfit.schemas.enter import (
@@ -109,7 +109,11 @@ async def lookup(
 
 
 @router.post(
-    "/enter", response_model=EnterOut, status_code=201, responses=_ENTER_RESPONSES
+    "/enter",
+    response_model=EnterOut,
+    status_code=201,
+    responses=_ENTER_RESPONSES,
+    dependencies=[Depends(no_store)],
 )
 async def enter(
     body: EnterIn,

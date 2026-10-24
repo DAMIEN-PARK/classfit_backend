@@ -3,6 +3,8 @@
 add_middleware 는 나중에 더한 것이 바깥쪽이다. GZip 제외 목록은 Starlette 기본값(text/event-stream 포함)을 쓴다.
 요청 기록은 토큰 네임스페이스 경로를 {token} 으로 남기고, 그 네임스페이스의 응답(2xx·307·4xx)에 Cache-Control: no-store 를
 하나만 둔다(T9a 결정 xxv — 라우트 유무와 무관하게 경로로 판정, 바깥이 보내는 500 은 problem() 이 단다).
+요청 기록 경로는 네임스페이스 밖(점 세그먼트 · %2e 꼴 포함)도 32자 이상 토큰 글자 줄을 {token} 으로 가리고, 로거에는
+TokenRedactFilter 를 건다(T11 결정 iii — 32자 이상 풀 과정 id 도 기록에서는 {token} 이다).
 본문 상한은 CORS · 요청 기록 안쪽이라 413 에도 CORS 헤더가 붙고 기록된다(T11 결정 i).
 """
 
@@ -21,12 +23,19 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from classfit.app.errors import is_token_path, problem, request_path
+from classfit.app.errors import (
+    TokenRedactFilter,
+    is_token_path,
+    mask_runs,
+    problem,
+    request_path,
+)
 from classfit.app.routers import ROUTERS
 from classfit.app.upload import MIB
 from classfit.core.config import Settings
 
 log = logging.getLogger("classfit.request")
+log.addFilter(TokenRedactFilter())
 
 # 업로드 연산 밖 모든 요청의 본문 상한(Content-Type 과 상관없이). 실사용 꼴 JSON 본문은 수 KB 다(T11 결정 i 〔정함〕)
 BODY_MAX_BYTES = MIB
@@ -68,7 +77,7 @@ class RequestLogMiddleware:
             log.info(
                 "%s %s -> %s %.1fms",
                 scope.get("method"),
-                request_path(scope),
+                mask_runs(request_path(scope)),
                 status,
                 ms,
             )
