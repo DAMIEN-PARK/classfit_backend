@@ -1,7 +1,7 @@
 ---
 type: Plan
 title: "Plan: ClassFit 마스터 구현 계획"
-description: 태스크 한 바퀴 규칙, 1인 레인 A 의 단계, T0a~T9b 13개 태스크의 선행·마이그레이션·착수 조건·증명 요약·상태를 담은 순서표
+description: 태스크 한 바퀴 규칙, 1인 레인 A 의 단계, T0a~T10 14개 태스크의 선행·마이그레이션·착수 조건·증명 요약·상태를 담은 순서표
 date: 2026-10-21
 tags: [plan, classfit, tasks, sdlc, phase1]
 Archives: false
@@ -61,7 +61,7 @@ r3 §5.1 "태스크 한 바퀴"다. 커밋 제목 규약은 [태스크 계획 �
 | T10 | 1차 마감 문서 | T9b | A | 없음 | T9b 병합·push(충족 — `1643ebc` · CI success) | [T10-phase1-close.md](../plans/T10-phase1-close.md) | spec 1절 상태 "1차 완료" · ④ 행 수(T9b 3행 포함 — Q4 ⓑ) · E-15 `completed`·`success` | 완료(이 가지 — 병합하면 1차 끝) |
 
 - 규칙 ↔ 시험 이름의 대응은 [Design 부록 A](2026-10-21-phase1-backend-design.md) 에 있다. 병합된 T 의 행은 `scripts/check_docs.sh` ④ 가 잰다.
-- 1차 끝(T9b 병합 뒤)의 수용 기준은 r3 §6 E-1~E-15 다. 개수 기준(E-10·E-12·E-14)은 T9b 기준이고, 태스크마다는 그 T 가 더한 시험만 잰다. T9b 계획 증명 블록이 E-1~E-15 최종값을 돌고, 병합 뒤 기록(spec 1절 "1차 완료" · ④ 행 수 · E-15)은 T10 이 쓴다.
+- 1차 수용 기준은 r3 §6 E-1~E-15 이고 T9b 병합 뒤의 값으로 잰다. 1차 끝은 T10 병합이다. 개수 기준(E-10·E-12·E-14)은 T9b 기준이고, 태스크마다는 그 T 가 더한 시험만 잰다. T9b 계획 증명 블록이 E-1~E-15 최종값을 돌고, 병합 뒤 기록(spec 1절 "1차 완료" · ④ 행 수 · E-15)은 T10 이 쓴다.
 
 
 
