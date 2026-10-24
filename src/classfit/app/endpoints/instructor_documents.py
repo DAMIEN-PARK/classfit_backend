@@ -5,7 +5,7 @@
   → 폼 파싱(파트 수 초과·boundary 없음은 Starlette 가 400) → file 파트 없음 422 → 501(FILE_STORE_ROOT 미구성)
   → 실제 크기 413 → 첫 5바이트 %PDF- 아니면 422 → 새로 201 · 교체 200.
 - 폼 매개변수를 선언하지 않고 인증 뒤 `async with request.form(max_files=1, max_fields=1)` 로 읽는다(인증 전 스풀 없음).
-  411·413 판정은 T2b 첨부 끝점의 함수를 그대로 쓴다. content_type 은 application/pdf 로 고정한다(service).
+  411·413 판정은 app.upload 의 공용 도우미다(T11 결정 v). content_type 은 application/pdf 로 고정한다(service).
 - 교체는 새 stored_file 행 → 서류 행의 file_id 바꿈 → 옛 stored_file 행 삭제를 한 트랜잭션에서 한다. 바이트는 gc 몫.
   stored_file.owner_id 는 강사 id 이고, /v1/files/{key} 판정은 본인 강사만 참이다(관리자는 거짓).
 - 관리자 열람(GET /v1/admin/instructors/{instructor_id}/documents/{type_id})은 매 요청 audit 1행
@@ -27,9 +27,9 @@ from starlette.datastructures import UploadFile
 
 from classfit.app.deps import AdminCaller, DbSession, InstructorCaller
 from classfit.app.endpoints.admin_instructors import instructor_or_404
-from classfit.app.endpoints.attachments import MIB, _check_length, _invalid
 from classfit.app.endpoints.files import SAFE_HEADERS
 from classfit.app.errors import AppError
+from classfit.app.upload import MIB, check_length, invalid
 from classfit.core.config import Settings
 from classfit.core.errors import NotConfigured, NotFound
 from classfit.crud import instructor_document as crud_document
@@ -111,11 +111,11 @@ async def put_document(
     settings: Settings = request.app.state.settings
     kind = await document_type_or_404(session, type_id)
     max_bytes = settings.document_pdf_max_mb * MIB
-    _check_length(request, max_bytes + MIB)
+    check_length(request, max_bytes)
     async with request.form(max_files=1, max_fields=1) as form:
         upload = form.get("file")
         if not isinstance(upload, UploadFile):
-            raise _invalid("file", "file 파트(PDF)가 필요합니다")
+            raise invalid("file", "file 파트(PDF)가 필요합니다")
         root = _store_root(settings)
         data = await upload.read(max_bytes + 1)
     try:
@@ -132,7 +132,7 @@ async def put_document(
             raise AppError(
                 413, f"PDF 는 {settings.document_pdf_max_mb}MB 까지입니다"
             ) from None
-        raise _invalid("file", "PDF 파일이 아닙니다") from None
+        raise invalid("file", "PDF 파일이 아닙니다") from None
     found = await crud_document.get_document_file(session, caller.id, kind.id)
     if found is None:  # 방금 넣은 행이다
         raise RuntimeError(f"강사 {caller.id} 의 서류 {kind.id} 를 다시 못 읽었다")

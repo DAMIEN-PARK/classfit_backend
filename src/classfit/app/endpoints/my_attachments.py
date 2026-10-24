@@ -17,8 +17,8 @@
 - POST /v1/me/attachments/{attachment_id}:replace(폼 file 하나): 같은 행의 파일만 바꾼다(id·제목·자리 그대로, 옛 파일
   행은 같은 트랜잭션에서 지워 옛 href 는 404). 같은 종류만(아니면 422 file), link 는 409. origin 은 비운다.
 - DELETE /v1/me/attachments/{attachment_id}: 204. 그 첨부의 파일 행도 지운다(바이트는 gc 몫).
-- 폼 매개변수를 선언하지 않는다 — 인증·세션 판정 뒤에 폼을 읽는다(T2b 첨부 끝점과 같은 까닭). 411·413 판정과 MIB 는
-  T2b 첨부 끝점의 이름을 그대로 쓴다.
+- 폼 매개변수를 선언하지 않는다 — 인증·세션 판정 뒤에 폼을 읽는다(T2b 첨부 끝점과 같은 까닭). 411·413 판정은
+  app.upload 의 공용 도우미다(T11 결정 v).
 """
 
 from __future__ import annotations
@@ -33,13 +33,9 @@ from starlette.datastructures import FormData, UploadFile
 
 from classfit.app.deps import DbSession, InstructorCaller
 from classfit.app.endpoints.assign import IdPath
-from classfit.app.endpoints.attachments import (
-    MIB,
-    _check_length,
-    _invalid,
-    attachment_out,
-)
+from classfit.app.endpoints.attachments import attachment_out
 from classfit.app.errors import AppError
+from classfit.app.upload import check_length, invalid
 from classfit.core.config import Settings
 from classfit.core.errors import Conflict, NotConfigured
 from classfit.crud.attachment import AttachmentRow
@@ -117,10 +113,10 @@ def _rejected(exc: FileRejected) -> Exception:
     if exc.reason == "too_large":
         return AppError(413, f"이 종류의 파일은 {exc.limit_mb}MB 까지입니다")
     if exc.reason == "kind_changed":
-        return _invalid("file", "같은 종류의 파일로만 바꿀 수 있습니다")
+        return invalid("file", "같은 종류의 파일로만 바꿀 수 있습니다")
     if exc.reason == "mismatch":
-        return _invalid("file", "파일 내용이 확장자와 맞지 않습니다")
-    return _invalid("file", "받지 않는 파일 종류입니다")
+        return invalid("file", "파일 내용이 확장자와 맞지 않습니다")
+    return invalid("file", "받지 않는 파일 종류입니다")
 
 
 def _form_fields(form: FormData) -> MyFileFormIn:
@@ -131,7 +127,7 @@ def _form_fields(form: FormData) -> MyFileFormIn:
         if value is None:
             continue
         if not isinstance(value, str):
-            raise _invalid(name, "글자 필드여야 합니다")
+            raise invalid(name, "글자 필드여야 합니다")
         raw[name] = value
     try:
         return MyFileFormIn.model_validate(raw)
@@ -154,7 +150,7 @@ async def _file_part(
     """(저장소 루트, 파일 이름, 바이트). 머리만 먼저 읽어 종류를 판정하고 그 종류 상한 + 1바이트까지만 읽는다."""
     upload = form.get("file")
     if not isinstance(upload, UploadFile) or not upload.filename:
-        raise _invalid("file", "file 파트(파일 이름 포함)가 필요합니다")
+        raise invalid("file", "file 파트(파일 이름 포함)가 필요합니다")
     root = settings.file_store_root
     if root is None:
         missing = settings.missing("file_store_root")
@@ -164,7 +160,7 @@ async def _file_part(
     except FileRejected as exc:
         raise _rejected(exc) from None
     if same_kind is not None and kind != same_kind:
-        raise _invalid("file", "같은 종류의 파일로만 바꿀 수 있습니다")
+        raise invalid("file", "같은 종류의 파일로만 바꿀 수 있습니다")
     await upload.seek(0)
     return root, upload.filename, await upload.read(limits[kind] + 1)
 
@@ -207,7 +203,7 @@ async def upload_my_attachment(
         session, instructor_id=caller.id, session_id=session_id, adding=True
     )
     limits = my_attachments.upload_limits(settings)
-    _check_length(request, max(limits.values()) + MIB)
+    check_length(request, max(limits.values()))
     async with request.form(max_files=1, max_fields=4) as form:
         fields = _form_fields(form)
         root, filename, data = await _file_part(form, settings, limits)
@@ -298,7 +294,7 @@ async def replace_my_attachment_file(
     if kind == "link":
         raise Conflict(my_attachment_edit.LINK_REPLACE_REFUSED)
     limits = my_attachments.upload_limits(settings)
-    _check_length(request, limits[kind] + MIB)
+    check_length(request, limits[kind])
     async with request.form(max_files=1, max_fields=1) as form:
         root, filename, data = await _file_part(form, settings, limits, same_kind=kind)
         try:

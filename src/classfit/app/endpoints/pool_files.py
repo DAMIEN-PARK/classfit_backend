@@ -7,7 +7,7 @@
   → 501(pdf 인데 FILE_STORE_ROOT 미구성) → 실제 크기 413 → 첫 5바이트 %PDF- 아니면 422 → 201.
 - 종류는 pdf·link 둘이다(T2b 첨부와 같다). 상한은 새 설정 없이 attachment_pdf_max_mb 를 쓴다.
 - 폼 매개변수를 선언하지 않고 대상 판정 뒤 `async with request.form(max_files=1, max_fields=5)` 로 읽는다.
-  411·413 판정과 MIB 는 T2b 첨부 끝점의 이름을 그대로 쓴다(결정 xxi 기본, T3 instructor_documents 와 같은 방식).
+  411·413 판정과 MIB 는 app.upload 의 공용 도우미다(결정 xxi 기본 · T11 결정 v 에서 공용 모듈로).
 - 역량 파일은 경로가 (호출자, pool_id) 라 남의 역량을 가리킬 길이 없다: 내 역량이 없으면 404, 그 풀 과정이
   비활성이면 409 다.
 - stored_file.owner_id 는 그 파일 행의 id 이고, /v1/files/{key} 판정은 관리자 ∨ 소유 강사다(OWNER_KINDS 세 종류).
@@ -27,9 +27,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import FormData, UploadFile
 
 from classfit.app.deps import DbSession, InstructorCaller
-from classfit.app.endpoints.attachments import MIB, _check_length, _invalid
 from classfit.app.endpoints.pool import file_outs, id_or_404
 from classfit.app.errors import AppError
+from classfit.app.upload import MIB, check_length, invalid
 from classfit.core.config import Settings
 from classfit.core.errors import NotConfigured
 from classfit.models.pool import POOL_FILES_MAX
@@ -98,7 +98,7 @@ def _form_fields(form: FormData) -> PoolFileFormIn:
         if value is None:
             continue
         if not isinstance(value, str):
-            raise _invalid(name, "글자 필드여야 합니다")
+            raise invalid(name, "글자 필드여야 합니다")
         raw[name] = value
     try:
         return PoolFileFormIn.model_validate(raw)
@@ -121,13 +121,13 @@ async def _upload(
     owner_kind, owner_id = target
     settings: Settings = request.app.state.settings
     max_bytes = settings.attachment_pdf_max_mb * MIB
-    _check_length(request, max_bytes + MIB)
+    check_length(request, max_bytes)
     actor = f"instructor:{caller.id}"
     async with request.form(max_files=1, max_fields=5) as form:
         fields = _form_fields(form)
         if fields.kind == "link":
             if fields.url is None:  # PoolFileFormIn 이 422 로 먼저 막는다
-                raise _invalid("url", "link 는 url 이 필요합니다")
+                raise invalid("url", "link 는 url 이 필요합니다")
             row = await pool_files.add_link_file(
                 session,
                 owner_kind=owner_kind,
@@ -139,7 +139,7 @@ async def _upload(
             return file_outs([(row, None, None)])[0]
         upload = form.get("file")
         if not isinstance(upload, UploadFile):
-            raise _invalid("file", "pdf 는 file 파트가 필요합니다")
+            raise invalid("file", "pdf 는 file 파트가 필요합니다")
         root = settings.file_store_root
         if root is None:
             missing = settings.missing("file_store_root")
@@ -161,7 +161,7 @@ async def _upload(
             raise AppError(
                 413, f"PDF 는 {settings.attachment_pdf_max_mb}MB 까지입니다"
             ) from None
-        raise _invalid("file", "PDF 파일이 아닙니다") from None
+        raise invalid("file", "PDF 파일이 아닙니다") from None
     return file_outs([(row, stored.key, stored.size)])[0]
 
 
